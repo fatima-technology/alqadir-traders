@@ -10,7 +10,6 @@
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background 0.4s ease, border-color 0.4s ease; }
         
-        /* Dynamic Theme Variables applied via JS on Tab Change */
         :root {
             --bg-gradient: linear-gradient(135deg, #0a0000 0%, #200003 50%, #4a0005 100%);
             --card-bg: rgba(255, 255, 255, 0.95);
@@ -29,7 +28,6 @@
             position: relative;
         }
 
-        /* Ambient Coca-Cola Fizzy Soda Animation Background */
         .cola-global-bg-animation {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             overflow: hidden; z-index: 0; pointer-events: none;
@@ -62,7 +60,6 @@
             backdrop-filter: blur(10px);
         }
         
-        /* ================= COCA-COLA ANIMATED LOGIN OVERLAY ================= */
         #loginOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #0a0000 0%, #3a0003 50%, #8a0008 100%);
@@ -135,7 +132,6 @@
             border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 12px;
         }
         .dev-footer-credits strong { color: #ffffff; font-weight: 700; }
-        /* ===================================================================== */
 
         .user-info-bar { display: flex; justify-content: space-between; align-items: center; background: #eef2f5; padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         
@@ -184,7 +180,6 @@
             border-radius: 4px; border: 1px solid #f5c6cb; direction: ltr; flex-wrap: wrap; gap: 5px;
         }
 
-        /* Beautiful Dynamic Tabs */
         .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
         .tab-btn { 
             padding: 10px 16px; background: rgba(233, 236, 239, 0.9); border: none; font-weight: bold; cursor: pointer; 
@@ -204,6 +199,18 @@
         .required-star { color: red; font-weight: bold; margin-left: 3px; }
         input, select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; text-align: left; direction: ltr; width: 100%; }
         
+        /* New live balance display style */
+        .live-balance-box {
+            margin-top: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 4px 8px;
+            background: #e3f2fd;
+            border-left: 3px solid #007bff;
+            border-radius: 4px;
+            color: #007bff;
+        }
+
         button.btn-add { background: #28a745; color: white; border: none; padding: 12px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; grid-column: 1 / -1; font-size: 16px; transition: all 0.2s ease; }
         button.btn-add:hover { background: #218838; transform: scale(1.01); }
         
@@ -254,7 +261,6 @@
             cursor: pointer; font-weight: 600; color: #333; margin: 0; width: 100%; display: flex; justify-content: space-between; align-items: center;
         }
 
-        /* ================= AI ASSISTANT CHAT WIDGET ================= */
         #aiHelpFab {
             position: fixed; bottom: 20px; right: 20px; z-index: 9990;
             background: linear-gradient(135deg, #e41e2d, #ff414d); color: white;
@@ -317,7 +323,6 @@
 </head>
 <body>
 
-<!-- Animated Global Cola Bubbles Background -->
 <div class="cola-global-bg-animation">
     <div class="bubble"></div>
     <div class="bubble"></div>
@@ -469,8 +474,10 @@
             </div>
             <div class="form-group">
                 <label>Shop Name <span class="required-star">*</span>:</label>
-                <input type="text" id="shopName" list="shopSuggestionsList" placeholder="Select or Type Shop Name..." required autocomplete="off">
+                <input type="text" id="shopName" list="shopSuggestionsList" placeholder="Select or Type Shop Name..." required autocomplete="off" oninput="showLiveShopBalance(this.value)">
                 <datalist id="shopSuggestionsList"></datalist>
+                <!-- Live balance box showing zima balance during data entry -->
+                <div class="live-balance-box" id="entryLiveBalanceDisplay">Current Balance: <strong>Rs. 0</strong></div>
             </div>
             <div class="form-group">
                 <label>Bill / Ref No:</label>
@@ -669,7 +676,7 @@
         </div>
     </div>
 
-    <!-- Tab 6: User Management & Activity Tracking -->
+    <!-- Tab 6: User Management -->
     <div id="users" class="tab-content admin-only-content">
         <h3 id="userFormTitle">⚙️ Create New User</h3>
         <form id="userForm">
@@ -774,7 +781,6 @@
     </div>
 </div>
 
-<!-- ================= AI HELP ASSISTANT FLOATING WIDGET ================= -->
 <button id="aiHelpFab" onclick="toggleAiChat()">🤖 AI Help Assistant</button>
 
 <div id="aiChatWindow">
@@ -811,7 +817,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    /* ================= DYNAMIC TAB BACKGROUND THEMES ================= */
     const TAB_THEMES = {
         'dashboard': 'linear-gradient(135deg, #0a0000 0%, #200003 50%, #4a0005 100%)',
         'entry': 'linear-gradient(135deg, #021e07 0%, #083813 50%, #135222 100%)',
@@ -1091,6 +1096,38 @@
         });
     }
 
+    // Function to calculate and show live shop balance on data entry
+    function showLiveShopBalance(shopNameInput) {
+        const dispElem = document.getElementById('entryLiveBalanceDisplay');
+        if (!dispElem) return;
+        const searchShop = cleanStr(shopNameInput);
+        if (!searchShop) {
+            dispElem.innerHTML = 'Current Balance: <strong>Rs. 0</strong>';
+            return;
+        }
+
+        let totalBal = 0;
+        let matchFound = false;
+
+        for (let i = 0; i < transactions.length; i++) {
+            const t = transactions[i];
+            if (t.shop && cleanStr(t.shop) === searchShop) {
+                matchFound = true;
+                totalBal += ((parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0));
+            }
+        }
+
+        if (!matchFound) {
+            dispElem.innerHTML = 'Current Balance: <strong style="color: #6c757d;">Rs. 0 (New Shop)</strong>';
+        } else if (totalBal > 0) {
+            dispElem.innerHTML = `Current Balance (Zima): <strong style="color: #d1121d;">Rs. ${totalBal.toLocaleString()}</strong>`;
+        } else if (totalBal < 0) {
+            dispElem.innerHTML = `Current Balance (Advance): <strong style="color: #28a745;">- Rs. ${Math.abs(totalBal).toLocaleString()}</strong>`;
+        } else {
+            dispElem.innerHTML = 'Current Balance: <strong style="color: #28a745;">Rs. 0 (Clear)</strong>';
+        }
+    }
+
     function addTransaction() {
         const rawDate = document.getElementById('entryDate').value;
         const date = normalizeDate(rawDate);
@@ -1125,6 +1162,7 @@
         document.getElementById('refNo').value = '';
         document.getElementById('creditVal').value = '';
         document.getElementById('recoveryVal').value = '';
+        showLiveShopBalance('');
         populateShopSuggestions();
     }
 
@@ -1236,6 +1274,7 @@
         document.getElementById('bookerName').value = t.booker;
         populateShopSuggestions();
         document.getElementById('shopName').value = t.shop;
+        showLiveShopBalance(t.shop);
         document.getElementById('refNo').value = t.ref;
         document.getElementById('creditVal').value = t.credit || '';
         document.getElementById('recoveryVal').value = t.recovery || '';
@@ -1766,26 +1805,27 @@
             allowedBookers = [...currentlySelectedUserBookers];
         }
 
-        if(!uName || !pWord || (role !== 'custom_booker' && !bName)) return alert('Fill all fields!');
+        if(!uName || !pWord) { alert('Fill out all required fields.'); return; }
 
-        const userObj = { username: uName, password: pWord, role, bookerName: bName, allowedShops, allowedBookers, isOnline: false, lastActive: "Never Logged In" };
+        const userObj = { username: uName, password: pWord, role, bookerName: bName || 'ALL', allowedShops, allowedBookers, isOnline: false, lastActive: "-" };
 
         if(editIdx >= 0) {
-            userObj.isOnline = USERS_DATABASE[editIdx].isOnline || false;
-            userObj.lastActive = USERS_DATABASE[editIdx].lastActive || "Never Logged In";
-            USERS_DATABASE[editIdx] = userObj;
+            USERS_DATABASE[editIdx] = { ...USERS_DATABASE[editIdx], ...userObj };
             document.getElementById('editUserIndex').value = -1;
             document.getElementById('saveUserBtn').innerText = 'Create User 👤';
             document.getElementById('userFormTitle').innerText = '⚙️ Create New User';
         } else {
+            if(USERS_DATABASE.some(u => cleanStr(u.username) === uName)) return alert('Username already exists!');
             USERS_DATABASE.push(userObj);
         }
 
-        renderUsers(); saveUsersToCloud();
-        document.getElementById('newUsername').value = ''; document.getElementById('newPassword').value = '';
-        document.getElementById('newBookerName').value = ''; document.getElementById('newUserRole').value = 'booker';
-        currentlySelectedUserShops = []; currentlySelectedUserBookers = [];
-        toggleUserRoleFields();
+        currentlySelectedUserShops = [];
+        currentlySelectedUserBookers = [];
+        saveUsersToCloud();
+        renderUsers();
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('newBookerName').value = '';
     }
 
     function editUser(index) {
@@ -1795,38 +1835,40 @@
         document.getElementById('newUserRole').value = u.role;
         document.getElementById('newBookerName').value = u.bookerName || '';
         document.getElementById('editUserIndex').value = index;
-        
-        currentlySelectedUserShops = u.allowedShops ? [...u.allowedShops] : [];
-        currentlySelectedUserBookers = u.allowedBookers ? [...u.allowedBookers] : [];
+
+        currentlySelectedUserShops = [...(u.allowedShops || [])];
+        currentlySelectedUserBookers = [...(u.allowedBookers || [])];
 
         toggleUserRoleFields();
-        document.getElementById('saveUserBtn').innerText = 'Update User ✏️';
-        document.getElementById('userFormTitle').innerText = '✏️ Edit User Details';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('saveUserBtn').innerText = 'Update User 👤';
+        document.getElementById('userFormTitle').innerText = '⚙️ Edit User';
     }
 
     function deleteUser(index) {
-        if(confirm('Delete user?')) { USERS_DATABASE.splice(index, 1); renderUsers(); saveUsersToCloud(); }
+        if(confirm('Delete user?')) { USERS_DATABASE.splice(index, 1); saveUsersToCloud(); renderUsers(); }
     }
 
     function reassignBookerShops() {
-        const fromB = cleanStr(document.getElementById('transferFromBooker').value);
+        const fromB = document.getElementById('transferFromBooker').value.toUpperCase();
         const toB = document.getElementById('transferToBooker').value.toUpperCase();
-        if(!fromB || !toB || fromB === cleanStr(toB)) return alert('Select valid different bookers!');
+        if(!fromB || !toB || fromB === toB) return alert('Select valid From and To bookers!');
 
-        if(confirm(`Transfer all entries from ${fromB.toUpperCase()} to ${toB}?`)) {
-            transactions.forEach(t => { if(cleanStr(t.booker) === fromB) t.booker = toB; });
-            saveTransactionsToCloud(); alert('Transferred successfully!');
+        if(confirm(`Reassign ALL shops from "${fromB}" to "${toB}"?`)) {
+            let cnt = 0;
+            transactions.forEach(t => { if(t.booker && t.booker.toUpperCase() === fromB) { t.booker = toB; cnt++; } });
+            saveTransactionsToCloud(); refreshCurrentTab();
+            alert(`Success! Reassigned ${cnt} records.`);
         }
     }
 
     function downloadBackup() {
-        const backupData = { transactions, users: USERS_DATABASE, date: new Date().toISOString() };
-        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `Al_Qadir_Backup_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ transactions, users: USERS_DATABASE }, null, 2));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `alqadir_backup_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        dlAnchorElem.remove();
     }
 
     function restoreBackup(event) {
@@ -1835,92 +1877,57 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                const imported = JSON.parse(e.target.result);
-                if(imported.transactions) { transactions = imported.transactions; saveTransactionsToCloud(); }
-                if(imported.users) { USERS_DATABASE = imported.users; saveUsersToCloud(); }
-                refreshCurrentTab(); alert('Restored Successfully!');
-            } catch(err) { alert('Invalid File!'); }
+                const parsed = JSON.parse(e.target.result);
+                if(parsed.transactions) transactions = parsed.transactions;
+                if(parsed.users) USERS_DATABASE = parsed.users;
+                saveTransactionsToCloud(); saveUsersToCloud();
+                refreshCurrentTab(); alert('Data restored successfully!');
+            } catch(err) { alert('Invalid backup file!'); }
         };
         reader.readAsText(file);
     }
 
     function exportTableToExcel(tableID, filename = '') {
-        const table = document.getElementById(tableID);
-        const blob = new Blob([table.outerHTML], { type: 'application/vnd.ms-excel' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${filename}.xls`;
-        a.click();
+        let tableSelect = document.getElementById(tableID);
+        let tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
+        filename = filename ? filename + '.xls' : 'excel_data.xls';
+        let downloadLink = document.createElement("a");
+        document.body.appendChild(downloadLink);
+        downloadLink.href = 'data:application/vnd.ms-excel,' + tableHTML;
+        downloadLink.download = filename;
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
     }
 
-    /* ================= AI SMART ASSISTANT SYSTEM ================= */
     function toggleAiChat() {
-        const chatWin = document.getElementById('aiChatWindow');
-        chatWin.style.display = (chatWin.style.display === 'flex') ? 'none' : 'flex';
-    }
-
-    function speakText(text) {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'ur-PK'; // Urdu Accent
-            window.speechSynthesis.speak(utterance);
-        }
+        const win = document.getElementById('aiChatWindow');
+        win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
     }
 
     function sendAiMessage() {
         const input = document.getElementById('aiChatInput');
         const text = input.value.trim();
-        if (!text) return;
+        if(!text) return;
 
-        appendAiMessage(text, 'user');
+        const chatBody = document.getElementById('aiChatMessages');
+        chatBody.innerHTML += `<div class="ai-msg user">${text}</div>`;
         input.value = '';
+        chatBody.scrollTop = chatBody.scrollHeight;
 
         setTimeout(() => {
-            const reply = processAiCommand(text);
-            appendAiMessage(reply, 'bot');
-            speakText(reply.replace(/[*_#]/g, ''));
+            let reply = "Aapka sawal mil gaya hai. Aap Dashboard, Daily Entry, ya Shop Ledger se mutalliq kuch bhi pooch sakte hain.";
+            const tLower = text.toLowerCase();
+            if(tLower.includes('entry') || tLower.includes('انٹری')) reply = "Daily Entry tab mein ja kar Booker, Shop Name, Credit aur Recovery daal kar Save karein. Ab shap ka zima balance bhi sath show hoga!";
+            else if(tLower.includes('backup') || tLower.includes('بیک اپ')) reply = "Backup & Restore tab se JSON file download karein taake aapka data safe rahe.";
+            else if(tLower.includes('balance') || tLower.includes('بیلنس')) reply = "Shop Ledger tab mein dukan ka naam likhein, poora hisab samne aa jaye ga.";
+
+            chatBody.innerHTML += `<div class="ai-msg bot">${reply}</div>`;
+            chatBody.scrollTop = chatBody.scrollHeight;
         }, 500);
     }
 
-    function appendAiMessage(text, sender) {
-        const box = document.getElementById('aiChatMessages');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `ai-msg ${sender}`;
-        msgDiv.innerText = text;
-        box.appendChild(msgDiv);
-        box.scrollTop = box.scrollHeight;
-    }
-
-    function processAiCommand(msg) {
-        const query = msg.toLowerCase();
-
-        if (query.includes('hello') || query.includes('hi') || query.includes('salam') || query.includes('kaise')) {
-            return "Walaikum Assalam! Main Al Qadir App ka AI Assistant hoon. Aap muzse Daily Entry, Ledger, Booker, Shops list ya Backup ke bare me kuch bhi pooch sakte hain!";
-        }
-        if (query.includes('entry') || query.includes('ندراج') || query.includes('add')) {
-            return "Daily Entry karne ke liye: Admin login karein, '📝 Daily Entry' tab par jayein, Booker select karein, Dukaan ka naam aur Credit/Recovery likh kar 'Save Entry' dabaein.";
-        }
-        if (query.includes('ledger') || query.includes('khata') || query.includes('کھاتہ')) {
-            return "Shop Ledger dekhne ke liye '🔍 Shop Ledger' tab par jayein, aur kisi bhi shop ka naam type/select karein. Pure saal ka hisab samne aa jayega.";
-        }
-        if (query.includes('booker') || query.includes('بوکر')) {
-            return "Bookers ki performance aur credit dekhne ke liye '👔 Booker Detail' tab par jayein. Wahan har booker ki total dukano aur recovery ka hisab milega.";
-        }
-        if (query.includes('transfer') || query.includes('reassign')) {
-            return "Dukaan transfer karne ke liye: '🏪 Shops List' tab par jayein aur kisi dukaan ke aage new booker select karke 'Transfer' dabaein, ya 'User Management' me bulk transfer karein.";
-        }
-        if (query.includes('backup') || query.includes('save') || query.includes('restore')) {
-            return "Data safe rakhne ke liye '💾 Backup & Restore' tab par ja kar 'Download Backup' dabaein. Emergency me file upload karke data restore kar sakte hain.";
-        }
-        if (query.includes('coca cola') || query.includes('owner') || query.includes('adnan')) {
-            return "Yeh Software Al Qadir Traders (Coca-Cola Distribution) ke liye special Adnan Software Solutions ki taraf se design kiya gaya hai.";
-        }
-
-        return "Main samajh gaya hoon! Is app me 7 tabs hain: Dashboard, Daily Entry, Shop Ledger, Booker Detail, Shops Directory, User Management, aur Backup System. Aap kisi specific feature ke baare me pooch sakte hain.";
-    }
-
-    applyUserPermissions();
+    if(currentUser) applyUserPermissions();
+    else document.getElementById('loginOverlay').style.display = 'flex';
 </script>
 </body>
 </html>
