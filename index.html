@@ -63,7 +63,8 @@
         #loginOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #0a0000 0%, #3a0003 50%, #8a0008 100%);
-            display: flex; justify-content: center; align-items: center;
+            display: none; /* Changed to none by default to prevent refresh flash */
+            justify-content: center; align-items: center;
             z-index: 9999; padding: 15px; overflow: hidden;
         }
 
@@ -465,7 +466,7 @@
             <input type="hidden" id="editIndex" value="-1">
             <div class="form-group">
                 <label>Date <span class="required-star">*</span>:</label>
-                <input type="text" id="entryDate" placeholder="01-02-2026" required>
+                <input type="text" id="entryDate" placeholder="01-02-2026" required oninput="renderTransactions()">
             </div>
             <div class="form-group">
                 <label>Order Booker <span class="required-star">*</span>:</label>
@@ -494,6 +495,26 @@
             <button type="button" class="btn-add" id="saveBtn" onclick="addTransaction()">Save Entry</button>
         </form>
 
+        <!-- DAY WISE SUMMARY CARD BAR (SHOWS TOTAL CREDIT, DEBIT & NET BALANCE FOR ENTRY DATE) -->
+        <div class="summary-card" id="entryDailySummaryCard" style="margin-top: 15px; margin-bottom: 15px;">
+            <div class="card" style="border-left-color: #e41e2d;">
+                <h3>Selected Entry Date Summary</h3>
+                <p id="entrySummaryDateLabel">-</p>
+            </div>
+            <div class="card" style="border-left-color: #28a745;">
+                <h3>Total Credit (ادھار)</h3>
+                <p id="entrySummaryTotalCredit">Rs. 0</p>
+            </div>
+            <div class="card" style="border-left-color: #17a2b8;">
+                <h3>Total Recovery (وصولی)</h3>
+                <p id="entrySummaryTotalRecovery">Rs. 0</p>
+            </div>
+            <div class="card" style="border-left-color: #ffc107;">
+                <h3>Day Net Balance</h3>
+                <p id="entrySummaryNetBalance">Rs. 0</p>
+            </div>
+        </div>
+
         <div class="backup-box no-print" style="border-color: #1D6F42; background: #f0fff4; margin-bottom: 20px;">
             <div>
                 <strong style="color: #1D6F42; font-size: 15px;">📂 Bulk Entry Upload (via CSV)</strong>
@@ -510,7 +531,7 @@
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
-            <h3>Transactions Record</h3>
+            <h3>Transactions Record (Latest Top)</h3>
             <div class="no-print" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 5px;">
                     <label style="font-size: 12px; font-weight: bold;">As On Date:</label>
@@ -944,6 +965,13 @@
     let currentlySelectedUserShops = [];
     let currentlySelectedUserBookers = [];
 
+    // IMMEDIATE SESSION CHECK TO ELIMINATE REFRESH FLASH LOGOUT
+    if (!currentUser) {
+        document.getElementById('loginOverlay').style.display = 'flex';
+    } else {
+        document.getElementById('loginOverlay').style.display = 'none';
+    }
+
     function updateLiveClock() {
         const now = new Date();
         const dateStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -954,7 +982,6 @@
     setInterval(updateLiveClock, 1000);
     updateLiveClock();
 
-    // EXPORT TO EXCEL FIX WITH SPECIFIC CUSTOM FILE NAME
     function exportTableToExcel(tbodyId, filename) {
         let tbody = document.getElementById(tbodyId);
         if(!tbody) return;
@@ -1498,7 +1525,30 @@
             filtered = filtered.filter(t => parseFormattedDate(t.date) <= toDateObj);
         }
 
-        filtered.sort((a,b) => parseFormattedDate(b.date) - parseFormattedDate(a.date));
+        // RECENT / LATEST ENTRY ON TOP SORTING FIX
+        filtered.sort((a,b) => {
+            let dateDiff = parseFormattedDate(b.date) - parseFormattedDate(a.date);
+            if (dateDiff !== 0) return dateDiff;
+            return b.originalIndex - a.originalIndex; // Higher index (newest entry) comes first on same date
+        });
+
+        // CALCULATE DAILY SUMMARY FOR SELECTED ENTRY DATE
+        let selectedEntryDate = document.getElementById('entryDate')?.value?.trim() || '';
+        document.getElementById('entrySummaryDateLabel').innerText = selectedEntryDate || "All Records";
+
+        let dayCreditTotal = 0;
+        let dayRecoveryTotal = 0;
+
+        transactions.forEach(t => {
+            if (!selectedEntryDate || t.date === selectedEntryDate) {
+                dayCreditTotal += (parseFloat(t.credit) || 0);
+                dayRecoveryTotal += (parseFloat(t.recovery) || 0);
+            }
+        });
+
+        document.getElementById('entrySummaryTotalCredit').innerText = `Rs. ${dayCreditTotal.toLocaleString()}`;
+        document.getElementById('entrySummaryTotalRecovery').innerText = `Rs. ${dayRecoveryTotal.toLocaleString()}`;
+        document.getElementById('entrySummaryNetBalance').innerHTML = formatBalance(dayCreditTotal - dayRecoveryTotal);
 
         const limitVal = document.getElementById('entryLimitSelect')?.value || '100';
         let displayList = filtered;
@@ -1641,7 +1691,6 @@
         document.getElementById('bCardBalance').innerHTML = formatBalance(totalBookerNet);
     }
 
-    // SHOPS LIST WITH EDIT, DELETE & REASSIGN/TRANSFER RESTORED
     function renderShops() {
         updateAsOfLabel('Shops Directory & Balances');
         const hideZero = document.getElementById('hideZeroShops').checked;
@@ -2013,9 +2062,7 @@
             let reply = "Aap ka sawal mil gaya hai. Main aapki kya mazeed madad kar sakta hoon?";
             let q = text.toLowerCase();
             if(q.includes('entry') || q.includes('ئنٹری')) reply = "Daily Entry karne ke liye 'Daily Entry' tab par jaen. Booker aur Shop muntakhib karein aur Credit ya Recovery add karke Save par click karein.";
-            else if(q.includes('excel') || q.includes('download')) reply = "Aap kisi bhi tab (Dashboard, Booker Detail, Shops Directory) par 'Download Excel' button dabakar osi list ki Excel file download kar sakte hain.";
-            else if(q.includes('shop') || q.includes('ہٹایا')) reply = "Shops Directory tab me ab Edit, Transfer aur Delete ke options mojood hain jin se aap shop ka naam edit ya transfer kar sakte hain.";
-
+            
             let botMsg = document.createElement('div');
             botMsg.className = 'ai-msg bot';
             botMsg.innerText = reply;
