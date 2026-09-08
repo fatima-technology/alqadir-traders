@@ -199,7 +199,6 @@
         .required-star { color: red; font-weight: bold; margin-left: 3px; }
         input, select { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; text-align: left; direction: ltr; width: 100%; }
         
-        /* New live balance display style */
         .live-balance-box {
             margin-top: 5px;
             font-size: 12px;
@@ -503,6 +502,7 @@
                 </p>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button class="btn-excel" style="background: #007bff; padding: 10px 14px; font-size: 13px;" onclick="downloadCSVSample()">📥 Download CSV Sample</button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="uploadBulkCSV(event)">
                 <button class="btn-excel" style="background: #1D6F42; padding: 10px 18px; font-size: 14px;" onclick="document.getElementById('csvFileInput').click()">📁 Select CSV File & Upload</button>
             </div>
@@ -1016,154 +1016,301 @@
     }
 
     function refreshCurrentTab() {
-        const activeTab = document.querySelector('.tab-content.active');
-        if (activeTab) {
-            const tabId = activeTab.id;
-            if(tabId === 'dashboard') renderDashboard();
-            if(tabId === 'entry') renderTransactions();
-            if(tabId === 'ledger') renderLedger();
-            if(tabId === 'bookerLedger') populateBookerDropdown();
-            if(tabId === 'shops') renderShops();
-            if(tabId === 'users') renderUsers();
-        }
+        const activeTab = document.querySelector('.tab-content.active')?.id || 'dashboard';
+        if (activeTab === 'dashboard') renderDashboard();
+        else if (activeTab === 'entry') renderTransactions();
+        else if (activeTab === 'ledger') renderLedger();
+        else if (activeTab === 'bookerLedger') renderBookerDetail();
+        else if (activeTab === 'shops') renderShops();
+        else if (activeTab === 'users') renderUsers();
     }
 
-    function openTab(tabId, btn) {
-        if(currentUser && currentUser.role !== 'admin' && (tabId === 'entry' || tabId === 'backup' || tabId === 'users')) {
-            alert('Access Denied!');
-            return;
-        }
-
-        switchBackgroundTheme(tabId);
-
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    function openTab(tabId, element) {
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+        
         document.getElementById(tabId).classList.add('active');
-        if(btn) btn.classList.add('active');
-
-        setTimeout(refreshCurrentTab, 10);
-    }
-
-    function isShopAllowedForUser(shopName, bookerName) {
-        if (!currentUser) return false;
-        if (currentUser.role === 'admin') return true;
-        if (currentUser.role === 'custom_booker') {
-            const allowedBookersList = (currentUser.allowedBookers || []).map(b => cleanStr(b));
-            if (allowedBookersList.length > 0 && allowedBookersList.includes(cleanStr(bookerName))) return true;
-            const allowedList = (currentUser.allowedShops || []).map(s => cleanStr(s));
-            return allowedList.includes(cleanStr(shopName));
-        }
-        if (currentUser.role === 'booker') {
-            return cleanStr(currentUser.bookerName) === cleanStr(bookerName);
-        }
-        return true;
+        if(element) element.classList.add('active');
+        
+        switchBackgroundTheme(tabId);
+        refreshCurrentTab();
     }
 
     function populateEntryBookersDropdown() {
-        const bSelect = document.getElementById('bookerName');
-        if (!bSelect) return;
-        const currentVal = bSelect.value;
+        const selectElem = document.getElementById('bookerName');
+        if(!selectElem) return;
+        
+        let bookersSet = new Set();
+        USERS_DATABASE.forEach(u => {
+            if(u.bookerName && u.bookerName.toUpperCase() !== 'ALL') {
+                bookersSet.add(u.bookerName.toUpperCase().trim());
+            }
+        });
+        
+        transactions.forEach(t => {
+            if(t.booker && t.booker.toString().trim() !== '') {
+                bookersSet.add(t.booker.toString().toUpperCase().trim());
+            }
+        });
 
-        const bookerSet = new Set();
-        USERS_DATABASE.forEach(u => { if (u.bookerName && u.bookerName !== 'ALL') bookerSet.add(u.bookerName.toUpperCase()); });
-        transactions.forEach(t => { if (t.booker) bookerSet.add(t.booker.toUpperCase()); });
+        let currentVal = selectElem.value;
+        selectElem.innerHTML = '<option value="">-- Select Order Booker --</option>';
+        
+        Array.from(bookersSet).sort().forEach(b => {
+            let opt = document.createElement('option');
+            opt.value = b;
+            opt.innerText = b;
+            selectElem.appendChild(opt);
+        });
 
-        const sortedBookers = Array.from(bookerSet).sort((a, b) => a.localeCompare(b));
-        let html = '<option value="">-- Select Order Booker --</option>';
-        sortedBookers.forEach(b => { html += `<option value="${b}">${b}</option>`; });
-        bSelect.innerHTML = html;
-        bSelect.value = currentVal;
-        populateShopSuggestions();
+        const selectBookerElem = document.getElementById('selectBooker');
+        if(selectBookerElem) {
+            let bVal = selectBookerElem.value;
+            selectBookerElem.innerHTML = '<option value="">-- Select Order Booker --</option>';
+            Array.from(bookersSet).sort().forEach(b => {
+                let opt = document.createElement('option');
+                opt.value = b;
+                opt.innerText = b;
+                selectBookerElem.appendChild(opt);
+            });
+            if(bVal) selectBookerElem.value = bVal;
+        }
+
+        const transFrom = document.getElementById('transferFromBooker');
+        const transTo = document.getElementById('transferToBooker');
+        if(transFrom && transTo) {
+            transFrom.innerHTML = '<option value="">-- From Booker (Absent) --</option>';
+            transTo.innerHTML = '<option value="">-- To Booker (New/Covering) --</option>';
+            Array.from(bookersSet).sort().forEach(b => {
+                transFrom.appendChild(new Option(b, b));
+                transTo.appendChild(new Option(b, b));
+            });
+        }
+
+        if(currentVal) selectElem.value = currentVal;
+    }
+
+    function populateShopDropdowns() {
+        const shopSet = new Set();
+        transactions.forEach(t => {
+            if(t.shop && t.shop.toString().trim() !== '') {
+                shopSet.add(t.shop.toString().trim().toUpperCase());
+            }
+        });
+
+        const sortedShops = Array.from(shopSet).sort();
+        const dropDown = document.getElementById('shopSelectDropdown');
+        if(dropDown) {
+            dropDown.innerHTML = '<option value="">-- Choose Shop --</option>';
+            sortedShops.forEach(s => {
+                let opt = document.createElement('option');
+                opt.value = s;
+                opt.innerText = s;
+                dropDown.appendChild(opt);
+            });
+        }
     }
 
     function populateShopSuggestions() {
-        const selectedBooker = cleanStr(document.getElementById('bookerName').value);
-        const datalist = document.getElementById('shopSuggestionsList');
-        if (!datalist) return;
-        datalist.innerHTML = '';
-        if (!selectedBooker) return;
+        const booker = document.getElementById('bookerName').value.toUpperCase().trim();
+        const dataList = document.getElementById('shopSuggestionsList');
+        if(!dataList) return;
+        dataList.innerHTML = '';
 
-        const shopsSet = new Set();
+        const shopsForBooker = new Set();
         transactions.forEach(t => {
-            if (t.shop && cleanStr(t.booker) === selectedBooker) shopsSet.add(t.shop.toUpperCase());
+            if(!booker || (t.booker && t.booker.toUpperCase().trim() === booker)) {
+                if(t.shop && t.shop.toString().trim() !== '') {
+                    shopsForBooker.add(t.shop.toString().trim().toUpperCase());
+                }
+            }
         });
 
-        const sortedShops = Array.from(shopsSet).sort((a, b) => a.localeCompare(b));
-        sortedShops.forEach(s => {
-            const option = document.createElement('option');
-            option.value = s;
-            datalist.appendChild(option);
+        Array.from(shopsForBooker).sort().forEach(shopName => {
+            let opt = document.createElement('option');
+            opt.value = shopName;
+            dataList.appendChild(opt);
         });
     }
 
-    // Function to calculate and show live shop balance on data entry
-    function showLiveShopBalance(shopNameInput) {
-        const dispElem = document.getElementById('entryLiveBalanceDisplay');
-        if (!dispElem) return;
-        const searchShop = cleanStr(shopNameInput);
-        if (!searchShop) {
-            dispElem.innerHTML = 'Current Balance: <strong>Rs. 0</strong>';
+    function showLiveShopBalance(shopName) {
+        const display = document.getElementById('entryLiveBalanceDisplay');
+        if(!display) return;
+
+        let cleanShop = shopName.trim().toUpperCase();
+        if(!cleanShop) {
+            display.innerHTML = `Current Balance: <strong>Rs. 0</strong>`;
             return;
         }
 
-        let totalBal = 0;
-        let matchFound = false;
+        let totalCredit = 0;
+        let totalRecovery = 0;
 
-        for (let i = 0; i < transactions.length; i++) {
-            const t = transactions[i];
-            if (t.shop && cleanStr(t.shop) === searchShop) {
-                matchFound = true;
-                totalBal += ((parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0));
+        transactions.forEach(t => {
+            if(t.shop && t.shop.toString().trim().toUpperCase() === cleanShop) {
+                totalCredit += (parseFloat(t.credit) || 0);
+                totalRecovery += (parseFloat(t.recovery) || 0);
             }
+        });
+
+        let net = totalCredit - totalRecovery;
+        display.innerHTML = `Current Balance: <strong>${formatBalance(net)}</strong>`;
+    }
+
+    function syncSearchInput(val) {
+        document.getElementById('searchShopInput').value = val;
+        renderLedger();
+    }
+
+    function showToast(msg) {
+        alert(msg);
+    }
+
+    function renderDashboard() {
+        updateAsOfLabel('Dashboard Summary');
+        const dashDateVal = document.getElementById('dashToDate')?.value;
+        const dashToObj = dashDateVal ? new Date(dashDateVal) : null;
+        if(dashToObj) dashToObj.setHours(23, 59, 59, 999);
+
+        let filteredTrans = transactions.filter(t => {
+            if(dashToObj) {
+                let tDate = parseFormattedDate(t.date);
+                if(tDate > dashToObj) return false;
+            }
+            return true;
+        });
+
+        if(currentUser && currentUser.role === 'custom_booker') {
+            const allowedB = (currentUser.allowedBookers || []).map(b => b.toUpperCase());
+            const allowedS = (currentUser.allowedShops || []).map(s => s.toUpperCase());
+            filteredTrans = filteredTrans.filter(t => {
+                let matchB = allowedB.includes((t.booker || '').toUpperCase());
+                let matchS = allowedS.includes((t.shop || '').toUpperCase());
+                return matchB || matchS;
+            });
         }
 
-        if (!matchFound) {
-            dispElem.innerHTML = 'Current Balance: <strong style="color: #6c757d;">Rs. 0 (New Shop)</strong>';
-        } else if (totalBal > 0) {
-            dispElem.innerHTML = `Current Balance (Zima): <strong style="color: #d1121d;">Rs. ${totalBal.toLocaleString()}</strong>`;
-        } else if (totalBal < 0) {
-            dispElem.innerHTML = `Current Balance (Advance): <strong style="color: #28a745;">- Rs. ${Math.abs(totalBal).toLocaleString()}</strong>`;
-        } else {
-            dispElem.innerHTML = 'Current Balance: <strong style="color: #28a745;">Rs. 0 (Clear)</strong>';
-        }
+        const shopBalances = {};
+        const bookerData = {};
+
+        filteredTrans.forEach(t => {
+            let sName = (t.shop || '').toString().trim().toUpperCase();
+            let bName = (t.booker || 'UNASSIGNED').toString().trim().toUpperCase();
+            let c = parseFloat(t.credit) || 0;
+            let r = parseFloat(t.recovery) || 0;
+
+            if(sName) {
+                if(!shopBalances[sName]) shopBalances[sName] = 0;
+                shopBalances[sName] += (c - r);
+            }
+
+            if(!bookerData[bName]) {
+                bookerData[bName] = { shops: new Set(), creditShops: new Set(), totalCredit: 0, totalRecovery: 0, shopBalances: {} };
+            }
+
+            if(sName) {
+                bookerData[bName].shops.add(sName);
+                if(!bookerData[bName].shopBalances[sName]) bookerData[bName].shopBalances[sName] = 0;
+                bookerData[bName].shopBalances[sName] += (c - r);
+            }
+
+            bookerData[bName].totalCredit += c;
+            bookerData[bName].totalRecovery += r;
+        });
+
+        let grandMarketBal = 0;
+        let totalRegisteredShops = Object.keys(shopBalances).length;
+        let activeCreditShopsCount = 0;
+
+        Object.values(shopBalances).forEach(bal => {
+            grandMarketBal += bal;
+            if(bal > 0) activeCreditShopsCount++;
+        });
+
+        document.getElementById('dashTotalUdhaar').innerHTML = formatBalance(grandMarketBal);
+        document.getElementById('dashTotalShops').innerText = totalRegisteredShops;
+        document.getElementById('dashCreditShops').innerText = activeCreditShopsCount;
+
+        const tbody = document.getElementById('dashBookerTable');
+        tbody.innerHTML = '';
+
+        let sno = 1;
+        let sortedBookers = Object.keys(bookerData).sort();
+
+        sortedBookers.forEach(bName => {
+            let bObj = bookerData[bName];
+            let creditShopsInBooker = 0;
+            Object.values(bObj.shopBalances).forEach(sb => { if(sb > 0) creditShopsInBooker++; });
+            let net = bObj.totalCredit - bObj.totalRecovery;
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center">${sno++}</td>
+                <td class="text-left"><strong>${bName}</strong></td>
+                <td class="text-center">${bObj.shops.size}</td>
+                <td class="text-center">${creditShopsInBooker}</td>
+                <td class="text-right">Rs. ${bObj.totalCredit.toLocaleString()}</td>
+                <td class="text-right">Rs. ${bObj.totalRecovery.toLocaleString()}</td>
+                <td class="text-right">${formatBalance(net)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function clearDashDateFilter() {
+        document.getElementById('dashToDate').value = '';
+        renderDashboard();
     }
 
     function addTransaction() {
-        const rawDate = document.getElementById('entryDate').value;
-        const date = normalizeDate(rawDate);
+        const editIdx = parseInt(document.getElementById('editIndex').value, 10);
+        const date = normalizeDate(document.getElementById('entryDate').value);
         const booker = document.getElementById('bookerName').value.trim().toUpperCase();
         const shop = document.getElementById('shopName').value.trim().toUpperCase();
-        const ref = document.getElementById('refNo').value.trim() || '-';
+        const ref = document.getElementById('refNo').value.trim();
         const credit = parseFloat(document.getElementById('creditVal').value) || 0;
         const recovery = parseFloat(document.getElementById('recoveryVal').value) || 0;
-        const editIdx = parseInt(document.getElementById('editIndex').value);
 
-        if(!date || !booker || !shop || shop === 'UNDEFINED' || shop === 'UNKNOWN') {
-            alert('Please select a Booker and enter a valid shop name and date.');
+        if(!date || !booker || !shop) {
+            alert('Please fill Date, Order Booker and Shop Name!');
             return;
         }
 
-        const txObj = { date, booker, shop, ref, credit, recovery };
+        const newEntry = { date, booker, shop, ref, credit, recovery };
 
         if(editIdx >= 0) {
-            transactions[editIdx] = txObj;
+            transactions[editIdx] = newEntry;
             document.getElementById('editIndex').value = -1;
             document.getElementById('saveBtn').innerText = 'Save Entry';
             document.getElementById('formTitle').innerText = 'Add New Entry';
         } else {
-            transactions.push(txObj);
+            transactions.push(newEntry);
+            playEntrySound();
         }
 
-        playEntrySound();
-        renderTransactions();
         saveTransactionsToCloud();
+        populateShopDropdowns();
+        populateEntryBookersDropdown();
 
         document.getElementById('shopName').value = '';
         document.getElementById('refNo').value = '';
         document.getElementById('creditVal').value = '';
         document.getElementById('recoveryVal').value = '';
         showLiveShopBalance('');
-        populateShopSuggestions();
+
+        renderTransactions();
+    }
+
+    function downloadCSVSample() {
+        const sampleCSV = "date,booker,shop,ref,credit,recovery\n01-09-2026,SHAHID,AL MADINA STORE,INV-101,5000,0\n02-09-2026,SHAHID,AL MADINA STORE,REC-50,0,2000";
+        const blob = new Blob([sampleCSV], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "daily_entry_sample.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function uploadBulkCSV(event) {
@@ -1172,729 +1319,596 @@
 
         const reader = new FileReader();
         reader.onload = function(e) {
-            try {
-                const text = e.target.result;
-                const lines = text.split(/\r\n|\n/);
-                let addedCount = 0;
+            const text = e.target.result;
+            const lines = text.split('\n');
+            let addedCount = 0;
 
-                for(let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if(!line || (i === 0 && (line.toLowerCase().includes('date') || line.toLowerCase().includes('shop')))) continue;
+            for(let i = 1; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if(!line) continue;
+                let cols = line.split(',');
+                if(cols.length >= 6) {
+                    let date = normalizeDate(cols[0].trim());
+                    let booker = cols[1].trim().toUpperCase();
+                    let shop = cols[2].trim().toUpperCase();
+                    let ref = cols[3].trim();
+                    let credit = parseFloat(cols[4].trim()) || 0;
+                    let recovery = parseFloat(cols[5].trim()) || 0;
 
-                    const cols = line.split(',');
-                    if(cols.length >= 3) {
-                        const rawDate = cols[0] ? cols[0].trim() : new Date().toISOString().split('T')[0];
-                        const date = normalizeDate(rawDate);
-                        const booker = cols[1] ? cols[1].trim().toUpperCase() : '';
-                        const shop = cols[2] ? cols[2].trim().toUpperCase() : '';
-                        const ref = cols[3] ? cols[3].trim() : '-';
-                        const credit = parseFloat(cols[4]) || 0;
-                        const recovery = parseFloat(cols[5]) || 0;
-
-                        if(date && booker && shop && shop !== 'UNDEFINED' && shop !== 'UNKNOWN') {
-                            transactions.push({ date, booker, shop, ref: ref || '-', credit, recovery });
-                            addedCount++;
-                        }
+                    if(shop && (credit > 0 || recovery > 0 || ref)) {
+                        transactions.push({ date, booker, shop, ref, credit, recovery });
+                        addedCount++;
                     }
                 }
+            }
 
-                if(addedCount > 0) {
-                    playEntrySound();
-                    renderTransactions();
-                    saveTransactionsToCloud();
-                    alert(`Success! ${addedCount} CSV entries uploaded successfully.`);
-                } else {
-                    alert('No valid entries found in the CSV file!');
-                }
-            } catch(err) { alert('Error reading CSV file.'); }
+            if(addedCount > 0) {
+                saveTransactionsToCloud();
+                populateShopDropdowns();
+                populateEntryBookersDropdown();
+                renderTransactions();
+                alert(`Successfully imported ${addedCount} entries from CSV file!`);
+            } else {
+                alert("No valid entries found in the CSV file!");
+            }
             event.target.value = '';
         };
         reader.readAsText(file);
     }
 
-    function renderTransactions() {
-        updateAsOfLabel('Daily Entry Log');
-        const tbody = document.getElementById('transactionTable');
-        const limitVal = document.getElementById('entryLimitSelect').value;
-        const rawToDate = document.getElementById('entryToDate').value;
-        const toDateObj = rawToDate ? parseFormattedDate(normalizeDate(rawToDate)) : null;
-
-        let filtered = transactions.filter(t => {
-            if (toDateObj && parseFormattedDate(t.date) > toDateObj) return false;
-            return true;
-        });
-        
-        let html = '';
-        const len = filtered.length;
-        let limit = (limitVal === 'ALL') ? len : parseInt(limitVal);
-        const start = Math.max(0, len - limit);
-
-        for(let i = len - 1; i >= start; i--) {
-            const t = filtered[i];
-            const originalIdx = transactions.indexOf(t);
-            html += `
-                <tr>
-                    <td class="no-print text-center"><input type="checkbox" class="entry-select-checkbox" value="${originalIdx}"></td>
-                    <td class="text-center">${i + 1}</td>
-                    <td class="text-center">${t.date}</td>
-                    <td class="text-left">${t.booker}</td>
-                    <td class="text-left">${t.shop}</td>
-                    <td class="text-left">${t.ref}</td>
-                    <td class="text-right">${t.credit.toLocaleString()}</td>
-                    <td class="text-right">${t.recovery.toLocaleString()}</td>
-                    <td class="no-print text-center">
-                        <button class="btn-edit" onclick="editTx(${originalIdx})">Edit</button>
-                        <button class="btn-delete" onclick="deleteTx(${originalIdx})">Delete</button>
-                    </td>
-                </tr>
-            `;
-        }
-        tbody.innerHTML = html;
-        if(document.getElementById('selectAllEntries')) document.getElementById('selectAllEntries').checked = false;
-    }
-
-    function toggleSelectAllEntries(master) {
-        document.querySelectorAll('.entry-select-checkbox').forEach(cb => cb.checked = master.checked);
-    }
-
-    function deleteSelectedEntries() {
-        const checkboxes = document.querySelectorAll('.entry-select-checkbox:checked');
-        if(checkboxes.length === 0) return alert('Select entries first!');
-        const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a,b) => b - a);
-
-        if(confirm(`Delete ${selectedIndices.length} selected entries?`)) {
-            selectedIndices.forEach(idx => transactions.splice(idx, 1));
-            renderTransactions(); saveTransactionsToCloud();
-        }
-    }
-
-    function editTx(index) {
+    function editEntry(index) {
         const t = transactions[index];
+        if(!t) return;
+
+        document.getElementById('editIndex').value = index;
         document.getElementById('entryDate').value = t.date;
         document.getElementById('bookerName').value = t.booker;
         populateShopSuggestions();
         document.getElementById('shopName').value = t.shop;
-        showLiveShopBalance(t.shop);
         document.getElementById('refNo').value = t.ref;
-        document.getElementById('creditVal').value = t.credit || '';
-        document.getElementById('recoveryVal').value = t.recovery || '';
-        document.getElementById('editIndex').value = index;
-        document.getElementById('saveBtn').innerText = 'Update Entry';
-        document.getElementById('formTitle').innerText = 'Edit Entry';
+        document.getElementById('creditVal').value = t.credit;
+        document.getElementById('recoveryVal').value = t.recovery;
+
+        showLiveShopBalance(t.shop);
+
+        document.getElementById('saveBtn').innerText = 'Update Entry ✏️';
+        document.getElementById('formTitle').innerText = 'Edit Transaction Entry';
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function deleteTx(index) {
-        if(confirm('Delete this entry?')) {
-            transactions.splice(index, 1); renderTransactions(); saveTransactionsToCloud();
+    function deleteEntry(index) {
+        if(confirm("Are you sure you want to delete this entry?")) {
+            transactions.splice(index, 1);
+            saveTransactionsToCloud();
+            populateShopDropdowns();
+            populateEntryBookersDropdown();
+            renderTransactions();
         }
     }
 
-    function clearDashDateFilter() {
-        document.getElementById('dashToDate').value = '';
-        renderDashboard();
+    function toggleSelectAllEntries(master) {
+        document.querySelectorAll('.entry-checkbox').forEach(cb => cb.checked = master.checked);
     }
 
-    function renderDashboard() {
-        updateAsOfLabel('Dashboard Overview');
-        const rawToDate = document.getElementById('dashToDate').value;
-        const toDateObj = rawToDate ? parseFormattedDate(normalizeDate(rawToDate)) : null;
-
-        const bookerMap = {};
-        const shopBalMap = {};
-        let totalMarketBal = 0;
-
-        for(let i = 0; i < transactions.length; i++) {
-            const t = transactions[i];
-            if (toDateObj && parseFormattedDate(t.date) > toDateObj) continue;
-
-            const b = t.booker ? t.booker.toUpperCase() : '';
-            const s = t.shop ? t.shop.toUpperCase() : '';
-
-            if(!isShopAllowedForUser(s, b)) continue;
-
-            const diff = t.credit - t.recovery;
-            if(!bookerMap[b]) bookerMap[b] = { shops: new Set(), credit: 0, recovery: 0 };
-            bookerMap[b].shops.add(s);
-            bookerMap[b].credit += t.credit;
-            bookerMap[b].recovery += t.recovery;
-
-            shopBalMap[s] = (shopBalMap[s] || 0) + diff;
+    function deleteSelectedEntries() {
+        const checkboxes = document.querySelectorAll('.entry-checkbox:checked');
+        if(checkboxes.length === 0) {
+            alert("Please select entries to delete!");
+            return;
         }
 
-        let totalShopsCount = Object.keys(shopBalMap).length;
-        let creditShopsCount = 0;
+        if(confirm(`Are you sure you want to delete ${checkboxes.length} selected entries?`)) {
+            const indices = Array.from(checkboxes).map(cb => parseInt(cb.getAttribute('data-index'), 10)).sort((a,b) => b - a);
+            indices.forEach(idx => transactions.splice(idx, 1));
 
-        for (const s in shopBalMap) {
-            const bal = shopBalMap[s];
-            totalMarketBal += bal;
-            if(bal > 0) creditShopsCount++;
+            saveTransactionsToCloud();
+            populateShopDropdowns();
+            populateEntryBookersDropdown();
+            renderTransactions();
+            document.getElementById('selectAllEntries').checked = false;
+        }
+    }
+
+    function renderTransactions() {
+        updateAsOfLabel('Transactions Log');
+        const tbody = document.getElementById('transactionTable');
+        tbody.innerHTML = '';
+
+        const toDateVal = document.getElementById('entryToDate')?.value;
+        const toDateObj = toDateVal ? new Date(toDateVal) : null;
+        if(toDateObj) toDateObj.setHours(23, 59, 59, 999);
+
+        let filtered = transactions.map((t, idx) => ({ ...t, originalIndex: idx }));
+
+        if(toDateObj) {
+            filtered = filtered.filter(t => parseFormattedDate(t.date) <= toDateObj);
         }
 
-        document.getElementById('dashTotalUdhaar').innerText = `Rs. ${totalMarketBal.toLocaleString()}`;
-        document.getElementById('dashTotalShops').innerText = totalShopsCount;
-        document.getElementById('dashCreditShops').innerText = creditShopsCount;
+        filtered.sort((a,b) => parseFormattedDate(b.date) - parseFormattedDate(a.date));
 
-        const tbody = document.getElementById('dashBookerTable');
-        let html = '';
+        const limitVal = document.getElementById('entryLimitSelect')?.value || '100';
+        let displayList = filtered;
+        if(limitVal !== 'ALL') {
+            displayList = filtered.slice(0, parseInt(limitVal, 10));
+        }
+
         let sno = 1;
-        const sortedBookers = Object.keys(bookerMap).sort((a, b) => a.localeCompare(b));
-
-        for (const bName of sortedBookers) {
-            const data = bookerMap[bName];
-            const net = data.credit - data.recovery;
-            let bCreditShops = 0;
-            data.shops.forEach(s => { if((shopBalMap[s] || 0) > 0) bCreditShops++; });
-
-            html += `
-                <tr>
-                    <td class="text-center">${sno++}</td>
-                    <td class="text-left"><strong>${bName}</strong></td>
-                    <td class="text-center">${data.shops.size}</td>
-                    <td class="text-center">${bCreditShops}</td>
-                    <td class="text-right">${data.credit.toLocaleString()}</td>
-                    <td class="text-right">${data.recovery.toLocaleString()}</td>
-                    <td class="text-right">${formatBalance(net)}</td>
-                </tr>
+        displayList.forEach(t => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="no-print text-center"><input type="checkbox" class="entry-checkbox" data-index="${t.originalIndex}"></td>
+                <td class="text-center">${sno++}</td>
+                <td class="text-center">${t.date}</td>
+                <td class="text-left">${t.booker}</td>
+                <td class="text-left"><strong>${t.shop}</strong></td>
+                <td class="text-left">${t.ref || '-'}</td>
+                <td class="text-right">Rs. ${(parseFloat(t.credit)||0).toLocaleString()}</td>
+                <td class="text-right">Rs. ${(parseFloat(t.recovery)||0).toLocaleString()}</td>
+                <td class="no-print text-center">
+                    <button class="btn-edit" onclick="editEntry(${t.originalIndex})">Edit ✏️</button>
+                    <button class="btn-delete" onclick="deleteEntry(${t.originalIndex})">Delete 🗑️</button>
+                </td>
             `;
-        }
-        tbody.innerHTML = html;
-    }
-
-    function populateShopDropdowns() {
-        const select = document.getElementById('shopSelectDropdown');
-        if(!select) return;
-        const currentVal = select.value;
-        select.innerHTML = '<option value="">-- Choose Shop --</option>';
-
-        const shopsSet = new Set();
-        transactions.forEach(t => {
-            if(t.shop && isShopAllowedForUser(t.shop, t.booker)) shopsSet.add(t.shop.toUpperCase());
+            tbody.appendChild(tr);
         });
-
-        const sortedShops = Array.from(shopsSet).sort((a,b) => a.localeCompare(b));
-        sortedShops.forEach(s => { select.innerHTML += `<option value="${s}">${s}</option>`; });
-        select.value = currentVal;
-    }
-
-    function syncSearchInput(val) {
-        document.getElementById('searchShopInput').value = val;
-        renderLedger();
     }
 
     function renderLedger() {
-        const query = cleanStr(document.getElementById('searchShopInput').value);
-        const rawFromDate = document.getElementById('ledgerFromDate') ? document.getElementById('ledgerFromDate').value : '';
-        const rawToDate = document.getElementById('ledgerToDate') ? document.getElementById('ledgerToDate').value : '';
-        
-        const fromDateFormatted = rawFromDate ? normalizeDate(rawFromDate) : '';
-        const toDateFormatted = rawToDate ? normalizeDate(rawToDate) : '';
-        const fromDateObj = fromDateFormatted ? parseFormattedDate(fromDateFormatted) : null;
-        const toDateObj = toDateFormatted ? parseFormattedDate(toDateFormatted) : null;
-        
-        const tbody = document.getElementById('ledgerTable');
+        updateAsOfLabel('Shop Ledger Statement');
+        const shopSearch = cleanStr(document.getElementById('searchShopInput').value);
+        const fromDateVal = document.getElementById('ledgerFromDate')?.value;
+        const toDateVal = document.getElementById('ledgerToDate')?.value;
 
-        if(!query) {
+        const fromObj = fromDateVal ? new Date(fromDateVal) : null;
+        const toObj = toDateVal ? new Date(toDateVal) : null;
+        if(toObj) toObj.setHours(23, 59, 59, 999);
+
+        const tbody = document.getElementById('ledgerTable');
+        tbody.innerHTML = '';
+
+        if(!shopSearch) {
             document.getElementById('ledgerShopName').innerText = '-';
             document.getElementById('ledgerNetBalance').innerText = 'Rs. 0';
-            tbody.innerHTML = ''; return;
+            return;
         }
 
-        document.getElementById('ledgerShopName').innerText = document.getElementById('searchShopInput').value.toUpperCase();
-        let runningBal = 0, html = '', sno = 1;
+        let shopTrans = transactions.filter(t => cleanStr(t.shop) === shopSearch);
+        shopTrans.sort((a,b) => parseFormattedDate(a.date) - parseFormattedDate(b.date));
 
-        let sortedTx = transactions.map((t, originalIndex) => ({ ...t, originalIndex })).sort((a, b) => {
-            let dateA = parseFormattedDate(a.date), dateB = parseFormattedDate(b.date);
-            return dateA.getTime() !== dateB.getTime() ? dateA - dateB : a.originalIndex - b.originalIndex;
+        let runningBal = 0;
+        let sno = 1;
+        let foundShopName = shopTrans.length > 0 ? shopTrans[0].shop.toUpperCase() : shopSearch.toUpperCase();
+
+        document.getElementById('ledgerShopName').innerText = foundShopName;
+
+        shopTrans.forEach(t => {
+            let tDate = parseFormattedDate(t.date);
+            let c = parseFloat(t.credit) || 0;
+            let r = parseFloat(t.recovery) || 0;
+
+            runningBal += (c - r);
+
+            if(fromObj && tDate < fromObj) return;
+            if(toObj && tDate > toObj) return;
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center">${sno++}</td>
+                <td class="text-center">${t.date}</td>
+                <td class="text-left">${t.booker}</td>
+                <td class="text-left">${t.ref || '-'}</td>
+                <td class="text-right">Rs. ${c.toLocaleString()}</td>
+                <td class="text-right">Rs. ${r.toLocaleString()}</td>
+                <td class="text-right">${formatBalance(runningBal)}</td>
+            `;
+            tbody.appendChild(tr);
         });
 
-        if (fromDateObj) {
-            let openingBal = 0;
-            for(let i = 0; i < sortedTx.length; i++) {
-                const t = sortedTx[i];
-                if(cleanStr(t.shop).includes(query) && isShopAllowedForUser(t.shop, t.booker)) {
-                    if(parseFormattedDate(t.date) < fromDateObj) openingBal += (t.credit - t.recovery);
-                }
-            }
-            runningBal = openingBal;
-            html += `
-                <tr style="background-color: #fff3cd; font-weight: bold;">
-                    <td class="text-center">-</td>
-                    <td class="text-center">${fromDateFormatted}</td>
-                    <td class="text-left" colspan="2"><strong>OPENING BALANCE (Before ${fromDateFormatted})</strong></td>
-                    <td class="text-right">-</td><td class="text-right">-</td>
-                    <td class="text-right">${formatBalance(runningBal)}</td>
-                </tr>
-            `;
-        }
-
-        for(let i = 0; i < sortedTx.length; i++) {
-            const t = sortedTx[i];
-            if(cleanStr(t.shop).includes(query) && isShopAllowedForUser(t.shop, t.booker)) {
-                let tDateObj = parseFormattedDate(t.date);
-                if (fromDateObj && tDateObj < fromDateObj) continue;
-                if (toDateObj && tDateObj > toDateObj) continue;
-
-                runningBal += (t.credit - t.recovery);
-                html += `
-                    <tr>
-                        <td class="text-center">${sno++}</td>
-                        <td class="text-center">${t.date}</td>
-                        <td class="text-left">${t.booker}</td>
-                        <td class="text-left">${t.ref}</td>
-                        <td class="text-right">${t.credit > 0 ? t.credit.toLocaleString() : '-'}</td>
-                        <td class="text-right">${t.recovery > 0 ? t.recovery.toLocaleString() : '-'}</td>
-                        <td class="text-right">${formatBalance(runningBal)}</td>
-                    </tr>
-                `;
-            }
-        }
-        tbody.innerHTML = html;
         document.getElementById('ledgerNetBalance').innerHTML = formatBalance(runningBal);
     }
 
-    function populateBookerDropdown() {
-        const select = document.getElementById('selectBooker');
-        select.innerHTML = '<option value="">-- Select Order Booker --</option>';
-        const bookerSet = new Set();
-        transactions.forEach(t => { if(t.booker) bookerSet.add(t.booker.toUpperCase()); });
-
-        if(currentUser && currentUser.role === 'booker') {
-            const bName = currentUser.bookerName.toUpperCase();
-            select.innerHTML = `<option value="${bName}">${bName}</option>`;
-            select.value = bName; select.disabled = true;
-            renderBookerDetail(); return;
-        }
-
-        if(currentUser && currentUser.role === 'custom_booker') {
-            select.innerHTML = `<option value="CUSTOM_USER">${currentUser.username.toUpperCase()}</option>`;
-            select.value = "CUSTOM_USER"; select.disabled = true;
-            renderBookerDetail(); return;
-        }
-
-        select.disabled = false;
-        Array.from(bookerSet).sort((a,b) => a.localeCompare(b)).forEach(b => select.innerHTML += `<option value="${b}">${b}</option>`);
-        renderBookerDetail();
-    }
-
     function renderBookerDetail() {
-        let bSelect = cleanStr(document.getElementById('selectBooker').value);
-        if(currentUser && currentUser.role === 'booker') bSelect = cleanStr(currentUser.bookerName);
-
-        const rawToDate = document.getElementById('bookerToDate').value;
-        const toDateObj = rawToDate ? parseFormattedDate(normalizeDate(rawToDate)) : null;
+        updateAsOfLabel('Booker Wise Detailed Statement');
+        const selBooker = document.getElementById('selectBooker').value.toUpperCase().trim();
         const hideZero = document.getElementById('hideZeroBooker').checked;
-        const tbody = document.getElementById('bookerShopsTable');
+        const toDateVal = document.getElementById('bookerToDate')?.value;
+        const toDateObj = toDateVal ? new Date(toDateVal) : null;
+        if(toDateObj) toDateObj.setHours(23, 59, 59, 999);
 
-        if(!bSelect) {
+        const tbody = document.getElementById('bookerShopsTable');
+        tbody.innerHTML = '';
+
+        if(!selBooker) {
             document.getElementById('bCardName').innerText = '-';
             document.getElementById('bCardBalance').innerText = 'Rs. 0';
-            tbody.innerHTML = ''; return;
+            return;
         }
 
-        document.getElementById('bCardName').innerText = (currentUser && currentUser.role === 'custom_booker') ? currentUser.username.toUpperCase() : document.getElementById('selectBooker').value.toUpperCase();
+        document.getElementById('bCardName').innerText = selBooker;
+
         const shopSummary = {};
+        transactions.forEach(t => {
+            if((t.booker || '').toUpperCase().trim() === selBooker) {
+                if(toDateObj && parseFormattedDate(t.date) > toDateObj) return;
 
-        for(let i = 0; i < transactions.length; i++) {
-            const t = transactions[i];
-            const isMatch = (currentUser && currentUser.role === 'custom_booker') ? true : (cleanStr(t.booker) === bSelect);
-            if(isMatch && isShopAllowedForUser(t.shop, t.booker)) {
-                if (toDateObj && parseFormattedDate(t.date) > toDateObj) continue;
-                const sName = t.shop.toUpperCase();
-                if(!shopSummary[sName]) shopSummary[sName] = { credit: 0, recovery: 0 };
-                shopSummary[sName].credit += t.credit;
-                shopSummary[sName].recovery += t.recovery;
+                let s = (t.shop || '').toUpperCase().trim();
+                if(s) {
+                    if(!shopSummary[s]) shopSummary[s] = { credit: 0, recovery: 0 };
+                    shopSummary[s].credit += (parseFloat(t.credit) || 0);
+                    shopSummary[s].recovery += (parseFloat(t.recovery) || 0);
+                }
             }
-        }
+        });
 
-        let totalUdhaar = 0, html = '', sno = 1;
-        const sortedShops = Object.keys(shopSummary).sort((a, b) => a.localeCompare(b));
+        let totalBookerNet = 0;
+        let sno = 1;
+        let sortedShops = Object.keys(shopSummary).sort();
 
-        for(const sName of sortedShops) {
-            const data = shopSummary[sName];
-            const bal = data.credit - data.recovery;
-            if(hideZero && bal === 0) continue;
+        sortedShops.forEach(s => {
+            let c = shopSummary[s].credit;
+            let r = shopSummary[s].recovery;
+            let net = c - r;
 
-            totalUdhaar += bal;
-            html += `
-                <tr>
-                    <td class="text-center">${sno++}</td>
-                    <td class="text-left"><strong>${sName}</strong></td>
-                    <td class="text-right">${data.credit.toLocaleString()}</td>
-                    <td class="text-right">${data.recovery.toLocaleString()}</td>
-                    <td class="text-right">${formatBalance(bal)}</td>
-                </tr>
+            totalBookerNet += net;
+
+            if(hideZero && net === 0) return;
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center">${sno++}</td>
+                <td class="text-left"><strong>${s}</strong></td>
+                <td class="text-right">Rs. ${c.toLocaleString()}</td>
+                <td class="text-right">Rs. ${r.toLocaleString()}</td>
+                <td class="text-right">${formatBalance(net)}</td>
             `;
-        }
+            tbody.appendChild(tr);
+        });
 
-        tbody.innerHTML = html;
-        document.getElementById('bCardBalance').innerHTML = formatBalance(totalUdhaar);
+        document.getElementById('bCardBalance').innerHTML = formatBalance(totalBookerNet);
     }
 
     function renderShops() {
         updateAsOfLabel('Shops Directory & Balances');
-        const rawToDate = document.getElementById('shopsToDate').value;
-        const toDateObj = rawToDate ? parseFormattedDate(normalizeDate(rawToDate)) : null;
         const hideZero = document.getElementById('hideZeroShops').checked;
+        const toDateVal = document.getElementById('shopsToDate')?.value;
+        const toDateObj = toDateVal ? new Date(toDateVal) : null;
+        if(toDateObj) toDateObj.setHours(23, 59, 59, 999);
+
         const tbody = document.getElementById('shopsTable');
-        const shopsMap = {}, isAdmin = currentUser && currentUser.role === 'admin';
-        const bookersList = new Set();
+        tbody.innerHTML = '';
 
-        USERS_DATABASE.forEach(u => { if(u.bookerName && u.bookerName !== 'ALL') bookersList.add(u.bookerName.toUpperCase()); });
+        const shopsData = {};
+        transactions.forEach(t => {
+            if(toDateObj && parseFormattedDate(t.date) > toDateObj) return;
 
-        for(let i = 0; i < transactions.length; i++) {
-            const t = transactions[i];
-            if (toDateObj && parseFormattedDate(t.date) > toDateObj) continue;
+            let s = (t.shop || '').toUpperCase().trim();
+            let b = (t.booker || 'UNASSIGNED').toUpperCase().trim();
+            let c = parseFloat(t.credit) || 0;
+            let r = parseFloat(t.recovery) || 0;
 
-            const sName = t.shop.toUpperCase(), bName = t.booker.toUpperCase();
-            if(!shopsMap[sName]) shopsMap[sName] = { booker: bName, credit: 0, recovery: 0 };
-            shopsMap[sName].credit += t.credit;
-            shopsMap[sName].recovery += t.recovery;
-            shopsMap[sName].booker = bName;
-            bookersList.add(bName);
-        }
+            if(s) {
+                if(!shopsData[s]) shopsData[s] = { booker: b, credit: 0, recovery: 0 };
+                shopsData[s].credit += c;
+                shopsData[s].recovery += r;
+                shopsData[s].booker = b;
+            }
+        });
 
-        let html = '', sno = 1;
-        const sortedShops = Object.keys(shopsMap).sort((a, b) => a.localeCompare(b));
-        const sortedBookersList = Array.from(bookersList).sort((a, b) => a.localeCompare(b));
+        let sno = 1;
+        let sortedShops = Object.keys(shopsData).sort();
 
-        for(const sName of sortedShops) {
-            const data = shopsMap[sName];
-            if (!isShopAllowedForUser(sName, data.booker)) continue;
+        sortedShops.forEach(s => {
+            let sObj = shopsData[s];
+            let net = sObj.credit - sObj.recovery;
 
-            const net = data.credit - data.recovery;
-            if(hideZero && net === 0) continue;
+            if(hideZero && net === 0) return;
 
-            let bookerOptionsHTML = '';
-            sortedBookersList.forEach(b => {
-                bookerOptionsHTML += `<option value="${b}" ${b === data.booker ? 'selected' : ''}>${b}</option>`;
-            });
-
-            const escapedShopName = sName.replace(/'/g, "\\'");
-            html += `
-                <tr>
-                    <td class="no-print text-center admin-only"><input type="checkbox" class="shop-select-checkbox" value="${escapedShopName}"></td>
-                    <td class="text-center">${sno++}</td>
-                    <td class="text-left"><strong>${sName}</strong></td>
-                    <td class="text-left">${data.booker}</td>
-                    <td class="text-right">${data.credit.toLocaleString()}</td>
-                    <td class="text-right">${data.recovery.toLocaleString()}</td>
-                    <td class="text-right">${formatBalance(net)}</td>
-                    <td class="no-print text-center">
-                        ${isAdmin ? `
-                            <button class="btn-edit" onclick="editShopName('${escapedShopName}')">Edit</button>
-                            <button class="btn-delete" onclick="deleteShop('${escapedShopName}')">Delete</button>
-                            <select id="transferSelect_${sno}" style="padding: 4px; font-size: 11px; width: auto; margin-left: 5px;">
-                                ${bookerOptionsHTML}
-                            </select>
-                            <button class="btn-transfer" onclick="transferSingleShop('${escapedShopName}', 'transferSelect_${sno}')">Transfer 🔄</button>
-                        ` : '-'}
-                    </td>
-                </tr>
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="no-print admin-only text-center"><input type="checkbox" class="shop-checkbox" value="${s}"></td>
+                <td class="text-center">${sno++}</td>
+                <td class="text-left"><strong>${s}</strong></td>
+                <td class="text-left">${sObj.booker}</td>
+                <td class="text-right">Rs. ${sObj.credit.toLocaleString()}</td>
+                <td class="text-right">Rs. ${sObj.recovery.toLocaleString()}</td>
+                <td class="text-right">${formatBalance(net)}</td>
+                <td class="no-print text-center">
+                    <button class="btn-transfer admin-only" onclick="promptReassignShop('${s}')">Reassign 🔄</button>
+                </td>
             `;
-        }
-        tbody.innerHTML = html;
-        if(document.getElementById('selectAllShops')) document.getElementById('selectAllShops').checked = false;
+            tbody.appendChild(tr);
+        });
     }
 
     function toggleSelectAllShops(master) {
-        document.querySelectorAll('.shop-select-checkbox').forEach(cb => cb.checked = master.checked);
+        document.querySelectorAll('.shop-checkbox').forEach(cb => cb.checked = master.checked);
     }
 
     function deleteSelectedShops() {
-        const checkboxes = document.querySelectorAll('.shop-select-checkbox:checked');
-        if(checkboxes.length === 0) return alert('Select shops first!');
-        const selectedShops = Array.from(checkboxes).map(cb => cleanStr(cb.value));
+        const checkboxes = document.querySelectorAll('.shop-checkbox:checked');
+        if(checkboxes.length === 0) {
+            alert("Please select shops to delete!");
+            return;
+        }
 
-        if(confirm(`Delete ${selectedShops.length} shops and their history?`)) {
-            transactions = transactions.filter(t => !selectedShops.includes(cleanStr(t.shop)));
-            renderShops(); saveTransactionsToCloud();
+        const shopNames = Array.from(checkboxes).map(cb => cb.value);
+        if(confirm(`Are you sure you want to delete ALL transaction history for ${shopNames.length} selected shops?`)) {
+            transactions = transactions.filter(t => !shopNames.includes((t.shop||'').toUpperCase().trim()));
+            saveTransactionsToCloud();
+            populateShopDropdowns();
+            populateEntryBookersDropdown();
+            renderShops();
+            alert("Selected shops deleted successfully!");
         }
     }
 
-    function editShopName(oldShopName) {
-        const newShopName = prompt("Enter new Shop Name:", oldShopName);
-        if (!newShopName || newShopName.trim() === "") return;
-        const cleanNewName = newShopName.trim().toUpperCase();
-
-        let updatedCount = 0;
-        for (let i = 0; i < transactions.length; i++) {
-            if (cleanStr(transactions[i].shop) === cleanStr(oldShopName)) {
-                transactions[i].shop = cleanNewName; updatedCount++;
-            }
+    function promptReassignShop(shopName) {
+        const newBooker = prompt(`Enter NEW Booker Name for shop "${shopName}":`);
+        if(newBooker && newBooker.trim()) {
+            let bUpper = newBooker.trim().toUpperCase();
+            transactions.forEach(t => {
+                if((t.shop || '').toUpperCase().trim() === shopName) {
+                    t.booker = bUpper;
+                }
+            });
+            saveTransactionsToCloud();
+            populateEntryBookersDropdown();
+            renderShops();
+            alert(`Shop "${shopName}" reassigned to ${bUpper}`);
         }
-        if (updatedCount > 0) { renderShops(); saveTransactionsToCloud(); }
-    }
-
-    function deleteShop(shopName) {
-        if (confirm(`Delete "${shopName}" and ALL records?`)) {
-            transactions = transactions.filter(t => cleanStr(t.shop) !== cleanStr(shopName));
-            renderShops(); saveTransactionsToCloud();
-        }
-    }
-
-    function transferSingleShop(shopName, selectElementId) {
-        const newBooker = document.getElementById(selectElementId).value.toUpperCase();
-        if(!newBooker || !confirm(`Transfer "${shopName}" to ${newBooker}?`)) return;
-
-        for(let i = 0; i < transactions.length; i++) {
-            if(cleanStr(transactions[i].shop) === cleanStr(shopName)) transactions[i].booker = newBooker;
-        }
-        renderShops(); saveTransactionsToCloud();
     }
 
     function toggleUserRoleFields() {
         const role = document.getElementById('newUserRole').value;
         const bookerGroup = document.getElementById('assignedBookerGroup');
-        const allowedBookersGroup = document.getElementById('allowedBookersGroup');
-        const shopsGroup = document.getElementById('allowedShopsGroup');
+        const allowedBGroup = document.getElementById('allowedBookersGroup');
+        const allowedSGroup = document.getElementById('allowedShopsGroup');
 
-        if (role === 'custom_booker') {
-            bookerGroup.style.display = 'none';
-            allowedBookersGroup.style.display = 'flex';
-            shopsGroup.style.display = 'flex';
-            populateAllowedBookersCheckboxes();
-            populateFilterBookersDropdown();
-            populateShopsCheckboxesByBooker('ALL');
-        } else {
+        if(role === 'booker') {
             bookerGroup.style.display = 'flex';
-            allowedBookersGroup.style.display = 'none';
-            shopsGroup.style.display = 'none';
+            allowedBGroup.style.display = 'none';
+            allowedSGroup.style.display = 'none';
+        } else if(role === 'custom_booker') {
+            bookerGroup.style.display = 'none';
+            allowedBGroup.style.display = 'flex';
+            allowedSGroup.style.display = 'flex';
+            populateCustomAccessOptions();
+        } else {
+            bookerGroup.style.display = 'none';
+            allowedBGroup.style.display = 'none';
+            allowedSGroup.style.display = 'none';
         }
     }
 
-    function populateAllowedBookersCheckboxes() {
-        const container = document.getElementById('bookersCheckboxesList');
-        const bookerSet = new Set();
-        USERS_DATABASE.forEach(u => { if (u.bookerName && u.bookerName !== 'ALL' && u.bookerName !== 'CUSTOM') bookerSet.add(u.bookerName.toUpperCase()); });
-        transactions.forEach(t => { if (t.booker) bookerSet.add(t.booker.toUpperCase()); });
+    function populateCustomAccessOptions() {
+        const bookersBox = document.getElementById('bookersCheckboxesList');
+        bookersBox.innerHTML = '';
 
-        const sortedBookers = Array.from(bookerSet).sort((a, b) => a.localeCompare(b));
-        const cleanSelected = currentlySelectedUserBookers.map(b => cleanStr(b));
+        let bookersSet = new Set();
+        transactions.forEach(t => { if(t.booker) bookersSet.add(t.booker.toUpperCase().trim()); });
 
-        let html = '';
-        sortedBookers.forEach((bName, idx) => {
-            const isChecked = cleanSelected.includes(cleanStr(bName)) ? 'checked' : '';
-            html += `
-                <div class="shop-permission-item">
-                    <input type="checkbox" class="user-allowed-booker-cb" value="${bName}" id="cb_booker_${idx}" ${isChecked} onchange="trackCheckedBooker(this)">
-                    <label for="cb_booker_${idx}"><span>${bName}</span></label>
-                </div>
-            `;
+        Array.from(bookersSet).sort().forEach(b => {
+            let isChecked = currentlySelectedUserBookers.includes(b) ? 'checked' : '';
+            let div = document.createElement('div');
+            div.className = 'shop-permission-item';
+            div.innerHTML = `<input type="checkbox" value="${b}" ${isChecked} class="custom-booker-cb" id="cb_b_${b}"><label for="cb_b_${b}">${b}</label>`;
+            bookersBox.appendChild(div);
         });
-        container.innerHTML = html || '<span style="color:#888; font-size:12px;">No Bookers found.</span>';
+
+        const filterDrop = document.getElementById('filterBookerShopsDropdown');
+        filterDrop.innerHTML = '<option value="ALL">-- Show All Bookers Shops --</option>';
+        Array.from(bookersSet).sort().forEach(b => { filterDrop.appendChild(new Option(b, b)); });
+
+        populateShopsCheckboxesByBooker('ALL');
     }
 
-    function trackCheckedBooker(cb) {
-        const val = cb.value.toUpperCase();
-        if (cb.checked) { if (!currentlySelectedUserBookers.includes(val)) currentlySelectedUserBookers.push(val); }
-        else { currentlySelectedUserBookers = currentlySelectedUserBookers.filter(b => b !== val); }
-    }
+    function populateShopsCheckboxesByBooker(filterB) {
+        const shopsBox = document.getElementById('shopsCheckboxesList');
+        shopsBox.innerHTML = '';
 
-    function populateFilterBookersDropdown() {
-        const bSelect = document.getElementById('filterBookerShopsDropdown');
-        if(!bSelect) return;
-        bSelect.innerHTML = '<option value="ALL">-- Show All Bookers Shops --</option>';
-        const bookerSet = new Set();
-        transactions.forEach(t => { if(t.booker) bookerSet.add(t.booker.toUpperCase()); });
-
-        Array.from(bookerSet).sort((a,b) => a.localeCompare(b)).forEach(b => {
-            bSelect.innerHTML += `<option value="${b}">${b}</option>`;
-        });
-    }
-
-    function populateShopsCheckboxesByBooker(selectedBookerFilter) {
-        const container = document.getElementById('shopsCheckboxesList');
-        const shopsMap = {};
-        transactions.forEach(t => { if (t.shop) shopsMap[t.shop.toUpperCase()] = t.booker ? t.booker.toUpperCase() : ''; });
-
-        const sortedShops = Object.keys(shopsMap).sort((a, b) => a.localeCompare(b));
-        const cleanSelected = currentlySelectedUserShops.map(s => cleanStr(s));
-
-        let html = '';
-        sortedShops.forEach((shop, idx) => {
-            const shopBooker = shopsMap[shop];
-            if (selectedBookerFilter !== 'ALL' && cleanStr(shopBooker) !== cleanStr(selectedBookerFilter)) return;
-
-            const isChecked = cleanSelected.includes(cleanStr(shop)) ? 'checked' : '';
-            html += `
-                <div class="shop-permission-item" data-shopname="${shop.toLowerCase()}">
-                    <input type="checkbox" class="user-allowed-shop-cb" value="${shop}" id="cb_shop_${idx}" ${isChecked} onchange="trackCheckedShop(this)">
-                    <label for="cb_shop_${idx}">
-                        <span>${shop}</span>
-                        <small style="color:#888;">(${shopBooker})</small>
-                    </label>
-                </div>
-            `;
-        });
-        container.innerHTML = html || '<span style="color:#888; font-size:12px;">No shops found.</span>';
-    }
-
-    function trackCheckedShop(cb) {
-        const val = cb.value.toUpperCase();
-        if (cb.checked) { if (!currentlySelectedUserShops.includes(val)) currentlySelectedUserShops.push(val); }
-        else { currentlySelectedUserShops = currentlySelectedUserShops.filter(s => s !== val); }
-    }
-
-    function filterShopsInCheckboxList(searchTerm) {
-        const term = cleanStr(searchTerm);
-        document.querySelectorAll('.shop-permission-item').forEach(item => {
-            const shopName = item.getAttribute('data-shopname');
-            item.style.display = shopName.includes(term) ? 'flex' : 'none';
-        });
-    }
-
-    function renderUsers() {
-        const tbody = document.getElementById('usersTable');
-        const fromSel = document.getElementById('transferFromBooker');
-        const toSel = document.getElementById('transferToBooker');
-        fromSel.innerHTML = '<option value="">-- From Booker (Absent) --</option>';
-        toSel.innerHTML = '<option value="">-- To Booker (New/Covering) --</option>';
-
-        let html = '';
-        const bookerNamesSet = new Set();
-
-        USERS_DATABASE.forEach((u, i) => {
-            let detailText = u.bookerName || '-';
-            if (u.role === 'custom_booker') {
-                detailText = `Custom Access (${(u.allowedBookers || []).length} Bookers, ${(u.allowedShops || []).length} Shops Allowed)`;
+        let shopsSet = new Set();
+        transactions.forEach(t => {
+            if(filterB === 'ALL' || (t.booker && t.booker.toUpperCase().trim() === filterB)) {
+                if(t.shop) shopsSet.add(t.shop.toUpperCase().trim());
             }
-
-            const onlineBadge = u.isOnline 
-                ? `<span class="badge-online"><span class="status-dot"></span> ONLINE</span>`
-                : `<span class="badge-offline"><span class="status-dot-offline"></span> Offline</span>`;
-
-            html += `
-                <tr>
-                    <td class="text-center">${i + 1}</td>
-                    <td class="text-left"><strong>${u.username}</strong></td>
-                    <td class="text-left">${u.password}</td>
-                    <td class="text-center">${u.role.toUpperCase()}</td>
-                    <td class="text-left">${detailText}</td>
-                    <td class="text-center">${onlineBadge}</td>
-                    <td class="text-left" style="font-size: 11px;">${u.lastActive || "-"}</td>
-                    <td class="no-print text-center">
-                        <button class="btn-edit" onclick="editUser(${i})">Edit</button>
-                        ${u.username !== 'admin' ? `<button class="btn-delete" onclick="deleteUser(${i})">Delete</button>` : '<span style="color:#aaa; font-size:11px;">(Master Admin)</span>'}
-                    </td>
-                </tr>
-            `;
-            if(u.bookerName && u.bookerName !== 'ALL') bookerNamesSet.add(u.bookerName.toUpperCase());
         });
 
-        transactions.forEach(t => { if(t.booker) bookerNamesSet.add(t.booker.toUpperCase()); });
-        Array.from(bookerNamesSet).sort((a, b) => a.localeCompare(b)).forEach(b => {
-            fromSel.innerHTML += `<option value="${b}">${b}</option>`;
-            toSel.innerHTML += `<option value="${b}">${b}</option>`;
+        Array.from(shopsSet).sort().forEach(s => {
+            let isChecked = currentlySelectedUserShops.includes(s) ? 'checked' : '';
+            let div = document.createElement('div');
+            div.className = 'shop-permission-item shop-item-row';
+            div.innerHTML = `<input type="checkbox" value="${s}" ${isChecked} class="custom-shop-cb" id="cb_s_${s}"><label for="cb_s_${s}">${s}</label>`;
+            shopsBox.appendChild(div);
         });
+    }
 
-        tbody.innerHTML = html;
+    function filterShopsInCheckboxList(text) {
+        let clean = text.toLowerCase();
+        document.querySelectorAll('.shop-item-row').forEach(row => {
+            let shopName = row.textContent.toLowerCase();
+            row.style.display = shopName.includes(clean) ? 'flex' : 'none';
+        });
     }
 
     function saveUser() {
-        const uName = cleanStr(document.getElementById('newUsername').value);
-        const pWord = document.getElementById('newPassword').value.trim();
+        const editIdx = parseInt(document.getElementById('editUserIndex').value, 10);
+        const username = document.getElementById('newUsername').value.trim();
+        const password = document.getElementById('newPassword').value.trim();
         const role = document.getElementById('newUserRole').value;
-        let bName = document.getElementById('newBookerName').value.trim().toUpperCase();
-        const editIdx = parseInt(document.getElementById('editUserIndex').value);
+        const bookerName = document.getElementById('newBookerName').value.trim().toUpperCase() || 'ALL';
 
-        let allowedShops = [], allowedBookers = [];
-        if (role === 'custom_booker') {
-            bName = 'CUSTOM';
-            allowedShops = [...currentlySelectedUserShops];
-            allowedBookers = [...currentlySelectedUserBookers];
+        if(!username || !password) {
+            alert("Username and Password are required!");
+            return;
         }
 
-        if(!uName || !pWord) { alert('Fill out all required fields.'); return; }
+        let allowedBookers = [];
+        let allowedShops = [];
 
-        const userObj = { username: uName, password: pWord, role, bookerName: bName || 'ALL', allowedShops, allowedBookers, isOnline: false, lastActive: "-" };
+        if(role === 'custom_booker') {
+            document.querySelectorAll('.custom-booker-cb:checked').forEach(cb => allowedBookers.push(cb.value));
+            document.querySelectorAll('.custom-shop-cb:checked').forEach(cb => allowedShops.push(cb.value));
+        }
+
+        const userObj = { username, password, role, bookerName, allowedBookers, allowedShops, isOnline: false, lastActive: '-' };
 
         if(editIdx >= 0) {
-            USERS_DATABASE[editIdx] = { ...USERS_DATABASE[editIdx], ...userObj };
+            USERS_DATABASE[editIdx] = userObj;
             document.getElementById('editUserIndex').value = -1;
             document.getElementById('saveUserBtn').innerText = 'Create User 👤';
             document.getElementById('userFormTitle').innerText = '⚙️ Create New User';
         } else {
-            if(USERS_DATABASE.some(u => cleanStr(u.username) === uName)) return alert('Username already exists!');
             USERS_DATABASE.push(userObj);
         }
 
-        currentlySelectedUserShops = [];
-        currentlySelectedUserBookers = [];
         saveUsersToCloud();
+        document.getElementById('userForm').reset();
+        currentlySelectedUserBookers = [];
+        currentlySelectedUserShops = [];
+        toggleUserRoleFields();
         renderUsers();
-        document.getElementById('newUsername').value = '';
-        document.getElementById('newPassword').value = '';
-        document.getElementById('newBookerName').value = '';
+        alert("User account saved successfully!");
     }
 
-    function editUser(index) {
-        const u = USERS_DATABASE[index];
+    function editUser(idx) {
+        const u = USERS_DATABASE[idx];
+        if(!u) return;
+
+        document.getElementById('editUserIndex').value = idx;
         document.getElementById('newUsername').value = u.username;
         document.getElementById('newPassword').value = u.password;
         document.getElementById('newUserRole').value = u.role;
         document.getElementById('newBookerName').value = u.bookerName || '';
-        document.getElementById('editUserIndex').value = index;
 
-        currentlySelectedUserShops = [...(u.allowedShops || [])];
-        currentlySelectedUserBookers = [...(u.allowedBookers || [])];
+        currentlySelectedUserBookers = u.allowedBookers || [];
+        currentlySelectedUserShops = u.allowedShops || [];
 
         toggleUserRoleFields();
-        document.getElementById('saveUserBtn').innerText = 'Update User 👤';
-        document.getElementById('userFormTitle').innerText = '⚙️ Edit User';
+
+        document.getElementById('saveUserBtn').innerText = 'Update User ✏️';
+        document.getElementById('userFormTitle').innerText = '⚙️ Edit User Account';
     }
 
-    function deleteUser(index) {
-        if(confirm('Delete user?')) { USERS_DATABASE.splice(index, 1); saveUsersToCloud(); renderUsers(); }
-    }
-
-    function reassignBookerShops() {
-        const fromB = document.getElementById('transferFromBooker').value.toUpperCase();
-        const toB = document.getElementById('transferToBooker').value.toUpperCase();
-        if(!fromB || !toB || fromB === toB) return alert('Select valid From and To bookers!');
-
-        if(confirm(`Reassign ALL shops from "${fromB}" to "${toB}"?`)) {
-            let cnt = 0;
-            transactions.forEach(t => { if(t.booker && t.booker.toUpperCase() === fromB) { t.booker = toB; cnt++; } });
-            saveTransactionsToCloud(); refreshCurrentTab();
-            alert(`Success! Reassigned ${cnt} records.`);
+    function deleteUser(idx) {
+        if(confirm("Are you sure you want to delete this user?")) {
+            USERS_DATABASE.splice(idx, 1);
+            saveUsersToCloud();
+            renderUsers();
         }
     }
 
+    function reassignBookerShops() {
+        const fromB = document.getElementById('transferFromBooker').value;
+        const toB = document.getElementById('transferToBooker').value;
+
+        if(!fromB || !toB || fromB === toB) {
+            alert("Please select different From and To bookers!");
+            return;
+        }
+
+        if(confirm(`Are you sure you want to transfer ALL shops and entries from ${fromB} to ${toB}?`)) {
+            let count = 0;
+            transactions.forEach(t => {
+                if((t.booker || '').toUpperCase().trim() === fromB) {
+                    t.booker = toB;
+                    count++;
+                }
+            });
+            saveTransactionsToCloud();
+            populateEntryBookersDropdown();
+            alert(`Transferred ${count} entries from ${fromB} to ${toB} successfully!`);
+        }
+    }
+
+    function renderUsers() {
+        const tbody = document.getElementById('usersTable');
+        tbody.innerHTML = '';
+
+        let sno = 1;
+        USERS_DATABASE.forEach((u, idx) => {
+            let statusBadge = u.isOnline 
+                ? `<span class="badge-online"><span class="status-dot"></span> Online</span>` 
+                : `<span class="badge-offline"><span class="status-dot-offline"></span> Offline</span>`;
+
+            let accessInfo = u.role === 'admin' ? 'FULL SYSTEM ACCESS' : (u.role === 'booker' ? `Booker: ${u.bookerName}` : `Custom Access (${(u.allowedBookers||[]).length} Bookers, ${(u.allowedShops||[]).length} Shops)`);
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="text-center">${sno++}</td>
+                <td class="text-left"><strong>${u.username}</strong></td>
+                <td class="text-left">${u.password}</td>
+                <td class="text-center"><span style="text-transform: uppercase; font-weight: bold; font-size: 11px;">${u.role}</span></td>
+                <td class="text-left">${accessInfo}</td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-left" style="font-size: 11px;">${u.lastActive || '-'}</td>
+                <td class="no-print text-center">
+                    <button class="btn-edit" onclick="editUser(${idx})">Edit ✏️</button>
+                    <button class="btn-delete" onclick="deleteUser(${idx})">Delete 🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
     function downloadBackup() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ transactions, users: USERS_DATABASE }, null, 2));
-        const dlAnchorElem = document.createElement('a');
-        dlAnchorElem.setAttribute("href", dataStr);
-        dlAnchorElem.setAttribute("download", `alqadir_backup_${new Date().toISOString().split('T')[0]}.json`);
-        document.body.appendChild(dlAnchorElem);
-        dlAnchorElem.click();
-        dlAnchorElem.remove();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ transactions, USERS_DATABASE }));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `Al_Qadir_Traders_Backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
     }
 
     function restoreBackup(event) {
         const file = event.target.files[0];
         if(!file) return;
+
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
-                const parsed = JSON.parse(e.target.result);
-                if(parsed.transactions) transactions = parsed.transactions;
-                if(parsed.users) USERS_DATABASE = parsed.users;
-                saveTransactionsToCloud(); saveUsersToCloud();
-                refreshCurrentTab(); alert('Data restored successfully!');
-            } catch(err) { alert('Invalid backup file!'); }
+                const data = JSON.parse(e.target.result);
+                if(data.transactions) {
+                    transactions = data.transactions;
+                    saveTransactionsToCloud();
+                }
+                if(data.USERS_DATABASE) {
+                    USERS_DATABASE = data.USERS_DATABASE;
+                    saveUsersToCloud();
+                }
+                alert("Backup restored successfully!");
+                location.reload();
+            } catch(err) {
+                alert("Invalid Backup JSON file!");
+            }
         };
         reader.readAsText(file);
     }
 
     function exportTableToExcel(tableID, filename = '') {
-        let tableSelect = document.getElementById(tableID);
-        let tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
-        filename = filename ? filename + '.xls' : 'excel_data.xls';
-        let downloadLink = document.createElement("a");
-        document.body.appendChild(downloadLink);
-        downloadLink.href = 'data:application/vnd.ms-excel,' + tableHTML;
+        var tableSelect = document.getElementById(tableID);
+        var rows = tableSelect.rows;
+        var csv = [];
+        
+        for (var i = 0; i < rows.length; i++) {
+            var row = [], cols = rows[i].querySelectorAll("td, th");
+            for (var j = 0; j < cols.length; j++) {
+                if(cols[j].classList.contains('no-print')) continue;
+                
+                var cleanText = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/\s+/g, " ").trim();
+                cleanText = cleanText.replace(/"/g, '""');
+                row.push('"' + cleanText + '"');
+            }
+            if(row.length > 0) csv.push(row.join(","));
+        }
+        
+        var csvFile = new Blob(["\ufeff" + csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+        var downloadLink = document.createElement("a");
+        filename = filename ? filename + '.csv' : 'excel_data.csv';
         downloadLink.download = filename;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
     }
@@ -1909,25 +1923,38 @@
         const text = input.value.trim();
         if(!text) return;
 
-        const chatBody = document.getElementById('aiChatMessages');
-        chatBody.innerHTML += `<div class="ai-msg user">${text}</div>`;
+        const msgBox = document.getElementById('aiChatMessages');
+        
+        let uDiv = document.createElement('div');
+        uDiv.className = 'ai-msg user';
+        uDiv.innerText = text;
+        msgBox.appendChild(uDiv);
+
         input.value = '';
-        chatBody.scrollTop = chatBody.scrollHeight;
+        msgBox.scrollTop = msgBox.scrollHeight;
 
         setTimeout(() => {
-            let reply = "Aapka sawal mil gaya hai. Aap Dashboard, Daily Entry, ya Shop Ledger se mutalliq kuch bhi pooch sakte hain.";
-            const tLower = text.toLowerCase();
-            if(tLower.includes('entry') || tLower.includes('انٹری')) reply = "Daily Entry tab mein ja kar Booker, Shop Name, Credit aur Recovery daal kar Save karein. Ab shap ka zima balance bhi sath show hoga!";
-            else if(tLower.includes('backup') || tLower.includes('بیک اپ')) reply = "Backup & Restore tab se JSON file download karein taake aapka data safe rahe.";
-            else if(tLower.includes('balance') || tLower.includes('بیلنس')) reply = "Shop Ledger tab mein dukan ka naam likhein, poora hisab samne aa jaye ga.";
-
-            chatBody.innerHTML += `<div class="ai-msg bot">${reply}</div>`;
-            chatBody.scrollTop = chatBody.scrollHeight;
-        }, 500);
+            let bDiv = document.createElement('div');
+            bDiv.className = 'ai-msg bot';
+            
+            let query = text.toLowerCase();
+            if(query.includes('entry') || query.includes('اندراج')) {
+                bDiv.innerText = "Daily Entry karne ke liye Top menu me 'Daily Entry' par jayein. Date, Booker, Shop Name, Credit ya Recovery darj karke Save button dabiye.";
+            } else if(query.includes('excel') || query.includes('download')) {
+                bDiv.innerText = "Aap kisi bhi tab (Dashboard, Ledger, Booker Detail) me Excel button par click karke pure record ko Excel file (.csv) me download kar sakte hain.";
+            } else if(query.includes('user') || query.includes('password')) {
+                bDiv.innerText = "User Management tab me ja kar aap naya Booker ya Admin account bana sakte hain aur unhe مخصوص shops ki permission de sakte hain.";
+            } else {
+                bDiv.innerText = "Main Al Qadir Traders System ka Smart Assistant hoon. Aap Ledger, Daily Entry, Excel Download, ya User Management ke bare me pooch sakte hain!";
+            }
+            msgBox.appendChild(bDiv);
+            msgBox.scrollTop = msgBox.scrollHeight;
+        }, 600);
     }
 
-    if(currentUser) applyUserPermissions();
-    else document.getElementById('loginOverlay').style.display = 'flex';
+    if(currentUser) {
+        applyUserPermissions();
+    }
 </script>
 </body>
 </html>
