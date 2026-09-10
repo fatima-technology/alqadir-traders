@@ -1528,16 +1528,9 @@
             }
 
             // 6. CUSTOM BOOKER
-            else if (currentUser.role === 'custom_booker') {
+            else {
                 badgeElem.style.display = 'inline-block';
                 badgeElem.innerText = 'Custom Booker';
-                
-                // Hide all other tabs, show only Dashboard
-                allTabBtns.forEach(btn => {
-                    if (btn.id === 'tabDashBtn') btn.style.display = 'inline-block';
-                    else btn.style.display = 'none';
-                });
-
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
 
                 populateEntryBookersDropdown();
@@ -1592,10 +1585,6 @@
         }
 
         function openTab(tabId, btnElem) {
-            if (currentUser && currentUser.role === 'custom_booker' && tabId !== 'dashboard') {
-                alert('Access Restricted. You can only view Dashboard.');
-                return;
-            }
             if (currentUser && currentUser.role === 'view_only') {
                 const allowedTabs = currentUser.allowedTabs || [];
                 let shortId = tabId === 'dashboard' ? 'dashboard' : (tabId === 'bookerLedger' ? 'bookerledger' : tabId.toLowerCase());
@@ -1646,17 +1635,7 @@
             const dashSelect = document.getElementById('dashBookerFilter');
             if (dashSelect) {
                 const currDash = dashSelect.value;
-
-                let allowedBookersList = bookers;
-                if (currentUser && (currentUser.role === 'custom_booker' || currentUser.role === 'dashboard_only' || currentUser.role === 'view_only')) {
-                    if (currentUser.allowedDashBookers && currentUser.allowedDashBookers.length > 0) {
-                        allowedBookersList = currentUser.allowedDashBookers.map(b => b.toUpperCase());
-                    } else if (currentUser.allowedBookers && currentUser.allowedBookers.length > 0) {
-                        allowedBookersList = currentUser.allowedBookers.map(b => b.toUpperCase());
-                    }
-                }
-
-                dashSelect.innerHTML = `<option value="ALL">-- All Bookers --</option>` + allowedBookersList.map(b => `<option value="${b}">${b}</option>`).join('');
+                dashSelect.innerHTML = `<option value="ALL">-- All Bookers --</option>` + bookers.map(b => `<option value="${b}">${b}</option>`).join('');
                 if (currDash) dashSelect.value = currDash;
             }
 
@@ -1743,7 +1722,7 @@
 
         /* TRANSACTIONS LOGIC */
         function addTransaction() {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only')) {
                 alert('Read Only mode. You cannot add or modify entries.');
                 return;
             }
@@ -1779,14 +1758,17 @@
 
             saveTransactionsToCloud();
             
-            // Keep Date and Booker selected (do not reset them on save)
-            const currentSelectedDate = document.getElementById('entryDate').value;
-            const currentSelectedBooker = document.getElementById('bookerName').value;
+            // Keep Date and Booker values intact (prevent reset)
+            const savedDate = document.getElementById('entryDate').value;
+            const savedBooker = document.getElementById('bookerName').value;
 
-            document.getElementById('entryForm').reset();
+            document.getElementById('shopName').value = '';
+            document.getElementById('refNo').value = '';
+            document.getElementById('creditVal').value = '';
+            document.getElementById('recoveryVal').value = '';
             
-            document.getElementById('entryDate').value = currentSelectedDate;
-            document.getElementById('bookerName').value = currentSelectedBooker;
+            document.getElementById('entryDate').value = savedDate;
+            document.getElementById('bookerName').value = savedBooker;
             
             document.getElementById('entryLiveBalanceDisplay').innerHTML = `Current Balance: <strong>Rs. 0</strong>`;
             populateShopDropdowns();
@@ -1892,7 +1874,7 @@
         }
 
         function deleteSelectedEntries() {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -1909,7 +1891,7 @@
         }
 
         function editTransaction(index) {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -1929,7 +1911,7 @@
         }
 
         function deleteTransaction(index) {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -2008,7 +1990,7 @@
         }
 
         function uploadBulkCSV(event) {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -2059,14 +2041,9 @@
                 filteredTrans = filteredTrans.filter(t => parseFormattedDate(t.date) <= dTo);
             }
 
-            let userAllowedDashBookers = null;
-            if (currentUser) {
-                if (currentUser.allowedDashBookers && currentUser.allowedDashBookers.length > 0) {
-                    userAllowedDashBookers = currentUser.allowedDashBookers.map(b => b.toUpperCase());
-                } else if (currentUser.allowedBookers && currentUser.allowedBookers.length > 0) {
-                    userAllowedDashBookers = currentUser.allowedBookers.map(b => b.toUpperCase());
-                }
-            }
+            let userAllowedDashBookers = (currentUser && currentUser.allowedDashBookers && currentUser.allowedDashBookers.length > 0) 
+                ? currentUser.allowedDashBookers.map(b => b.toUpperCase()) 
+                : null;
 
             if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'dashboard_only')) {
                 filterBooker = (currentUser.bookerName || '').toUpperCase();
