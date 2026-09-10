@@ -968,6 +968,7 @@
                     <label>Role <span class="required-star">*</span>:</label>
                     <select id="newUserRole" onchange="toggleUserRoleFields()">
                         <option value="data_entry">Data Entry Operator (Only Data Entry Allowed)</option>
+                        <option value="dashboard_only">Dashboard Only (Selected Booker Access)</option>
                         <option value="view_only">Custom View Only (Selective Access Lock)</option>
                         <option value="booker">Booker (View Only - Assigned Booker Shops)</option>
                         <option value="custom_booker">Custom Access Booker (Selective Bookers/Shops Allowed)</option>
@@ -978,6 +979,12 @@
                 <div class="form-group" id="assignedBookerGroup">
                     <label>Assigned Booker Name <span class="required-star">*</span>:</label>
                     <input type="text" id="newBookerName" placeholder="e.g. SHAHID">
+                </div>
+
+                <!-- Dashboard Allowed Bookers Checkboxes -->
+                <div class="form-group" id="dashBookersGroup" style="grid-column:1/-1;">
+                    <label>📊 Select Allowed Dashboard Bookers (Visible in Dashboard Summary):</label>
+                    <div class="shop-permission-box" id="dashBookersCheckboxesList" style="max-height:150px; margin-bottom:10px;"></div>
                 </div>
 
                 <!-- View Only Tabs Checkboxes -->
@@ -1021,7 +1028,7 @@
                 </div>
             </div>
 
-            <h4 style="margin-top:25px;">Users List & Booker Live Activity Log (Audit Trail: Which user added which shops)</h4>
+            <h4 style="margin-top:25px;">Users List & Booker Live Activity Log</h4>
             <div class="table-responsive">
                 <table>
                     <thead>
@@ -1031,7 +1038,6 @@
                             <th class="text-left">Password</th>
                             <th class="text-center">Role</th>
                             <th class="text-left">Assigned Booker / Access Info</th>
-                            <th class="text-left">Added Shops Summary / Audit</th>
                             <th class="text-center">Live Status</th>
                             <th class="text-left">Last Login / Logout Time</th>
                             <th class="no-print text-center">Action</th>
@@ -1266,7 +1272,7 @@
 
         /* DEFAULT DATA */
         const DEFAULT_USERS = [
-            { username: "admin", password: "adnan1414", role: "admin", bookerName: "ALL", allowedShops: [], allowedBookers: [], allowedTabs: [], isOnline: false, lastActive: "-" }
+            { username: "admin", password: "adnan1414", role: "admin", bookerName: "ALL", allowedDashBookers: [], allowedShops: [], allowedBookers: [], allowedTabs: [], isOnline: false, lastActive: "-" }
         ];
 
         const DEFAULT_TRANSACTIONS = [];
@@ -1436,7 +1442,29 @@
                 openTab('entry', document.getElementById('tabEntryBtn'));
             }
 
-            // 2. BOOKER ROLE
+            // 2. DASHBOARD ONLY ROLE (Selected Booker)
+            else if (currentUser.role === 'dashboard_only') {
+                badgeElem.style.display = 'inline-block';
+                badgeElem.innerText = `Dashboard (${currentUser.bookerName || 'Assigned Booker'})`;
+
+                allTabBtns.forEach(btn => {
+                    if (btn.id === 'tabDashBtn') btn.style.display = 'inline-block';
+                    else btn.style.display = 'none';
+                });
+
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+                applyReadOnlyLockdown();
+
+                const dashSelect = document.getElementById('dashBookerFilter');
+                if (dashSelect) {
+                    dashSelect.value = (currentUser.bookerName || 'ALL').toUpperCase();
+                    dashSelect.disabled = true;
+                }
+
+                openTab('dashboard', document.getElementById('tabDashBtn'));
+            }
+
+            // 3. BOOKER ROLE
             else if (currentUser.role === 'booker') {
                 badgeElem.style.display = 'inline-block';
                 badgeElem.innerText = `Booker (${currentUser.bookerName || 'Assigned'})`;
@@ -1454,7 +1482,7 @@
                 openTab('dashboard', document.getElementById('tabDashBtn'));
             }
 
-            // 3. CUSTOM VIEW ONLY ROLE
+            // 4. CUSTOM VIEW ONLY ROLE
             else if (currentUser.role === 'view_only') {
                 badgeElem.style.display = 'inline-block';
                 badgeElem.innerText = 'Custom View Access';
@@ -1485,7 +1513,7 @@
                 if (firstAllowedTab) openTab(firstAllowedTab.id, firstAllowedTab.elem);
             }
 
-            // 4. ADMIN
+            // 5. ADMIN
             else if (currentUser.role === 'admin') {
                 badgeElem.style.display = 'inline-block';
                 badgeElem.innerText = 'Admin';
@@ -1493,14 +1521,23 @@
                 
                 const dashFilterContainer = document.getElementById('dashBookerFilterContainer');
                 if (dashFilterContainer) dashFilterContainer.style.display = 'flex';
+                const dashSelect = document.getElementById('dashBookerFilter');
+                if (dashSelect) dashSelect.disabled = false;
 
                 openTab('dashboard', document.getElementById('tabDashBtn'));
             }
 
-            // 5. CUSTOM BOOKER
-            else {
+            // 6. CUSTOM BOOKER
+            else if (currentUser.role === 'custom_booker') {
                 badgeElem.style.display = 'inline-block';
                 badgeElem.innerText = 'Custom Booker';
+                
+                // Hide all other tabs, show only Dashboard
+                allTabBtns.forEach(btn => {
+                    if (btn.id === 'tabDashBtn') btn.style.display = 'inline-block';
+                    else btn.style.display = 'none';
+                });
+
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
 
                 populateEntryBookersDropdown();
@@ -1555,6 +1592,10 @@
         }
 
         function openTab(tabId, btnElem) {
+            if (currentUser && currentUser.role === 'custom_booker' && tabId !== 'dashboard') {
+                alert('Access Restricted. You can only view Dashboard.');
+                return;
+            }
             if (currentUser && currentUser.role === 'view_only') {
                 const allowedTabs = currentUser.allowedTabs || [];
                 let shortId = tabId === 'dashboard' ? 'dashboard' : (tabId === 'bookerLedger' ? 'bookerledger' : tabId.toLowerCase());
@@ -1562,6 +1603,9 @@
                     alert('Access Restricted by Admin.');
                     return;
                 }
+            } else if (currentUser && currentUser.role === 'dashboard_only' && tabId !== 'dashboard') {
+                alert('Access Restricted. You can only view Dashboard.');
+                return;
             }
 
             document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
@@ -1602,7 +1646,17 @@
             const dashSelect = document.getElementById('dashBookerFilter');
             if (dashSelect) {
                 const currDash = dashSelect.value;
-                dashSelect.innerHTML = `<option value="ALL">-- All Bookers --</option>` + bookers.map(b => `<option value="${b}">${b}</option>`).join('');
+
+                let allowedBookersList = bookers;
+                if (currentUser && (currentUser.role === 'custom_booker' || currentUser.role === 'dashboard_only' || currentUser.role === 'view_only')) {
+                    if (currentUser.allowedDashBookers && currentUser.allowedDashBookers.length > 0) {
+                        allowedBookersList = currentUser.allowedDashBookers.map(b => b.toUpperCase());
+                    } else if (currentUser.allowedBookers && currentUser.allowedBookers.length > 0) {
+                        allowedBookersList = currentUser.allowedBookers.map(b => b.toUpperCase());
+                    }
+                }
+
+                dashSelect.innerHTML = `<option value="ALL">-- All Bookers --</option>` + allowedBookersList.map(b => `<option value="${b}">${b}</option>`).join('');
                 if (currDash) dashSelect.value = currDash;
             }
 
@@ -1650,6 +1704,13 @@
             const shopSel = document.getElementById('shopSelectDropdown');
             if (!shopSel) return;
 
+            if (bookerSel) {
+                let currentBookerSelVal = bookerSel.value;
+                let bookers = getUniqueBookers();
+                bookerSel.innerHTML = `<option value="ALL">-- Filter By Booker (All) --</option>` + bookers.map(b => `<option value="${b}">${b}</option>`).join('');
+                if (currentBookerSelVal) bookerSel.value = currentBookerSelVal;
+            }
+
             let selectedBooker = bookerSel ? bookerSel.value : 'ALL';
             let shops = new Set();
             transactions.forEach(t => {
@@ -1682,7 +1743,7 @@
 
         /* TRANSACTIONS LOGIC */
         function addTransaction() {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
                 alert('Read Only mode. You cannot add or modify entries.');
                 return;
             }
@@ -1717,8 +1778,16 @@
             }
 
             saveTransactionsToCloud();
+            
+            // Keep Date and Booker selected (do not reset them on save)
+            const currentSelectedDate = document.getElementById('entryDate').value;
+            const currentSelectedBooker = document.getElementById('bookerName').value;
+
             document.getElementById('entryForm').reset();
-            document.getElementById('entryDate').value = normalizeDate(`${new Date().getDate()}-${new Date().getMonth()+1}-${new Date().getFullYear()}`);
+            
+            document.getElementById('entryDate').value = currentSelectedDate;
+            document.getElementById('bookerName').value = currentSelectedBooker;
+            
             document.getElementById('entryLiveBalanceDisplay').innerHTML = `Current Balance: <strong>Rs. 0</strong>`;
             populateShopDropdowns();
             renderTransactions();
@@ -1736,14 +1805,24 @@
 
             let filtered = [...transactions];
 
-            // Date to Date Filter
+            // Date to Date Filter Fix
             if (filterFrom) {
                 let dFrom = new Date(filterFrom);
-                filtered = filtered.filter(t => parseFormattedDate(t.date) >= dFrom);
+                dFrom.setHours(0, 0, 0, 0);
+                filtered = filtered.filter(t => {
+                    let d = parseFormattedDate(t.date);
+                    d.setHours(0, 0, 0, 0);
+                    return d >= dFrom;
+                });
             }
             if (filterTo) {
                 let dTo = new Date(filterTo);
-                filtered = filtered.filter(t => parseFormattedDate(t.date) <= dTo);
+                dTo.setHours(23, 59, 59, 999);
+                filtered = filtered.filter(t => {
+                    let d = parseFormattedDate(t.date);
+                    d.setHours(0, 0, 0, 0);
+                    return d <= dTo;
+                });
             }
 
             // Recent Update vs Old Entry Sorting
@@ -1813,7 +1892,7 @@
         }
 
         function deleteSelectedEntries() {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -1830,7 +1909,7 @@
         }
 
         function editTransaction(index) {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -1850,7 +1929,7 @@
         }
 
         function deleteTransaction(index) {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -1929,7 +2008,7 @@
         }
 
         function uploadBulkCSV(event) {
-            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only')) {
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'view_only' || currentUser.role === 'dashboard_only' || currentUser.role === 'custom_booker')) {
                 alert('Read Only mode.');
                 return;
             }
@@ -1980,7 +2059,16 @@
                 filteredTrans = filteredTrans.filter(t => parseFormattedDate(t.date) <= dTo);
             }
 
-            if (currentUser && currentUser.role === 'booker') {
+            let userAllowedDashBookers = null;
+            if (currentUser) {
+                if (currentUser.allowedDashBookers && currentUser.allowedDashBookers.length > 0) {
+                    userAllowedDashBookers = currentUser.allowedDashBookers.map(b => b.toUpperCase());
+                } else if (currentUser.allowedBookers && currentUser.allowedBookers.length > 0) {
+                    userAllowedDashBookers = currentUser.allowedBookers.map(b => b.toUpperCase());
+                }
+            }
+
+            if (currentUser && (currentUser.role === 'booker' || currentUser.role === 'dashboard_only')) {
                 filterBooker = (currentUser.bookerName || '').toUpperCase();
             }
 
@@ -1993,6 +2081,9 @@
                 let bName = (t.booker || 'UNKNOWN').toUpperCase();
                 let sName = (t.shop || '').trim();
                 if (!sName) return;
+
+                if (userAllowedDashBookers && !userAllowedDashBookers.includes(bName)) return;
+
                 allShopsSet.add(sName);
 
                 if (!shopNetMap[sName]) shopNetMap[sName] = { booker: bName, net: 0, credit: 0, recovery: 0 };
@@ -2005,6 +2096,9 @@
             Object.keys(shopNetMap).forEach(sName => {
                 let info = shopNetMap[sName];
                 let bName = info.booker;
+
+                if (userAllowedDashBookers && !userAllowedDashBookers.includes(bName)) return;
+
                 if (!bookerMap[bName]) bookerMap[bName] = { shops: new Set(), creditShops: new Set(), totalCredit: 0, totalRecovery: 0, net: 0 };
                 
                 bookerMap[bName].shops.add(sName);
@@ -2048,7 +2142,9 @@
             const dInput = document.getElementById('dashToDate');
             const bInput = document.getElementById('dashBookerFilter');
             if (dInput) dInput.value = '';
-            if (bInput) bInput.value = 'ALL';
+            if (bInput && currentUser && currentUser.role !== 'dashboard_only' && currentUser.role !== 'booker') {
+                bInput.value = 'ALL';
+            }
             renderDashboard();
         }
 
@@ -2393,15 +2489,26 @@
         /* USER MANAGEMENT TAB */
         function toggleUserRoleFields() {
             let role = document.getElementById('newUserRole').value;
-            document.getElementById('assignedBookerGroup').style.display = (role === 'booker') ? 'flex' : 'none';
+            document.getElementById('assignedBookerGroup').style.display = (role === 'booker' || role === 'dashboard_only') ? 'flex' : 'none';
             document.getElementById('viewOnlyTabsGroup').style.display = (role === 'view_only') ? 'block' : 'none';
             document.getElementById('allowedBookersGroup').style.display = (role === 'custom_booker') ? 'block' : 'none';
             document.getElementById('allowedShopsGroup').style.display = (role === 'custom_booker' || role === 'view_only') ? 'block' : 'none';
+
+            populateDashBookersCheckboxes();
 
             if (role === 'custom_booker' || role === 'view_only') {
                 populateBookersCheckboxes();
                 populateShopsCheckboxesByBooker('ALL');
             }
+        }
+
+        function populateDashBookersCheckboxes() {
+            const container = document.getElementById('dashBookersCheckboxesList');
+            if (!container) return;
+            let bookers = getUniqueBookers();
+            container.innerHTML = bookers.map(b => `
+                <label class="checkbox-label"><input type="checkbox" class="user-allowed-dash-booker-cb" value="${b}"> ${b}</label>
+            `).join('');
         }
 
         function populateBookersCheckboxes() {
@@ -2450,6 +2557,9 @@
 
             if (!username || !password) { alert('Please enter Username and Password.'); return; }
 
+            let allowedDashBookers = [];
+            document.querySelectorAll('.user-allowed-dash-booker-cb:checked').forEach(cb => allowedDashBookers.push(cb.value));
+
             let allowedTabs = [];
             document.querySelectorAll('.user-allowed-tab-cb:checked').forEach(cb => allowedTabs.push(cb.value));
 
@@ -2464,6 +2574,7 @@
                 password,
                 role,
                 bookerName: bookerName || 'ALL',
+                allowedDashBookers,
                 allowedTabs,
                 allowedBookers,
                 allowedShops,
@@ -2500,16 +2611,6 @@
             let sNo = 1;
 
             USERS_DATABASE.forEach((u, index) => {
-                // Audit Trail: Count shops added by this user
-                let userShops = new Set();
-                transactions.forEach(t => {
-                    if (cleanStr(t.addedBy) === cleanStr(u.username) && t.shop) {
-                        userShops.add(t.shop.toString().trim());
-                    }
-                });
-
-                let addedShopsSummary = userShops.size > 0 ? Array.from(userShops).join(', ') : 'No entries added yet';
-
                 html += `
                     <tr>
                         <td class="text-center">${sNo++}</td>
@@ -2517,7 +2618,6 @@
                         <td class="text-left">${u.password}</td>
                         <td class="text-center"><span style="background:#007bff; color:white; padding:2px 8px; border-radius:10px; font-size:11px;">${u.role}</span></td>
                         <td class="text-left">${u.bookerName !== 'ALL' ? 'Booker: ' + u.bookerName : 'Access: ' + (u.role === 'admin' ? 'Full Admin' : u.role)}</td>
-                        <td class="text-left"><small style="color:#333;"><b>Shops Added (${userShops.size}):</b> ${addedShopsSummary}</small></td>
                         <td class="text-center">${u.isOnline ? '<span style="color:green; font-weight:bold;">🟢 Online</span>' : '<span style="color:#777;">🔴 Offline</span>'}</td>
                         <td class="text-left">${u.lastActive || '-'}</td>
                         <td class="no-print text-center">
@@ -2528,7 +2628,7 @@
                 `;
             });
 
-            tbody.innerHTML = html || `<tr><td colspan="9" class="text-center" style="padding:20px; color:#777;">No users found.</td></tr>`;
+            tbody.innerHTML = html || `<tr><td colspan="8" class="text-center" style="padding:20px; color:#777;">No users found.</td></tr>`;
         }
 
         function editUser(index) {
@@ -2542,6 +2642,9 @@
             toggleUserRoleFields();
 
             setTimeout(() => {
+                if (u.allowedDashBookers) {
+                    document.querySelectorAll('.user-allowed-dash-booker-cb').forEach(cb => cb.checked = u.allowedDashBookers.includes(cb.value));
+                }
                 if (u.allowedTabs) {
                     document.querySelectorAll('.user-allowed-tab-cb').forEach(cb => cb.checked = u.allowedTabs.includes(cb.value));
                 }
