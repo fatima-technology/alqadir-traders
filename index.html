@@ -1716,12 +1716,18 @@
             }
 
             saveTransactionsToCloud();
+
+            // Preserve current date and order booker values across entries
+            const preservedDate = document.getElementById('entryDate').value;
+            const preservedBooker = document.getElementById('bookerName').value;
+
             document.getElementById('entryForm').reset();
             document.getElementById('editIndex').value = '-1';
             document.getElementById('saveBtn').innerText = 'Save Entry';
 
-            const today = new Date();
-            document.getElementById('entryDate').value = normalizeDate(`${today.getDate()}-${today.getMonth()+1}-${today.getFullYear()}`);
+            document.getElementById('entryDate').value = preservedDate;
+            document.getElementById('bookerName').value = preservedBooker;
+            populateShopSuggestions();
 
             renderTransactions();
             showSystemNotification('Transaction Saved', `Entry for ${shop} updated successfully!`);
@@ -1770,681 +1776,61 @@
             const sortOrder = document.getElementById('entrySortOrder').value;
             const limitVal = document.getElementById('entryLimitSelect').value;
 
-            // CHANGE 1: Correct Date Range Filtering Parsing
-            let filtered = transactions.map((t, idx) => ({ ...t, originalIndex: idx }));
+            let list = [...transactions];
 
             if (filterFrom) {
-                const fromDate = new Date(filterFrom);
-                fromDate.setHours(0, 0, 0, 0);
-                filtered = filtered.filter(t => {
-                    const d = parseFormattedDate(t.date);
-                    return d >= fromDate;
-                });
+                const fromDateObj = new Date(filterFrom);
+                list = list.filter(t => parseFormattedDate(t.date) >= fromDateObj);
             }
-
             if (filterTo) {
-                const toDate = new Date(filterTo);
-                toDate.setHours(23, 59, 59, 999);
-                filtered = filtered.filter(t => {
-                    const d = parseFormattedDate(t.date);
-                    return d <= toDate;
-                });
+                const toDateObj = new Date(filterTo);
+                toDateObj.setHours(23, 59, 59, 999);
+                list = list.filter(t => parseFormattedDate(t.date) <= toDateObj);
             }
 
-            // Sorting
             if (sortOrder === 'recent') {
-                filtered.reverse();
-            } else {
-                filtered.sort((a, b) => parseFormattedDate(a.date) - parseFormattedDate(b.date));
+                list.reverse();
             }
 
-            // Daily Summary Update
-            let dayCredit = 0, dayRecovery = 0;
-            filtered.forEach(t => {
-                dayCredit += Number(t.credit) || 0;
-                dayRecovery += Number(t.recovery) || 0;
-            });
-
-            document.getElementById('entrySummaryDateLabel').innerText = (filterFrom || filterTo) ? `${filterFrom || 'Start'} to ${filterTo || 'End'}` : 'All Dates';
-            document.getElementById('entrySummaryTotalCredit').innerText = `Rs. ${dayCredit.toLocaleString()}`;
-            document.getElementById('entrySummaryTotalRecovery').innerText = `Rs. ${dayRecovery.toLocaleString()}`;
-            document.getElementById('entrySummaryNetBalance').innerHTML = formatBalance(dayCredit - dayRecovery);
-
-            // Limit
-            let displayList = filtered;
+            let displayLimit = list.length;
             if (limitVal !== 'ALL') {
-                displayList = filtered.slice(0, parseInt(limitVal, 10));
+                displayLimit = Math.min(list.length, parseInt(limitVal, 10));
             }
 
-            displayList.forEach((t, i) => {
-                const tr = document.createElement('tr');
-                // CHANGE 2: Display "Edited By" fallback if undefined
-                const editedByTag = t.editedBy ? t.editedBy : 'Data Entry';
+            let totCred = 0;
+            let totRec = 0;
 
+            for (let i = 0; i < displayLimit; i++) {
+                const t = list[i];
+                const origIndex = transactions.indexOf(t);
+
+                totCred += Number(t.credit) || 0;
+                totRec += Number(t.recovery) || 0;
+
+                const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="no-print text-center"><input type="checkbox" class="entry-select-cb" value="${t.originalIndex}"></td>
+                    <td class="no-print text-center"><input type="checkbox" class="entry-select-cb" value="${origIndex}"></td>
                     <td class="text-center">${i + 1}</td>
-                    <td class="text-center">${t.date}</td>
-                    <td class="text-left">${t.booker}</td>
-                    <td class="text-left">${t.shop}</td>
+                    <td class="text-center">${t.date || '-'}</td>
+                    <td class="text-left">${t.booker || '-'}</td>
+                    <td class="text-left">${t.shop || '-'}</td>
                     <td class="text-left">${t.ref || '-'}</td>
-                    <td class="text-right">${(Number(t.credit)||0).toLocaleString()}</td>
-                    <td class="text-right">${(Number(t.recovery)||0).toLocaleString()}</td>
-                    <td class="text-center"><strong>${editedByTag}</strong></td>
+                    <td class="text-right">${(Number(t.credit) || 0).toLocaleString()}</td>
+                    <td class="text-right">${(Number(t.recovery) || 0).toLocaleString()}</td>
+                    <td class="text-center">${t.editedBy || 'Data Entry'}</td>
                     <td class="no-print text-center">
-                        <button class="btn-edit" onclick="editTransaction(${t.originalIndex})">✏️</button>
-                        <button class="btn-delete" onclick="deleteTransaction(${t.originalIndex})">🗑️</button>
+                        <button class="btn-edit" onclick="editTransaction(${origIndex})">Edit</button>
+                        <button class="btn-delete" onclick="deleteTransaction(${origIndex})">Delete</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
-            });
-
-            updateAsOfLabel("Daily Entry Statement");
-        }
-
-        /* RECONCILIATION & AUDIT TOOLS */
-        function performDailyCrossTelly() {
-            const expCredit = Number(document.getElementById('targetDateCredit').value) || 0;
-            const expRecovery = Number(document.getElementById('targetDateRecovery').value) || 0;
-            const entryDate = document.getElementById('entryDate').value;
-
-            let actualCredit = 0, actualRecovery = 0;
-            transactions.forEach(t => {
-                if (t.date === entryDate) {
-                    actualCredit += Number(t.credit) || 0;
-                    actualRecovery += Number(t.recovery) || 0;
-                }
-            });
-
-            const diffCredit = actualCredit - expCredit;
-            const diffRecovery = actualRecovery - expRecovery;
-
-            const box = document.getElementById('dailyTellySummaryBox');
-            box.innerHTML = `
-                Date: <u>${entryDate}</u> |
-                Actual Credit: <strong>Rs. ${actualCredit.toLocaleString()}</strong> (Diff: ${diffCredit >= 0 ? '+' : ''}${diffCredit}) |
-                Actual Recovery: <strong>Rs. ${actualRecovery.toLocaleString()}</strong> (Diff: ${diffRecovery >= 0 ? '+' : ''}${diffRecovery})
-            `;
-        }
-
-        function searchCrossTelly() {
-            const amt = Number(document.getElementById('crossTellyAmount').value);
-            const resBox = document.getElementById('crossTellyResults');
-            if (!amt) return;
-
-            const matches = transactions.filter(t => Number(t.credit) === amt || Number(t.recovery) === amt);
-            resBox.style.display = 'block';
-
-            if (matches.length === 0) {
-                resBox.innerHTML = `❌ No entries found matching amount Rs. ${amt}`;
-                return;
             }
 
-            let html = `<strong>Found ${matches.length} entries for Rs. ${amt}:</strong><ul>`;
-            matches.forEach(m => {
-                html += `<li>${m.date} - ${m.shop} (${m.booker}): Credit: ${m.credit}, Recovery: ${m.recovery}</li>`;
-            });
-            html += '</ul>';
-            resBox.innerHTML = html;
-        }
-
-        function autoAuditMismatches() {
-            const resBox = document.getElementById('crossTellyResults');
-            resBox.style.display = 'block';
-            const badEntries = transactions.filter(t => (!t.shop || t.shop === 'UNDEFINED') || (Number(t.credit) === 0 && Number(t.recovery) === 0));
-
-            if (badEntries.length === 0) {
-                resBox.innerHTML = '✅ System Audit Clean: No mismatched or zero-value orphaned entries detected!';
-            } else {
-                resBox.innerHTML = `⚠️ System Audit Alert: Detected ${badEntries.length} potentially corrupted or zero-value entries. Check database ledger.`;
-            }
-        }
-
-        function toggleSelectAllEntries(master) {
-            document.querySelectorAll('.entry-select-cb').forEach(cb => cb.checked = master.checked);
-        }
-
-        function deleteSelectedEntries() {
-            const selected = Array.from(document.querySelectorAll('.entry-select-cb:checked')).map(cb => parseInt(cb.value, 10));
-            if (selected.length === 0) { alert('No entries selected!'); return; }
-            if (confirm(`Are you sure you want to delete ${selected.length} selected entries?`)) {
-                transactions = transactions.filter((_, idx) => !selected.includes(idx));
-                saveTransactionsToCloud();
-                renderTransactions();
-            }
-        }
-
-        /* BULK CSV IMPORTER */
-        function downloadCSVSample() {
-            const csv = "date,booker,shop,ref,credit,recovery\n01-02-2026,SHAHID,AL MADINA TRADERS,INV-101,5000,0\n01-02-2026,SHAHID,AL MADINA TRADERS,REC-01,0,3000";
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = "Daily_Entries_Sample.csv";
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }
-
-        function uploadBulkCSV(evt) {
-            const file = evt.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                const lines = text.split('\n');
-                let count = 0;
-                const editorTag = (currentUser && currentUser.role === 'admin') ? 'Admin' : 'Data Entry';
-
-                for (let i = 1; i < lines.length; i++) {
-                    const cols = lines[i].split(',');
-                    if (cols.length >= 6) {
-                        transactions.push({
-                            date: normalizeDate(cols[0].trim()),
-                            booker: cols[1].trim().toUpperCase(),
-                            shop: cols[2].trim().toUpperCase(),
-                            ref: cols[3].trim(),
-                            credit: Number(cols[4]) || 0,
-                            recovery: Number(cols[5]) || 0,
-                            editedBy: editorTag
-                        });
-                        count++;
-                    }
-                }
-                saveTransactionsToCloud();
-                renderTransactions();
-                alert(`Successfully imported ${count} entries from CSV!`);
-            };
-            reader.readAsText(file);
-        }
-
-        /* OTHER TABS RENDERERS */
-        function clearDashDateFilter() {
-            document.getElementById('dashToDate').value = '';
-            document.getElementById('dashBookerFilter').value = 'ALL';
-            renderDashboard();
-        }
-
-        function renderDashboard() {
-            const tbody = document.getElementById('dashBookerTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            const selectedBooker = document.getElementById('dashBookerFilter').value;
-            const toDateStr = document.getElementById('dashToDate').value;
-            const toDate = toDateStr ? new Date(toDateStr) : null;
-            if (toDate) toDate.setHours(23, 59, 59, 999);
-
-            const bookerStats = {};
-            let grandUdhaar = 0;
-            const allShopsSet = new Set();
-            const activeCreditShopsSet = new Set();
-
-            transactions.forEach(t => {
-                const tDate = parseFormattedDate(t.date);
-                if (toDate && tDate > toDate) return;
-
-                const b = t.booker || 'UNASSIGNED';
-                if (selectedBooker !== 'ALL' && b !== selectedBooker) return;
-
-                if (!bookerStats[b]) {
-                    bookerStats[b] = { shops: new Set(), credit: 0, recovery: 0 };
-                }
-
-                bookerStats[b].shops.add(t.shop);
-                allShopsSet.add(t.shop);
-
-                bookerStats[b].credit += Number(t.credit) || 0;
-                bookerStats[b].recovery += Number(t.recovery) || 0;
-            });
-
-            let sno = 1;
-            Object.keys(bookerStats).sort().forEach(b => {
-                const stat = bookerStats[b];
-                const net = stat.credit - stat.recovery;
-                grandUdhaar += net;
-
-                if (net > 0) {
-                    stat.shops.forEach(s => activeCreditShopsSet.add(s));
-                }
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center">${sno++}</td>
-                    <td class="text-left"><strong>${b}</strong></td>
-                    <td class="text-center">${stat.shops.size}</td>
-                    <td class="text-center">${stat.shops.size}</td>
-                    <td class="text-right">${stat.credit.toLocaleString()}</td>
-                    <td class="text-right">${stat.recovery.toLocaleString()}</td>
-                    <td class="text-right">${formatBalance(net)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('dashTotalUdhaar').innerHTML = formatBalance(grandUdhaar);
-            document.getElementById('dashTotalShops').innerText = allShopsSet.size;
-            document.getElementById('dashCreditShops').innerText = activeCreditShopsSet.size;
-
-            updateAsOfLabel("Dashboard Booker Summary");
-        }
-
-        function renderLedger() {
-            const tbody = document.getElementById('ledgerTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            const shopQuery = document.getElementById('searchShopInput').value.trim().toUpperCase();
-            const fromDateStr = document.getElementById('ledgerFromDate').value;
-            const toDateStr = document.getElementById('ledgerToDate').value;
-
-            const fromDate = fromDateStr ? new Date(fromDateStr) : null;
-            const toDate = toDateStr ? new Date(toDateStr) : null;
-            if (toDate) toDate.setHours(23, 59, 59, 999);
-
-            document.getElementById('ledgerShopName').innerText = shopQuery || 'Select a Shop';
-
-            if (!shopQuery) {
-                document.getElementById('ledgerNetBalance').innerHTML = formatBalance(0);
-                return;
-            }
-
-            let runningBal = 0;
-            let sno = 1;
-
-            const filtered = transactions.filter(t => {
-                if (t.shop.trim().toUpperCase() !== shopQuery) return false;
-                const d = parseFormattedDate(t.date);
-                if (fromDate && d < fromDate) return false;
-                if (toDate && d > toDate) return false;
-                return true;
-            }).sort((a,b) => parseFormattedDate(a.date) - parseFormattedDate(b.date));
-
-            filtered.forEach(t => {
-                const c = Number(t.credit) || 0;
-                const r = Number(t.recovery) || 0;
-                runningBal += (c - r);
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center">${sno++}</td>
-                    <td class="text-center">${t.date}</td>
-                    <td class="text-left">${t.booker}</td>
-                    <td class="text-left">${t.ref || '-'}</td>
-                    <td class="text-right">${c.toLocaleString()}</td>
-                    <td class="text-right">${r.toLocaleString()}</td>
-                    <td class="text-right">${formatBalance(runningBal)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('ledgerNetBalance').innerHTML = formatBalance(runningBal);
-            updateAsOfLabel(`Shop Ledger: ${shopQuery}`);
-        }
-
-        function renderBookerDetail() {
-            const tbody = document.getElementById('bookerShopsTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            const selectedBooker = document.getElementById('selectBooker').value.trim().toUpperCase();
-            const toDateStr = document.getElementById('bookerToDate').value;
-            const filterSetting = document.getElementById('bookerBalanceFilter').value;
-
-            const toDate = toDateStr ? new Date(toDateStr) : null;
-            if (toDate) toDate.setHours(23, 59, 59, 999);
-
-            document.getElementById('bCardName').innerText = selectedBooker || 'Select Booker';
-
-            if (!selectedBooker) {
-                document.getElementById('bCardBalance').innerHTML = formatBalance(0);
-                return;
-            }
-
-            const shopTotals = {};
-            transactions.forEach(t => {
-                if (t.booker.trim().toUpperCase() !== selectedBooker) return;
-                const d = parseFormattedDate(t.date);
-                if (toDate && d > toDate) return;
-
-                const s = t.shop.trim().toUpperCase();
-                if (!shopTotals[s]) shopTotals[s] = { credit: 0, recovery: 0 };
-                shopTotals[s].credit += Number(t.credit) || 0;
-                shopTotals[s].recovery += Number(t.recovery) || 0;
-            });
-
-            let sno = 1;
-            let totalBookerBal = 0;
-
-            Object.keys(shopTotals).sort().forEach(s => {
-                const cred = shopTotals[s].credit;
-                const rec = shopTotals[s].recovery;
-                const bal = cred - rec;
-
-                if (filterSetting === 'HIDE_ZERO' && bal === 0) return;
-                if (filterSetting === 'POSITIVE' && bal <= 0) return;
-                if (filterSetting === 'NEGATIVE' && bal >= 0) return;
-                if (filterSetting === 'ZERO' && bal !== 0) return;
-
-                totalBookerBal += bal;
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center">${sno++}</td>
-                    <td class="text-left"><strong>${s}</strong></td>
-                    <td class="text-right">${cred.toLocaleString()}</td>
-                    <td class="text-right">${rec.toLocaleString()}</td>
-                    <td class="text-right">${formatBalance(bal)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('bCardBalance').innerHTML = formatBalance(totalBookerBal);
-            updateAsOfLabel(`Booker Detail: ${selectedBooker}`);
-        }
-
-        function renderShops() {
-            const tbody = document.getElementById('shopsTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            const query = document.getElementById('shopsSearchInput').value.trim().toUpperCase();
-            const toDateStr = document.getElementById('shopsToDate').value;
-            const filterSetting = document.getElementById('shopsBalanceFilter').value;
-            const limitVal = document.getElementById('shopsLimitSelect').value;
-
-            const toDate = toDateStr ? new Date(toDateStr) : null;
-            if (toDate) toDate.setHours(23, 59, 59, 999);
-
-            const shopMap = {};
-            transactions.forEach(t => {
-                const d = parseFormattedDate(t.date);
-                if (toDate && d > toDate) return;
-
-                const s = t.shop.trim().toUpperCase();
-                if (!shopMap[s]) shopMap[s] = { booker: t.booker, credit: 0, recovery: 0 };
-                shopMap[s].credit += Number(t.credit) || 0;
-                shopMap[s].recovery += Number(t.recovery) || 0;
-            });
-
-            let shopsList = Object.keys(shopMap).sort();
-
-            if (query) {
-                shopsList = shopsList.filter(s => s.includes(query));
-            }
-
-            let filtered = [];
-            shopsList.forEach(s => {
-                const cred = shopMap[s].credit;
-                const rec = shopMap[s].recovery;
-                const net = cred - rec;
-
-                if (filterSetting === 'HIDE_ZERO' && net === 0) return;
-                if (filterSetting === 'POSITIVE' && net <= 0) return;
-                if (filterSetting === 'NEGATIVE' && net >= 0) return;
-                if (filterSetting === 'ZERO' && net !== 0) return;
-
-                filtered.push({ shop: s, ...shopMap[s], net: net });
-            });
-
-            if (limitVal !== 'ALL') {
-                filtered = filtered.slice(0, parseInt(limitVal, 10));
-            }
-
-            filtered.forEach((item, i) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="no-print admin-only text-center"><input type="checkbox" class="shop-select-cb" value="${item.shop}"></td>
-                    <td class="text-center">${i + 1}</td>
-                    <td class="text-left"><strong>${item.shop}</strong></td>
-                    <td class="text-left">${item.booker}</td>
-                    <td class="text-right">${item.credit.toLocaleString()}</td>
-                    <td class="text-right">${item.recovery.toLocaleString()}</td>
-                    <td class="text-right">${formatBalance(item.net)}</td>
-                    <td class="no-print text-center">
-                        <button class="btn-edit" onclick="openEditShopModal('${item.shop}', '${item.booker}', ${item.net})">✏️ Edit</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            updateAsOfLabel("Shops Directory");
-        }
-
-        function toggleSelectAllShops(master) {
-            document.querySelectorAll('.shop-select-cb').forEach(cb => cb.checked = master.checked);
-        }
-
-        function deleteSelectedShops() {
-            const selected = Array.from(document.querySelectorAll('.shop-select-cb:checked')).map(cb => cb.value);
-            if (selected.length === 0) { alert('No shops selected!'); return; }
-            if (confirm(`Are you sure you want to delete ALL entries for ${selected.length} selected shops?`)) {
-                transactions = transactions.filter(t => !selected.includes(t.shop.trim().toUpperCase()));
-                saveTransactionsToCloud();
-                renderShops();
-            }
-        }
-
-        /* MODALS LOGIC */
-        function openEditShopModal(shop, booker, currentBal) {
-            document.getElementById('modalOldShopName').value = shop;
-            document.getElementById('modalShopNameInput').value = shop;
-            document.getElementById('modalShopBookerSelect').value = booker;
-            document.getElementById('modalShopBalanceInput').value = currentBal;
-            document.getElementById('editShopModal').style.display = 'flex';
-        }
-
-        function closeEditShopModal() {
-            document.getElementById('editShopModal').style.display = 'none';
-        }
-
-        function saveEditShopDetails() {
-            const oldName = document.getElementById('modalOldShopName').value;
-            const newName = document.getElementById('modalShopNameInput').value.trim().toUpperCase();
-            const newBooker = document.getElementById('modalShopBookerSelect').value;
-
-            if (!newName || !newBooker) { alert('Please enter both Shop Name and Booker'); return; }
-
-            transactions.forEach(t => {
-                if (t.shop.trim().toUpperCase() === oldName) {
-                    t.shop = newName;
-                    t.booker = newBooker;
-                }
-            });
-
-            saveTransactionsToCloud();
-            closeEditShopModal();
-            renderShops();
-        }
-
-        function openBulkTransferModal() {
-            const selected = Array.from(document.querySelectorAll('.shop-select-cb:checked')).map(cb => cb.value);
-            if (selected.length === 0) { alert('Please select at least one shop to transfer!'); return; }
-            document.getElementById('bulkTransferModal').style.display = 'flex';
-        }
-
-        function closeBulkTransferModal() {
-            document.getElementById('bulkTransferModal').style.display = 'none';
-        }
-
-        function executeBulkShopTransfer() {
-            const targetBooker = document.getElementById('modalBulkBookerSelect').value;
-            const selectedShops = Array.from(document.querySelectorAll('.shop-select-cb:checked')).map(cb => cb.value);
-
-            if (!targetBooker) { alert('Please choose a target booker!'); return; }
-
-            transactions.forEach(t => {
-                if (selectedShops.includes(t.shop.trim().toUpperCase())) {
-                    t.booker = targetBooker;
-                }
-            });
-
-            saveTransactionsToCloud();
-            closeBulkTransferModal();
-            renderShops();
-            alert(`Transferred ${selectedShops.length} shops to ${targetBooker}!`);
-        }
-
-        function reassignBookerShops() {
-            const fromB = document.getElementById('transferFromBooker').value;
-            const toB = document.getElementById('transferToBooker').value;
-
-            if (!fromB || !toB) { alert('Select both From and To bookers'); return; }
-
-            let count = 0;
-            transactions.forEach(t => {
-                if (t.booker.trim().toUpperCase() === fromB) {
-                    t.booker = toB;
-                    count++;
-                }
-            });
-
-            saveTransactionsToCloud();
-            alert(`Reassigned ${count} transaction records from ${fromB} to ${toB}!`);
-            refreshCurrentTab();
-        }
-
-        /* USERS MANAGEMENT */
-        function toggleUserRoleFields() {
-            const role = document.getElementById('newUserRole').value;
-            document.getElementById('assignedBookerGroup').style.display = (role === 'booker' || role === 'dashboard_only') ? 'flex' : 'none';
-            document.getElementById('dashBookersGroup').style.display = (role === 'dashboard_only') ? 'flex' : 'none';
-            document.getElementById('viewOnlyTabsGroup').style.display = (role === 'view_only') ? 'flex' : 'none';
-            document.getElementById('allowedBookersGroup').style.display = (role === 'custom_booker') ? 'flex' : 'none';
-            document.getElementById('allowedShopsGroup').style.display = (role === 'shop' || role === 'custom_booker') ? 'flex' : 'none';
-        }
-
-        function saveUser() {
-            const uIdx = parseInt(document.getElementById('editUserIndex').value, 10);
-            const name = document.getElementById('newUsername').value.trim();
-            const pass = document.getElementById('newPassword').value.trim();
-            const role = document.getElementById('newUserRole').value;
-            const bookerName = document.getElementById('newBookerName').value.trim().toUpperCase();
-
-            if (!name || !pass) { alert('Username and Password required!'); return; }
-
-            const userObj = {
-                username: name,
-                password: pass,
-                role: role,
-                bookerName: bookerName,
-                isOnline: false,
-                lastActive: '-'
-            };
-
-            if (uIdx >= 0 && uIdx < USERS_DATABASE.length) {
-                USERS_DATABASE[uIdx] = userObj;
-            } else {
-                USERS_DATABASE.push(userObj);
-            }
-
-            saveUsersToCloud();
-            document.getElementById('userForm').reset();
-            document.getElementById('editUserIndex').value = '-1';
-            renderUsers();
-        }
-
-        function renderUsers() {
-            const tbody = document.getElementById('usersTable');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            USERS_DATABASE.forEach((u, idx) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="text-center">${idx + 1}</td>
-                    <td class="text-left"><strong>${u.username}</strong></td>
-                    <td class="text-left">${u.password}</td>
-                    <td class="text-center">${u.role}</td>
-                    <td class="text-left">${u.bookerName || 'N/A'}</td>
-                    <td class="text-center">${u.isOnline ? '<span style="color:#28a745; font-weight:bold;">🟢 Online</span>' : '🔴 Offline'}</td>
-                    <td class="text-left">${u.lastActive || '-'}</td>
-                    <td class="no-print text-center">
-                        <button class="btn-delete" onclick="deleteUser(${idx})">🗑️ Delete</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function deleteUser(idx) {
-            if (confirm('Delete this user?')) {
-                USERS_DATABASE.splice(idx, 1);
-                saveUsersToCloud();
-                renderUsers();
-            }
-        }
-
-        /* BACKUP & RESTORE */
-        function downloadBackup() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
-                transactions: transactions,
-                users: USERS_DATABASE
-            }));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `Al_Qadir_Backup_${new Date().toISOString().slice(0,10)}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        function restoreBackup(evt) {
-            const file = evt.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (parsed.transactions) {
-                        transactions = parsed.transactions;
-                        saveTransactionsToCloud();
-                    }
-                    if (parsed.users) {
-                        USERS_DATABASE = parsed.users;
-                        saveUsersToCloud();
-                    }
-                    alert('Backup restored successfully!');
-                    refreshCurrentTab();
-                } catch(err) {
-                    alert('Invalid JSON file format!');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        /* AI CHAT ASSISTANT */
-        function toggleAiChat() {
-            const win = document.getElementById('aiChatWindow');
-            win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
-        }
-
-        function sendAiMessage() {
-            const input = document.getElementById('aiChatInput');
-            const txt = input.value.trim();
-            if (!txt) return;
-
-            const body = document.getElementById('aiChatMessages');
-            const uDiv = document.createElement('div');
-            uDiv.className = 'ai-msg user';
-            uDiv.innerText = txt;
-            body.appendChild(uDiv);
-
-            input.value = '';
-
-            setTimeout(() => {
-                const bDiv = document.createElement('div');
-                bDiv.className = 'ai-msg bot';
-                bDiv.innerHTML = getAiResponse(txt);
-                body.appendChild(bDiv);
-                body.scrollTop = body.scrollHeight;
-            }, 500);
-        }
-
-        function getAiResponse(q) {
-            q = q.toLowerCase();
-            if (q.includes('entry') || q.includes('انٹری')) return "Daily Entry karne ke liye 'Daily Entry' tab par jaayein. Date, Booker, Shop Name, Credit aur Recovery daal kar 'Save Entry' par click karein.";
-            if (q.includes('backup') || q.includes('بیک اپ')) return "Backup download karne ke liye 'Backup & Restore' tab me jayein aur 'Download Backup' button dabayein.";
-            if (q.includes('shop') || q.includes('دوکان')) return "Shops ka balance dekhne ke liye 'Shops List' ya 'Shop Ledger' tab istemal karein.";
-            return "Aapka sawal samajh aa gaya hai. Khas madad ke liye Admin se raabta karein ya doosra sawal poochen!";
+            document.getElementById('entrySummaryTotalCredit').innerText = `Rs. ${totCred.toLocaleString()}`;
+            document.getElementById('entrySummaryTotalRecovery').innerText = `Rs. ${totRec.toLocaleString()}`;
+            document.getElementById('entrySummaryNetBalance').innerText = formatBalance(totCred - totRec);
+
+            updateAsOfLabel("Daily Entry Record");
         }
     </script>
 </body>
