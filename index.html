@@ -2102,6 +2102,148 @@
                 `</div>`;
         }
 
+        /* CSV BULK ENTRY */
+        function downloadCSVSample() {
+            const csv = [
+                ['date','booker','shop','ref','credit','recovery'],
+                ['17-09-2026','WAQAS','SAMPLE SHOP','BILL-001','5000','0'],
+                ['17-09-2026','NADEEM','SAMPLE SHOP 2','BILL-002','0','2500']
+            ].map(row => row.map(value => {
+                const text = value == null ? '' : String(value);
+                return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+            }).join(',')).join('\r\n');
+
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'Al_Qadir_Bulk_Entry_Sample.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function parseCSVText(text) {
+            const rows = [];
+            let row = [], field = '', inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if (inQuotes) {
+                    if (ch === '"') {
+                        if (text[i + 1] === '"') { field += '"'; i++; }
+                        else inQuotes = false;
+                    } else {
+                        field += ch;
+                    }
+                } else {
+                    if (ch === '"') inQuotes = true;
+                    else if (ch === ',') { row.push(field); field = ''; }
+                    else if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+                    else if (ch !== '\r') field += ch;
+                }
+            }
+            row.push(field);
+            if (row.some(v => v.trim() !== '')) rows.push(row);
+            return rows;
+        }
+
+        function uploadBulkCSV(event) {
+            const input = event && event.target ? event.target : document.getElementById('csvFileInput');
+            const file = input && input.files ? input.files[0] : null;
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = (e.target.result || '').replace(/^\uFEFF/, '');
+                    const rows = parseCSVText(text);
+                    if (rows.length < 2) {
+                        alert('CSV file is empty or has no data rows.');
+                        return;
+                    }
+
+                    const headers = rows[0].map(h => (h || '').trim().toLowerCase());
+                    const requiredHeaders = ['date','booker','shop','ref','credit','recovery'];
+                    const missing = requiredHeaders.filter(h => !headers.includes(h));
+                    if (missing.length) {
+                        alert('Invalid CSV format. Missing column(s): ' + missing.join(', ') + '\nRequired: date,booker,shop,ref,credit,recovery');
+                        return;
+                    }
+
+                    const col = {};
+                    headers.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });
+                    const imported = [];
+                    const errors = [];
+
+                    for (let r = 1; r < rows.length; r++) {
+                        const row = rows[r];
+                        if (!row || row.every(v => !String(v || '').trim())) continue;
+
+                        const dateRaw = String(row[col.date] ?? '').trim();
+                        const booker = String(row[col.booker] ?? '').trim();
+                        const shop = String(row[col.shop] ?? '').trim();
+                        const ref = String(row[col.ref] ?? '').trim();
+                        const creditRaw = String(row[col.credit] ?? '').trim();
+                        const recoveryRaw = String(row[col.recovery] ?? '').trim();
+                        const credit = creditRaw === '' ? 0 : parseFloat(creditRaw.replace(/,/g, ''));
+                        const recovery = recoveryRaw === '' ? 0 : parseFloat(recoveryRaw.replace(/,/g, ''));
+                        const date = normalizeDate(dateRaw);
+
+                        if (!dateRaw || !booker || !shop) {
+                            errors.push('Row ' + (r + 1) + ': Date, Booker and Shop are required.');
+                            continue;
+                        }
+                        if (!date || !/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+                            errors.push('Row ' + (r + 1) + ': Invalid date "' + dateRaw + '". Use DD-MM-YYYY.');
+                            continue;
+                        }
+                        if (isNaN(credit) || isNaN(recovery)) {
+                            errors.push('Row ' + (r + 1) + ': Credit/Recovery must be numeric.');
+                            continue;
+                        }
+
+                        imported.push({
+                            date: date,
+                            booker: booker.toUpperCase(),
+                            shop: shop,
+                            ref: ref,
+                            credit: credit,
+                            recovery: recovery,
+                            editedBy: currentUser ? currentUser.username : 'Admin'
+                        });
+                    }
+
+                    if (!imported.length) {
+                        alert('No valid entries found in CSV.\n\n' + errors.slice(0, 10).join('\n'));
+                        return;
+                    }
+
+                    if (!confirm('Import ' + imported.length + ' entries from CSV?')) return;
+
+                    transactions.push(...imported);
+                    saveTransactionsToCloud();
+                    renderTransactions();
+                    populateEntryBookersDropdown();
+                    populateShopDropdowns();
+
+                    let message = 'CSV Upload Successful! ' + imported.length + ' entries imported.';
+                    if (errors.length) message += '\n\nSkipped ' + errors.length + ' row(s):\n' + errors.slice(0, 10).join('\n') + (errors.length > 10 ? '\n...' : '');
+                    alert(message);
+                } catch (err) {
+                    console.error('CSV upload failed:', err);
+                    alert('CSV upload failed. Please use the downloaded sample format.');
+                } finally {
+                    if (input) input.value = '';
+                }
+            };
+            reader.onerror = function() {
+                if (input) input.value = '';
+                alert('Could not read the CSV file.');
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
         /* RENDER TRANSACTIONS (DAILY ENTRY) */
         function renderTransactions() {
             updateAsOfLabel("Daily Transactions");
