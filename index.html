@@ -638,7 +638,7 @@
                 <input type="hidden" id="editIndex" value="-1">
                 <div class="form-group">
                     <label>Date <span class="required-star">*</span>:</label>
-                    <input type="text" id="entryDate" placeholder="01-02-2026" required>
+                    <input type="text" id="entryDate" placeholder="01-02-2026" required onchange="performDailyCrossTelly()">
                 </div>
                 <div class="form-group">
                     <label>Order Booker <span class="required-star">*</span>:</label>
@@ -1975,6 +1975,131 @@
             if (currentUser && currentUser.role !== 'admin') {
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             }
+        }
+
+        /* CROSS TELLY & DAILY RECONCILIATION */
+        function getCrossTellySelectedDate() {
+            const el = document.getElementById('entryDate');
+            return el ? normalizeDate(el.value.trim()) : '';
+        }
+
+        function getCrossTellyTransactions() {
+            const selectedDate = getCrossTellySelectedDate();
+            if (!selectedDate) return [];
+            return getFilteredTransactionsForUser().filter(t => normalizeDate(t.date) === selectedDate);
+        }
+
+        function performDailyCrossTelly() {
+            const summary = document.getElementById('dailyTellySummaryBox');
+            if (!summary) return;
+
+            const selectedDate = getCrossTellySelectedDate();
+            const dayTx = getCrossTellyTransactions();
+            let actualCredit = 0;
+            let actualRecovery = 0;
+            dayTx.forEach(t => {
+                actualCredit += parseFloat(t.credit) || 0;
+                actualRecovery += parseFloat(t.recovery) || 0;
+            });
+
+            const targetCreditEl = document.getElementById('targetDateCredit');
+            const targetRecoveryEl = document.getElementById('targetDateRecovery');
+            const hasTargetCredit = targetCreditEl && targetCreditEl.value !== '';
+            const hasTargetRecovery = targetRecoveryEl && targetRecoveryEl.value !== '';
+            const targetCredit = hasTargetCredit ? (parseFloat(targetCreditEl.value) || 0) : null;
+            const targetRecovery = hasTargetRecovery ? (parseFloat(targetRecoveryEl.value) || 0) : null;
+            const creditDiff = targetCredit === null ? null : actualCredit - targetCredit;
+            const recoveryDiff = targetRecovery === null ? null : actualRecovery - targetRecovery;
+
+            if (!selectedDate) {
+                summary.innerHTML = 'براہِ کرم پہلے Entry Date درج کریں۔';
+                return;
+            }
+
+            let html = `<b>📅 ${selectedDate}</b> &nbsp; | &nbsp; Entries: ${dayTx.length}`;
+            html += `<br>Actual Credit: <b>Rs. ${actualCredit.toLocaleString()}</b>`;
+            html += ` &nbsp; | &nbsp; Actual Recovery: <b>Rs. ${actualRecovery.toLocaleString()}</b>`;
+            if (targetCredit !== null) {
+                html += `<br>Credit Difference: <b>${creditDiff === 0 ? '✓ Match' : '⚠ Rs. ' + Math.abs(creditDiff).toLocaleString() + (creditDiff > 0 ? ' Extra' : ' Short')}</b>`;
+            }
+            if (targetRecovery !== null) {
+                html += ` &nbsp; | &nbsp; Recovery Difference: <b>${recoveryDiff === 0 ? '✓ Match' : '⚠ Rs. ' + Math.abs(recoveryDiff).toLocaleString() + (recoveryDiff > 0 ? ' Extra' : ' Short')}</b>`;
+            }
+            summary.innerHTML = html;
+        }
+
+        function searchCrossTelly() {
+            const resultBox = document.getElementById('crossTellyResults');
+            const amountEl = document.getElementById('crossTellyAmount');
+            if (!resultBox || !amountEl) return;
+
+            const amount = parseFloat(amountEl.value);
+            if (isNaN(amount)) {
+                resultBox.style.display = 'block';
+                resultBox.innerHTML = '<b>⚠️ Amount درج کریں۔</b>';
+                return;
+            }
+
+            const dayTx = getCrossTellyTransactions();
+            const matches = [];
+            dayTx.forEach((t, i) => {
+                const credit = parseFloat(t.credit) || 0;
+                const recovery = parseFloat(t.recovery) || 0;
+                if (credit === amount || recovery === amount) {
+                    matches.push({ t, type: credit === amount ? 'Credit' : 'Recovery', amount: credit === amount ? credit : recovery });
+                }
+            });
+
+            resultBox.style.display = 'block';
+            if (!matches.length) {
+                resultBox.innerHTML = `<b>🔎 Rs. ${amount.toLocaleString()} نہیں ملا</b> — منتخب تاریخ ${getCrossTellySelectedDate() || '-'} میں کوئی exact Credit/Recovery entry نہیں۔`;
+                return;
+            }
+
+            resultBox.innerHTML = `<b>🔎 Rs. ${amount.toLocaleString()} — ${matches.length} match${matches.length > 1 ? 'es' : ''}</b>` +
+                `<div style="overflow-x:auto; margin-top:8px;"><table style="width:100%; border-collapse:collapse; font-size:12px;">` +
+                `<tr><th style="padding:5px; border-bottom:1px solid #ddd; text-align:left;">Date</th><th style="padding:5px; border-bottom:1px solid #ddd; text-align:left;">Booker</th><th style="padding:5px; border-bottom:1px solid #ddd; text-align:left;">Shop</th><th style="padding:5px; border-bottom:1px solid #ddd;">Type</th><th style="padding:5px; border-bottom:1px solid #ddd; text-align:right;">Amount</th><th style="padding:5px; border-bottom:1px solid #ddd;">Ref</th></tr>` +
+                matches.map(m => `<tr><td style="padding:5px;">${m.t.date || '-'}</td><td style="padding:5px;">${m.t.booker || '-'}</td><td style="padding:5px;"><b>${m.t.shop || '-'}</b></td><td style="padding:5px; text-align:center;">${m.type}</td><td style="padding:5px; text-align:right;">Rs. ${m.amount.toLocaleString()}</td><td style="padding:5px;">${m.t.ref || '-'}</td></tr>`).join('') +
+                `</table></div>`;
+        }
+
+        function autoAuditMismatches() {
+            const resultBox = document.getElementById('crossTellyResults');
+            if (!resultBox) return;
+
+            const selectedDate = getCrossTellySelectedDate();
+            const dayTx = getCrossTellyTransactions();
+            let actualCredit = 0, actualRecovery = 0;
+            dayTx.forEach(t => {
+                actualCredit += parseFloat(t.credit) || 0;
+                actualRecovery += parseFloat(t.recovery) || 0;
+            });
+
+            const targetCreditEl = document.getElementById('targetDateCredit');
+            const targetRecoveryEl = document.getElementById('targetDateRecovery');
+            const targetCredit = targetCreditEl && targetCreditEl.value !== '' ? (parseFloat(targetCreditEl.value) || 0) : null;
+            const targetRecovery = targetRecoveryEl && targetRecoveryEl.value !== '' ? (parseFloat(targetRecoveryEl.value) || 0) : null;
+
+            resultBox.style.display = 'block';
+            if (!selectedDate) {
+                resultBox.innerHTML = '<b>⚠️ پہلے Entry Date درج کریں۔</b>';
+                return;
+            }
+            if (targetCredit === null && targetRecovery === null) {
+                resultBox.innerHTML = '<b>⚠️ Scan Mismatches کے لیے Expected Credit یا Expected Recovery میں کم از کم ایک target درج کریں۔</b>';
+                return;
+            }
+
+            const creditDiff = targetCredit === null ? 0 : actualCredit - targetCredit;
+            const recoveryDiff = targetRecovery === null ? 0 : actualRecovery - targetRecovery;
+            const creditText = targetCredit === null ? 'Not set' : (creditDiff === 0 ? '✓ Match' : `⚠ ${creditDiff > 0 ? 'Extra' : 'Short'} Rs. ${Math.abs(creditDiff).toLocaleString()}`);
+            const recoveryText = targetRecovery === null ? 'Not set' : (recoveryDiff === 0 ? '✓ Match' : `⚠ ${recoveryDiff > 0 ? 'Extra' : 'Short'} Rs. ${Math.abs(recoveryDiff).toLocaleString()}`);
+
+            resultBox.innerHTML = `<b>⚡ Daily Mismatch Scan — ${selectedDate}</b>` +
+                `<div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">` +
+                `<div style="padding:8px; border:1px solid #ddd; border-radius:5px; min-width:180px;"><b>Credit</b><br>Target: Rs. ${targetCredit === null ? '-' : targetCredit.toLocaleString()}<br>Actual: Rs. ${actualCredit.toLocaleString()}<br>Result: <b>${creditText}</b></div>` +
+                `<div style="padding:8px; border:1px solid #ddd; border-radius:5px; min-width:180px;"><b>Recovery</b><br>Target: Rs. ${targetRecovery === null ? '-' : targetRecovery.toLocaleString()}<br>Actual: Rs. ${actualRecovery.toLocaleString()}<br>Result: <b>${recoveryText}</b></div>` +
+                `</div>`;
         }
 
         /* RENDER TRANSACTIONS (DAILY ENTRY) */
