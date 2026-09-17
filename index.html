@@ -638,7 +638,7 @@
                 <input type="hidden" id="editIndex" value="-1">
                 <div class="form-group">
                     <label>Date <span class="required-star">*</span>:</label>
-                    <input type="text" id="entryDate" placeholder="01-02-2026" required oninput="renderTransactions()">
+                    <input type="text" id="entryDate" placeholder="01-02-2026" required>
                 </div>
                 <div class="form-group">
                     <label>Order Booker <span class="required-star">*</span>:</label>
@@ -1224,7 +1224,10 @@
 
         function normalizeDate(input) {
             if (!input) return '';
-            let str = input.toString().trim().replace(/[/.]/g, '-');
+            let str = input.toString().trim();
+            // Keep transaction dates as date-only values (DD-MM-YYYY); never store time with them.
+            if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}(?:\s|T)/.test(str)) str = str.split(/[\sT]/)[0];
+            str = str.replace(/[/.]/g, '-');
             let parts = str.split('-');
             if (parts.length !== 3) return input;
             let year, month, day;
@@ -2463,8 +2466,15 @@
             saveTransactionsToCloud();
             playEntrySound();
             alert("Entry Saved Successfully! 🚀");
-            document.getElementById('entryForm').reset();
+
+            // Keep Date and Booker selected for the next entry. Only clear the entry-specific fields.
+            document.getElementById('shopName').value = '';
+            document.getElementById('refNo').value = '';
+            document.getElementById('creditVal').value = '';
+            document.getElementById('recoveryVal').value = '';
             document.getElementById('editIndex').value = "-1";
+            document.getElementById('saveBtn').innerText = "Save Entry";
+            showLiveShopBalance('');
             renderTransactions();
             populateShopDropdowns();
         }
