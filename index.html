@@ -2004,6 +2004,18 @@
                 });
             }
 
+            // Daily Entry sort: Recent Update First = latest transaction date first.
+            // Keep the original array untouched so Edit/Delete indexes remain correct.
+            const sortOrder = document.getElementById('entrySortOrder')?.value || 'recent';
+            userTx = userTx.map((t, i) => ({ t, i })).sort((a, b) => {
+                if (sortOrder === 'old') {
+                    const dateDiff = parseFormattedDate(a.t.date) - parseFormattedDate(b.t.date);
+                    return dateDiff || (a.i - b.i);
+                }
+                const dateDiff = parseFormattedDate(b.t.date) - parseFormattedDate(a.t.date);
+                return dateDiff || (b.i - a.i);
+            }).map(item => item.t);
+
             let sno = 1;
             let totalCredit = 0;
             let totalRecovery = 0;
