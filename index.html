@@ -608,7 +608,8 @@
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
                 <h3 style="font-size:15px; margin:0;">Booker Summary</h3>
                 <div class="no-print" style="display:flex; gap:8px;">
-                    <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print / PDF 🖨️</button>
+                    <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                    <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('dashBookerTable','Booker_Summary')">PDF Download 📄</button>
                     <button class="btn-excel" onclick="exportTableToExcel('dashBookerTable', 'Booker_Summary')">Download Excel 📊</button>
                 </div>
             </div>
@@ -738,6 +739,10 @@
                         <input type="date" id="entryFilterTo" onchange="renderTransactions()" style="width:auto; padding:5px;">
                     </div>
                     <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:7px 12px; font-size:13px;" onclick="clearEntryDateFilter()">Reset Date Filter 🔄</button>
+                    <div style="display:flex; align-items:center; gap:5px; min-width:220px; flex:1;">
+                        <label style="font-size:12px; font-weight:bold; white-space:nowrap;">🔍 Search:</label>
+                        <input type="text" id="entrySearchInput" placeholder="Shop / Booker / Ref..." oninput="renderTransactions()" autocomplete="off" style="padding:7px 10px; width:100%;">
+                    </div>
                     <div style="display:flex; align-items:center; gap:5px;">
                         <label style="font-size:12px; font-weight:bold;">Order:</label>
                         <select id="entrySortOrder" onchange="renderTransactions()" style="padding:5px; width:auto;">
@@ -746,6 +751,7 @@
                         </select>
                     </div>
                     <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:7px 12px; font-size:13px;" onclick="window.print()">Print Report 🖨️</button>
+                    <button class="btn-excel" style="background:#007bff; padding:7px 12px; font-size:13px;" onclick="downloadCurrentTablePDF('transMainTable','Daily_Transactions')">PDF Download 📄</button>
                     <button class="btn-delete" onclick="deleteSelectedEntries()" style="padding:7px 12px; font-weight:bold;">Delete Selected Entries 🗑️</button>
                     <label style="font-size:13px; font-weight:bold;">Show:</label>
                     <select id="entryLimitSelect" onchange="renderTransactions()" style="padding:6px 10px; width:auto;">
@@ -803,7 +809,8 @@
                 </div>
                 <button class="btn-add" style="grid-column:auto; padding:9px 15px; font-size:13px;" onclick="renderLedger()">View Ledger</button>
                 <button class="btn-excel" onclick="exportTableToExcel('ledgerTable', 'Shop_Ledger')">Excel 📊</button>
-                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print / PDF 🖨️</button>
+                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('ledgerMainTable','Shop_Ledger')">PDF Download 📄</button>
             </div>
 
             <div class="summary-card">
@@ -845,6 +852,10 @@
                     <label style="font-size:12px; font-weight:bold;">As On Date:</label>
                     <input type="date" id="bookerToDate" onchange="renderBookerDetail()" style="width:auto;">
                 </div>
+                <div style="display:flex; align-items:center; gap:5px; min-width:220px; flex:1;">
+                    <label style="font-size:12px; font-weight:bold; white-space:nowrap;">🔍 Search Shop:</label>
+                    <input type="text" id="bookerSearchInput" placeholder="Type shop name..." oninput="renderBookerDetail()" autocomplete="off" style="padding:7px 10px; width:100%;">
+                </div>
                 <div style="display:flex; align-items:center; gap:5px;">
                     <label style="font-size:12px; font-weight:bold;">Balance Filter:</label>
                     <select id="bookerBalanceFilter" onchange="saveBookerFilterAndRender()" style="padding:6px 10px; width:auto;">
@@ -856,7 +867,8 @@
                     </select>
                 </div>
                 <button class="btn-excel" onclick="exportTableToExcel('bookerShopsTable', 'Booker_Detail')">Excel 📊</button>
-                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print / PDF 🖨️</button>
+                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('bookerDetailMainTable','Booker_Detail')">PDF Download 📄</button>
             </div>
 
             <div class="summary-card">
@@ -918,7 +930,8 @@
                 <button class="btn-backup admin-only" onclick="openBulkTransferModal()" style="padding:8px 12px; font-weight:bold; background:#007bff;">🔀 Transfer Selected Shops</button>
                 <button class="btn-delete admin-only" onclick="deleteSelectedShops()" style="padding:9px 15px; font-weight:bold;">Delete Selected Shops 🗑️</button>
                 <button class="btn-excel" onclick="exportTableToExcel('shopsTable', 'All_Shops_Balance')">Excel 📊</button>
-                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print / PDF 🖨️</button>
+                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('shopsMainTable','All_Shops_Balance')">PDF Download 📄</button>
             </div>
 
             <div class="table-responsive">
@@ -1840,6 +1853,7 @@
                 }
             });
 
+            const bookerSearch = cleanStr(document.getElementById('bookerSearchInput')?.value || '');
             let sno = 1;
             let totalBookerBal = 0;
             const rows = [];
@@ -1849,6 +1863,7 @@
                 let data = shopData[sName];
                 let bal = data.credit - data.recovery;
 
+                if (bookerSearch && !cleanStr(sName).includes(bookerSearch)) return;
                 if (filterMode === 'HIDE_ZERO' && bal === 0) return;
                 if (filterMode === 'POSITIVE' && bal <= 0) return;
                 if (filterMode === 'NEGATIVE' && bal >= 0) return;
@@ -1956,7 +1971,7 @@
 
                 rows.push(`
                     <tr>
-                        <td class="no-print admin-only text-center"><input type="checkbox" class="shop-cb" value="${sName}"></td>
+                        <td class="no-print admin-only text-center"><input type="checkbox" class="shop-cb" value="${sName}" onchange="updateShopSelectAllState()"></td>
                         <td class="text-center">${sno++}</td>
                         <td class="text-left"><strong>${sName}</strong></td>
                         <td class="text-left">${data.booker}</td>
@@ -2274,6 +2289,16 @@
                 });
             }
 
+            // Daily Entry search: filter by shop, booker, or reference/bill number.
+            const entrySearch = cleanStr(document.getElementById('entrySearchInput')?.value || '');
+            if (entrySearch) {
+                userTx = userTx.filter(t =>
+                    cleanStr(t.shop).includes(entrySearch) ||
+                    cleanStr(t.booker).includes(entrySearch) ||
+                    cleanStr(t.ref).includes(entrySearch)
+                );
+            }
+
             // Daily Entry sort: Recent Update First = latest transaction date first.
             // Keep the original array untouched so Edit/Delete indexes remain correct.
             const sortOrder = document.getElementById('entrySortOrder')?.value || 'recent';
@@ -2300,7 +2325,7 @@
 
                 rows.push(`
                     <tr>
-                        <td class="no-print text-center"><input type="checkbox" class="entry-cb" value="${originalIndex}"></td>
+                        <td class="no-print text-center"><input type="checkbox" class="entry-cb" value="${originalIndex}" onchange="updateEntrySelectAllState()"></td>
                         <td class="text-center">${sno++}</td>
                         <td class="text-center">${t.date}</td>
                         <td class="text-left">${t.booker}</td>
@@ -2744,6 +2769,169 @@
             showLiveShopBalance('');
             renderTransactions();
             populateShopDropdowns();
+        }
+
+        /* CHECKBOX SELECTION HELPERS */
+        function toggleSelectAllEntries(master) {
+            const checked = !!(master && master.checked);
+            document.querySelectorAll('.entry-cb').forEach(cb => { cb.checked = checked; });
+            updateEntrySelectAllState();
+        }
+
+        function updateEntrySelectAllState() {
+            const master = document.getElementById('selectAllEntries');
+            if (!master) return;
+            const boxes = Array.from(document.querySelectorAll('.entry-cb'));
+            const checked = boxes.filter(cb => cb.checked).length;
+            master.checked = boxes.length > 0 && checked === boxes.length;
+            master.indeterminate = checked > 0 && checked < boxes.length;
+        }
+
+        function deleteSelectedEntries() {
+            const boxes = Array.from(document.querySelectorAll('.entry-cb:checked'));
+            if (!boxes.length) {
+                alert('Please select at least one entry to delete.');
+                return;
+            }
+
+            const indexes = boxes
+                .map(cb => parseInt(cb.value, 10))
+                .filter(i => Number.isInteger(i) && i >= 0 && i < transactions.length);
+
+            if (!indexes.length) {
+                alert('No valid entries selected.');
+                return;
+            }
+
+            if (!confirm(`Delete ${indexes.length} selected entr${indexes.length === 1 ? 'y' : 'ies'} permanently?`)) return;
+
+            // Delete from highest index to lowest so original transaction indexes stay correct.
+            indexes.sort((a, b) => b - a);
+            indexes.forEach(index => transactions.splice(index, 1));
+
+            saveTransactionsToCloud();
+            const master = document.getElementById('selectAllEntries');
+            if (master) {
+                master.checked = false;
+                master.indeterminate = false;
+            }
+            renderTransactions();
+            populateShopDropdowns();
+            alert(`${indexes.length} entr${indexes.length === 1 ? 'y' : 'ies'} deleted successfully.`);
+        }
+
+        function toggleSelectAllShops(master) {
+            const checked = !!(master && master.checked);
+            document.querySelectorAll('.shop-cb').forEach(cb => { cb.checked = checked; });
+            updateShopSelectAllState();
+        }
+
+        function updateShopSelectAllState() {
+            const master = document.getElementById('selectAllShops');
+            if (!master) return;
+            const boxes = Array.from(document.querySelectorAll('.shop-cb'));
+            const checked = boxes.filter(cb => cb.checked).length;
+            master.checked = boxes.length > 0 && checked === boxes.length;
+            master.indeterminate = checked > 0 && checked < boxes.length;
+        }
+
+        /* MOBILE-FRIENDLY PDF DOWNLOAD - uses only browser JavaScript, no external library */
+        function downloadCurrentTablePDF(tableId, filename, title) {
+            try {
+                const table = document.getElementById(tableId);
+                if (!table) { alert('Report table not found.'); return; }
+
+                const rows = [];
+                table.querySelectorAll('tr').forEach(tr => {
+                    const cells = Array.from(tr.querySelectorAll('th,td'))
+                        .filter(cell => !cell.classList.contains('no-print'))
+                        .map(cell => (cell.innerText || '').replace(/\s+/g, ' ').trim())
+                        .filter(Boolean);
+                    if (cells.length) rows.push(cells.join(' | '));
+                });
+
+                const reportTitle = title || filename || 'Al Qadir Traders Report';
+                const generated = new Date().toLocaleString('en-GB');
+                let textLines = [reportTitle, 'Generated: ' + generated, ''];
+                rows.forEach(row => {
+                    let line = row;
+                    while (line.length > 100) {
+                        let cut = line.lastIndexOf(' ', 100);
+                        if (cut < 40) cut = 100;
+                        textLines.push(line.slice(0, cut));
+                        line = line.slice(cut).trim();
+                    }
+                    if (line) textLines.push(line);
+                });
+
+                const escapePdfText = str => String(str)
+                    .replace(/\\/g, '\\\\')
+                    .replace(/\(/g, '\\(')
+                    .replace(/\)/g, '\\)')
+                    .replace(/[^\x20-\x7E]/g, '?');
+
+                const pageWidth = 612, pageHeight = 792;
+                const margin = 36, fontSize = 8, lineHeight = 12;
+                const linesPerPage = Math.floor((pageHeight - margin * 2 - 35) / lineHeight);
+                const pages = [];
+                for (let i = 0; i < textLines.length; i += linesPerPage) {
+                    pages.push(textLines.slice(i, i + linesPerPage));
+                }
+                if (!pages.length) pages.push(['No records found.']);
+
+                const objects = [];
+                const addObject = content => { objects.push(content); return objects.length; };
+                const fontObj = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+                const pageIds = [];
+                const contentIds = [];
+
+                pages.forEach(lines => {
+                    let stream = 'BT\n/F1 8 Tf\n';
+                    let y = pageHeight - margin;
+                    lines.forEach((line, index) => {
+                        const size = index === 0 ? 13 : fontSize;
+                        const yPos = index === 0 ? y : y;
+                        stream += `/F1 ${size} Tf 1 0 0 1 ${margin} ${yPos} Tm (${escapePdfText(line)}) Tj\n`;
+                        y -= index === 0 ? 22 : lineHeight;
+                    });
+                    stream += 'ET';
+                    const contentId = addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+                    contentIds.push(contentId);
+                    pageIds.push(null);
+                });
+
+                const pagesObj = addObject('');
+                pageIds.forEach((_, i) => {
+                    pageIds[i] = addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontObj} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
+                });
+                objects[pagesObj - 1] = `<< /Type /Pages /Kids [${pageIds.map(id => id + ' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
+                const catalogObj = addObject(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
+
+                let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+                const offsets = [0];
+                objects.forEach((obj, idx) => {
+                    offsets[idx + 1] = pdf.length;
+                    pdf += `${idx + 1} 0 obj\n${obj}\nendobj\n`;
+                });
+                const xref = pdf.length;
+                pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+                for (let i = 1; i <= objects.length; i++) pdf += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+                pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogObj} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+
+                const blob = new Blob([pdf], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = (filename || 'AlQadir_Report') + '.pdf';
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 15000);
+            } catch (err) {
+                console.error('PDF download failed:', err);
+                alert('PDF download failed on this browser. Please try Chrome browser and allow downloads.');
+            }
         }
 
         function editTransaction(index) {
