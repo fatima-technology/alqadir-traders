@@ -1312,20 +1312,85 @@
         }
         setInterval(updateLiveClock, 1000); updateLiveClock();
 
-        /* EXCEL */
+        /* EXCEL / PDF - match the on-screen print report layout */
+        function getReportConfig(key, filename) {
+            const configs = {
+                dashBookerTable: { title: 'BOOKER SUMMARY REPORT', subtitle: 'Booker-wise consolidated credit and recovery summary' },
+                transactionTable: { title: 'DAILY TRANSACTIONS REPORT', subtitle: 'Daily credit and recovery entries' },
+                ledgerTable: { title: 'SHOP LEDGER REPORT', subtitle: 'Shop-wise transaction ledger with running balance' },
+                bookerShopsTable: { title: 'BOOKER DETAIL REPORT', subtitle: 'Shop-wise balance summary for selected order booker' },
+                shopsTable: { title: 'SHOPS DIRECTORY & BALANCE REPORT', subtitle: 'All shops with assigned booker and current balance' }
+            };
+            return configs[key] || { title: (filename || 'AL QADIR TRADERS REPORT').replace(/_/g, ' ').toUpperCase(), subtitle: 'Report' };
+        }
+
+        function getExportTable(table) {
+            const clone = table.cloneNode(true);
+            clone.querySelectorAll('.no-print').forEach(el => el.remove());
+            clone.querySelectorAll('input,button,select,textarea').forEach(el => el.remove());
+            return clone;
+        }
+
         function exportTableToExcel(tbodyId, filename) {
-            let tbody = document.getElementById(tbodyId); if (!tbody) return;
-            let table = tbody.closest('table'); if (!table) return;
-            let cloneTable = table.cloneNode(true);
-            cloneTable.querySelectorAll('.no-print').forEach(el => el.remove());
-            let html = cloneTable.outerHTML;
-            let blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel' });
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a'); a.href = url; a.download = (filename || 'Export') + '.xls';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) { alert('Report table not found.'); return; }
+            const table = tbody.closest('table');
+            if (!table) { alert('Report table not found.'); return; }
+            const tab = table.closest('.tab-content');
+            const cfg = getReportConfig(tbodyId, filename);
+            const generated = new Date().toLocaleString('en-GB');
+
+            // Build the export from the same visible report structure used by Print:
+            // brand header + date bar + report content (filters/buttons removed).
+            const brand = document.querySelector('.brand-header-custom');
+            const dateBar = document.querySelector('.print-date-bar');
+            const content = tab ? tab.cloneNode(true) : table.cloneNode(true);
+            content.querySelectorAll('.no-print, button, input, select, textarea, form').forEach(el => el.remove());
+            content.querySelectorAll('.table-responsive').forEach(w => { w.style.overflow='visible'; w.style.width='100%'; });
+            content.querySelectorAll('.summary-card').forEach(w => w.classList.add('export-summary'));
+
+            const brandHtml = brand ? brand.cloneNode(true).outerHTML : '<div class="brand-fallback">AL QADIR TRADERS</div>';
+            const dateHtml = dateBar ? dateBar.cloneNode(true).outerHTML : '';
+            const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+            <head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+            <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${cfg.title.slice(0,31)}</x:Name><x:WorksheetOptions><x:PageSetup><x:Layout x:Orientation="Portrait"/><x:FitToPage/></x:PageSetup><x:Print><x:ValidPrinterInfo/><x:PaperSizeIndex>9</x:PaperSizeIndex><x:HorizontalResolution>300</x:HorizontalResolution><x:VerticalResolution>300</x:VerticalResolution></x:Print><x:Selected/><x:ProtectContents>False</x:ProtectContents></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+            <style>
+              @page{size:A4 portrait;margin:.25in;}
+              body{font-family:Arial,sans-serif;font-size:10pt;color:#000;background:#fff;margin:0;padding:0;}
+              .container{width:100%;max-width:none;}
+              .brand-header-custom{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #d1121d;padding:4px 0 6px;margin-bottom:7px;background:#fff;}
+              .brand-left{width:34%;}.brand-center{width:32%;text-align:center;}.brand-right{width:34%;text-align:right;}
+              .brand-title-en{font-size:18pt;font-weight:bold;}.brand-sub-en{font-size:9pt;font-weight:bold;}.brand-desc-en{font-size:8pt;color:#555;}
+              .arabic-logo-symbol{font-size:13pt;}.brand-title-ur{font-size:15pt;font-weight:bold;}.coca-cola-logo-img{height:28px;max-width:150px;}
+              .coca-cola-sub{font-size:7pt;font-weight:bold;color:#555;}
+              .print-date-bar{display:flex;justify-content:space-between;font-size:9pt;font-weight:bold;color:#000;margin-bottom:9px;padding:3px 0;border-bottom:1px solid #ddd;}
+              .filter-box,form,.no-print,button,input,select,textarea{display:none!important;}
+              .summary-card{display:flex;gap:8px;margin:6px 0 10px;}
+              .summary-card .card{flex:1;border:1px solid #bbb;border-left:3px solid #d1121d;padding:6px 9px;background:#fff;}
+              .summary-card h3{font-size:9pt;margin:0 0 3px;}.summary-card p{font-size:12pt;font-weight:bold;margin:0;}
+              h3{font-size:13pt;margin:7px 0;}
+              table{border-collapse:collapse;width:100%;table-layout:auto;margin-top:5px;}
+              th{background:#0d0d0d;color:#fff;font-weight:bold;text-align:center;border:1px solid #555;padding:6px 7px;white-space:normal;}
+              td{border:1px solid #999;padding:6px 7px;vertical-align:middle;white-space:normal;word-wrap:break-word;}
+              tr:nth-child(even) td{background:#f5f5f5;}
+              .text-right{text-align:right}.text-left{text-align:left}.text-center{text-align:center}
+            </style></head><body>
+            ${brandHtml}
+            ${dateHtml}
+            <div class="report-content">${content.outerHTML}</div>
+            </body></html>`;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (filename || 'Al_Qadir_Report') + '.xls';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 15000);
         }
 
         /* LOCAL DATA SAFETY + SAFE CLOUD WRITES */
+
         const LOCAL_TX_KEY = 'alqadir_transactions_safety_v1';
         const LOCAL_USERS_KEY = 'alqadir_users_safety_v1';
         let cloudTxReady = false;
@@ -2835,103 +2900,128 @@
             master.indeterminate = checked > 0 && checked < boxes.length;
         }
 
-        /* MOBILE-FRIENDLY PDF DOWNLOAD - uses only browser JavaScript, no external library */
+        /* MOBILE-FRIENDLY PDF DOWNLOAD - print-style A4 PDF, no external library */
         function downloadCurrentTablePDF(tableId, filename, title) {
             try {
                 const table = document.getElementById(tableId);
                 if (!table) { alert('Report table not found.'); return; }
+                const sourceTable = getExportTable(table);
+                const rows = Array.from(sourceTable.querySelectorAll('tr')).map(tr =>
+                    Array.from(tr.querySelectorAll('th,td')).map(cell => (cell.innerText || '').replace(/\s+/g, ' ').trim())
+                ).filter(r => r.length);
+                if (!rows.length) rows.push(['No records found.']);
 
-                const rows = [];
-                table.querySelectorAll('tr').forEach(tr => {
-                    const cells = Array.from(tr.querySelectorAll('th,td'))
-                        .filter(cell => !cell.classList.contains('no-print'))
-                        .map(cell => (cell.innerText || '').replace(/\s+/g, ' ').trim())
-                        .filter(Boolean);
-                    if (cells.length) rows.push(cells.join(' | '));
-                });
-
-                const reportTitle = title || filename || 'Al Qadir Traders Report';
+                const reportKeyMap = { dashBookerTable:'dashBookerTable', transMainTable:'transactionTable', ledgerMainTable:'ledgerTable', bookerDetailMainTable:'bookerShopsTable', shopsMainTable:'shopsTable' };
+                const cfg = getReportConfig(reportKeyMap[table.id] || table.id, filename);
+                const tab = table.closest('.tab-content');
+                const reportTitle = title ? String(title).replace(/_/g, ' ').toUpperCase() : cfg.title;
                 const generated = new Date().toLocaleString('en-GB');
-                let textLines = [reportTitle, 'Generated: ' + generated, ''];
-                rows.forEach(row => {
-                    let line = row;
-                    while (line.length > 100) {
-                        let cut = line.lastIndexOf(' ', 100);
-                        if (cut < 40) cut = 100;
-                        textLines.push(line.slice(0, cut));
-                        line = line.slice(cut).trim();
-                    }
-                    if (line) textLines.push(line);
-                });
 
-                const escapePdfText = str => String(str)
-                    .replace(/\\/g, '\\\\')
-                    .replace(/\(/g, '\\(')
-                    .replace(/\)/g, '\\)')
-                    .replace(/[^\x20-\x7E]/g, '?');
+                // Pull the same summary cards and date-bar values shown by the Print view.
+                const summary = tab ? Array.from(tab.querySelectorAll('.summary-card .card')).map(card => ({
+                    label: (card.querySelector('h3')?.innerText || '').replace(/\s+/g,' ').trim(),
+                    value: (card.querySelector('p')?.innerText || '').replace(/\s+/g,' ').trim()
+                })).filter(x => x.label || x.value) : [];
+                const dateBar = document.querySelector('.print-date-bar');
+                const dateText = dateBar ? (dateBar.innerText || '').replace(/\s+/g,' ').trim() : ('Generated: ' + generated);
+                const heading = tab ? Array.from(tab.querySelectorAll('h3')).find(h => !h.closest('.summary-card'))?.innerText?.trim() : '';
 
-                const pageWidth = 612, pageHeight = 792;
-                const margin = 36, fontSize = 8, lineHeight = 12;
-                const linesPerPage = Math.floor((pageHeight - margin * 2 - 35) / lineHeight);
-                const pages = [];
-                for (let i = 0; i < textLines.length; i += linesPerPage) {
-                    pages.push(textLines.slice(i, i + linesPerPage));
+                /* A4 portrait, matching the browser @media print report. */
+                const PW=595.28, PH=841.89, M=24, usableW=PW-M*2;
+                const topHeaderH=108, summaryH=58;
+                const font=7.2, headFont=7.2, lineH=9.5, padX=4, padY=5;
+                const colCount=Math.max.apply(null, rows.map(r=>r.length));
+                const weights=Array(colCount).fill(1);
+                rows[0].forEach((v,i)=>{weights[i]=Math.min(30,Math.max(7,String(v).length));});
+                let weightSum=weights.reduce((a,b)=>a+b,0);
+                let colWidths=weights.map(w=>usableW*w/weightSum);
+                const minCol=35;
+                if(colWidths.some(w=>w<minCol)){
+                    const total=colWidths.reduce((a,b)=>a+b,0);
+                    const deficit=colWidths.reduce((a,w)=>a+Math.max(0,minCol-w),0);
+                    const donors=colWidths.map((w,i)=>w>minCol+deficit/Math.max(1,colCount)?i:-1).filter(i=>i>=0);
+                    if(donors.length) donors.forEach(i=>colWidths[i]-=deficit/donors.length);
+                    const t=colWidths.reduce((a,b)=>a+b,0); colWidths=colWidths.map(w=>Math.max(minCol,w)*usableW/t);
                 }
-                if (!pages.length) pages.push(['No records found.']);
+                const esc=s=>String(s??'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)').replace(/[^\x20-\x7E]/g,'?');
+                const wrap=(text,width,size)=>{
+                    const maxChars=Math.max(5,Math.floor(width/(size*0.52)));
+                    const words=String(text||'').split(/\s+/); const out=[]; let line='';
+                    words.forEach(w=>{ if(!line){line=w;return;} if((line+' '+w).length<=maxChars) line+=' '+w; else {out.push(line);line=w;} });
+                    if(line) out.push(line); return out.length?out:[''];
+                };
 
-                const objects = [];
-                const addObject = content => { objects.push(content); return objects.length; };
-                const fontObj = addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-                const pageIds = [];
-                const contentIds = [];
+                const objs=[]; const add=o=>{objs.push(o);return objs.length;};
+                const fontId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+                const pagesId=add(''); const kids=[];
+                let pageRows=[]; let pages=[]; let used=topHeaderH + (summary.length ? summaryH : 0) + (heading ? 20 : 0);
 
-                pages.forEach(lines => {
-                    let stream = 'BT\n/F1 8 Tf\n';
-                    let y = pageHeight - margin;
-                    lines.forEach((line, index) => {
-                        const size = index === 0 ? 13 : fontSize;
-                        const yPos = index === 0 ? y : y;
-                        stream += `/F1 ${size} Tf 1 0 0 1 ${margin} ${yPos} Tm (${escapePdfText(line)}) Tj\n`;
-                        y -= index === 0 ? 22 : lineHeight;
+                rows.forEach((r,ri)=>{
+                    const wrapped=r.map((v,i)=>wrap(v,colWidths[i]||usableW/colCount,font));
+                    const h=Math.max(18,Math.min(54,Math.max.apply(null,wrapped.map(a=>a.length))*lineH+padY*2));
+                    if(pageRows.length && used+h>PH-M-8){ pages.push(pageRows); pageRows=[]; used=topHeaderH+(summary.length?summaryH:0)+(heading?20:0); }
+                    pageRows.push({cells:wrapped,height:h,header:ri===0}); used+=h;
+                });
+                if(pageRows.length) pages.push(pageRows);
+
+                pages.forEach((pageRows,pageIndex)=>{
+                    let st='q\n';
+                    st+='1 1 1 rg 0 0 '+PW+' '+PH+' re f\n';
+                    // Brand header — same hierarchy as Print view.
+                    st+='BT /F1 15 Tf 1 0 0 1 '+M+' '+(PH-25)+' Tm ('+esc('AL QADIR TRADERS')+') Tj ET\n';
+                    st+='BT /F1 7 Tf 1 0 0 1 '+M+' '+(PH-38)+' Tm ('+esc('MARKET CREDIT LEDGER SYSTEM  |  AUTHORIZED DISTRIBUTOR')+') Tj ET\n';
+                    st+='BT /F1 8 Tf 1 0 0 1 '+(PW-170)+' '+(PH-32)+' Tm ('+esc('OFFICIAL PARTNER')+') Tj ET\n';
+                    st+='0.82 0.07 0.11 RG 2 w '+M+' '+(PH-45)+' m '+(PW-M)+' '+(PH-45)+' l S\n';
+                    st+='BT /F1 10 Tf 1 0 0 1 '+M+' '+(PH-61)+' Tm ('+esc(reportTitle)+') Tj ET\n';
+                    st+='BT /F1 6.7 Tf 1 0 0 1 '+M+' '+(PH-72)+' Tm ('+esc(cfg.subtitle)+'  |  Generated: '+esc(generated)+') Tj ET\n';
+                    st+='BT /F1 6.7 Tf 1 0 0 1 '+M+' '+(PH-83)+' Tm ('+esc(dateText.slice(0,145))+') Tj ET\n';
+
+                    let y=PH-topHeaderH;
+                    // Print-like summary cards.
+                    if(summary.length){
+                        const gap=7, sw=(usableW-gap*(summary.length-1))/summary.length;
+                        summary.forEach((card,i)=>{
+                            const x=M+i*(sw+gap); const sy=y-summaryH+10;
+                            st+='1 1 1 rg '+x+' '+sy+' '+sw+' 40 re f\n';
+                            st+='0.75 0.75 0.75 RG 0.7 w '+x+' '+sy+' '+sw+' 40 re S\n';
+                            st+='0.82 0.07 0.11 RG 2 w '+x+' '+sy+' m '+x+' '+(sy+40)+' l S\n';
+                            st+='0 0 0 rg BT /F1 6.5 Tf 1 0 0 1 '+(x+7)+' '+(sy+27)+' Tm ('+esc(card.label)+') Tj ET\n';
+                            st+='0 0 0 rg BT /F1 10 Tf 1 0 0 1 '+(x+7)+' '+(sy+12)+' Tm ('+esc(card.value)+') Tj ET\n';
+                        });
+                        y-=summaryH;
+                    }
+                    if(heading){ st+='0 0 0 rg BT /F1 8.5 Tf 1 0 0 1 '+M+' '+(y-5)+' Tm ('+esc(heading)+') Tj ET\n'; y-=20; }
+
+                    pageRows.forEach(row=>{
+                        let x=M;
+                        row.cells.forEach((lines,i)=>{
+                            const w=colWidths[i]||usableW/colCount;
+                            if(row.header) st+='0.05 0.05 0.05 rg '+x+' '+(y-row.height)+' '+w+' '+row.height+' re f\n';
+                            else st+='1 1 1 rg '+x+' '+(y-row.height)+' '+w+' '+row.height+' re f\n';
+                            st+='0.45 0.45 0.45 RG 0.5 w '+x+' '+(y-row.height)+' '+w+' '+row.height+' re S\n';
+                            st+=(row.header?'1 1 1':'0 0 0')+' rg\n';
+                            lines.forEach((ln,li)=>{ st+='BT /F1 '+(row.header?headFont:font)+' Tf 1 0 0 1 '+(x+padX)+' '+(y-padY-lineH*(li+1)+2)+' Tm ('+esc(ln)+') Tj ET\n'; });
+                            x+=w;
+                        });
+                        y-=row.height;
                     });
-                    stream += 'ET';
-                    const contentId = addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
-                    contentIds.push(contentId);
-                    pageIds.push(null);
+                    // Footer page number, like a formal printed report.
+                    st+='0.45 0.45 0.45 rg BT /F1 6 Tf 1 0 0 1 '+(PW-M-55)+' '+12+' Tm ('+esc('Page '+(pageIndex+1)+' / '+pages.length)+') Tj ET\n';
+                    st+='Q';
+                    const cid=add('<< /Length '+st.length+' >>\nstream\n'+st+'\nendstream');
+                    const pid=add('<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /Font << /F1 '+fontId+' 0 R >> >> /Contents '+cid+' 0 R >>');
+                    kids.push(pid);
                 });
-
-                const pagesObj = addObject('');
-                pageIds.forEach((_, i) => {
-                    pageIds[i] = addObject(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontObj} 0 R >> >> /Contents ${contentIds[i]} 0 R >>`);
-                });
-                objects[pagesObj - 1] = `<< /Type /Pages /Kids [${pageIds.map(id => id + ' 0 R').join(' ')}] /Count ${pageIds.length} >>`;
-                const catalogObj = addObject(`<< /Type /Catalog /Pages ${pagesObj} 0 R >>`);
-
-                let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
-                const offsets = [0];
-                objects.forEach((obj, idx) => {
-                    offsets[idx + 1] = pdf.length;
-                    pdf += `${idx + 1} 0 obj\n${obj}\nendobj\n`;
-                });
-                const xref = pdf.length;
-                pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-                for (let i = 1; i <= objects.length; i++) pdf += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
-                pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogObj} 0 R >>\nstartxref\n${xref}\n%%EOF`;
-
-                const blob = new Blob([pdf], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = (filename || 'AlQadir_Report') + '.pdf';
-                a.target = '_blank';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 15000);
-            } catch (err) {
-                console.error('PDF download failed:', err);
-                alert('PDF download failed on this browser. Please try Chrome browser and allow downloads.');
-            }
+                objs[pagesId-1]='<< /Type /Pages /Kids ['+kids.map(id=>id+' 0 R').join(' ')+'] /Count '+kids.length+' >>';
+                const catalog=add('<< /Type /Catalog /Pages '+pagesId+' 0 R >>');
+                let pdf='%PDF-1.4\n%\xE2\xE3\xCF\xD3\n'; const offsets=[0];
+                objs.forEach((o,i)=>{offsets[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+o+'\nendobj\n';});
+                const xref=pdf.length; pdf+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';
+                for(let i=1;i<=objs.length;i++) pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+                pdf+='trailer\n<< /Size '+(objs.length+1)+' /Root '+catalog+' 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+                const blob=new Blob([pdf],{type:'application/pdf'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
+                a.href=url; a.download=(filename||'Al_Qadir_Report')+'.pdf'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),15000);
+            } catch(err){ console.error('PDF download failed:',err); alert('PDF download failed. Please use Chrome and allow downloads.'); }
         }
 
         function editTransaction(index) {
