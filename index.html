@@ -856,6 +856,7 @@
                     <label style="font-size:12px; font-weight:bold; white-space:nowrap;">🔍 Search Shop:</label>
                     <input type="text" id="bookerSearchInput" placeholder="Type shop name..." oninput="renderBookerDetail()" autocomplete="off" style="padding:7px 10px; width:100%;">
                 </div>
+                <button class="btn-add" style="grid-column:auto; padding:7px 12px; font-size:12px; background:#6c757d;" onclick="clearBookerDateFilter()">Reset Filter 🔄</button>
                 <div style="display:flex; align-items:center; gap:5px;">
                     <label style="font-size:12px; font-weight:bold;">Balance Filter:</label>
                     <select id="bookerBalanceFilter" onchange="saveBookerFilterAndRender()" style="padding:6px 10px; width:auto;">
@@ -910,6 +911,7 @@
                     <label style="font-size:12px; font-weight:bold;">As On Date:</label>
                     <input type="date" id="shopsToDate" onchange="renderShops()" style="width:auto;">
                 </div>
+                <button class="btn-add" style="grid-column:auto; padding:7px 12px; font-size:12px; background:#6c757d;" onclick="clearShopsDateFilter()">Reset Filter 🔄</button>
                 <div style="display:flex; align-items:center; gap:5px;">
                     <label style="font-size:12px; font-weight:bold;">Balance Filter:</label>
                     <select id="shopsBalanceFilter" onchange="renderShops()" style="padding:6px 10px; width:auto;">
@@ -1239,6 +1241,9 @@
             if (!input) return '';
             let str = input.toString().trim();
             // Keep transaction dates as date-only values (DD-MM-YYYY); never store time with them.
+            // Accept both DD-MM-YYYY and ISO YYYY-MM-DD date/time values so imported/older
+            // entries cannot disappear from an As On Date report.
+            if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?:\s|T)/.test(str)) str = str.split(/[\sT]/)[0];
             if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}(?:\s|T)/.test(str)) str = str.split(/[\sT]/)[0];
             str = str.replace(/[/.]/g, '-');
             let parts = str.split('-');
@@ -1533,6 +1538,36 @@
             return `<span class="bal-zero">Rs. 0</span>`;
         }
 
+        // Report "As On Date" helper: every report uses the date selected in that report filter.
+        function getReportSelectedDate(tabId) {
+            const ids = {
+                dashboard: 'dashToDate',
+                bookerLedger: 'bookerToDate',
+                shops: 'shopsToDate',
+                ledger: 'ledgerToDate'
+            };
+            const el = document.getElementById(ids[tabId] || '');
+            return el ? (el.value || '') : '';
+        }
+
+        function selectedDateToLabel(value) {
+            if (!value) return '';
+            const parts = value.split('-');
+            return parts.length === 3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : value;
+        }
+
+        function setReportAsOfDate(type, selectedDate) {
+            if (!selectedDate) {
+                updateAsOfLabel(type);
+                return;
+            }
+            const reportType = document.getElementById('reportTypeLabel');
+            const asOf = document.getElementById('asOfDateLabel');
+            const label = selectedDateToLabel(selectedDate);
+            if (reportType) reportType.innerText = `${type} | AS ON ${label}`;
+            if (asOf) asOf.innerText = label;
+        }
+
         function updateAsOfLabel(type) {
             document.getElementById('reportTypeLabel').innerText = type;
             if (transactions.length > 0) {
@@ -1798,13 +1833,13 @@
 
         /* RENDER DASHBOARD */
         function renderDashboard() {
-            updateAsOfLabel("Dashboard Summary");
             const tbody = document.getElementById('dashBookerTable');
             if (!tbody) return;
 
             let userTx = getFilteredTransactionsForUser();
             let selectedBooker = document.getElementById('dashBookerFilter')?.value || 'ALL';
             const toDate = document.getElementById('dashToDate')?.value || '';
+            setReportAsOfDate("Dashboard Summary", toDate);
 
             if (currentUser && currentUser.role === 'booker') {
                 selectedBooker = (currentUser.bookerName || '').toUpperCase();
@@ -1818,8 +1853,7 @@
             }
 
             if (toDate) {
-                const limit = new Date(toDate + 'T23:59:59');
-                userTx = userTx.filter(t => parseFormattedDate(t.date) <= limit);
+                userTx = userTx.filter(t => transactionDateOnOrBefore(t, toDate));
             }
 
             let bookerData = {};
@@ -1874,9 +1908,31 @@
             renderDashboard();
         }
 
+        // Compare transaction dates as calendar dates (DD-MM-YYYY) so an As On Date
+        // always includes that entire day and excludes every later date.
+        function transactionDateOnOrBefore(t, selectedYmd) {
+            if (!selectedYmd) return true;
+            const normalized = normalizeDate(t && t.date ? t.date : '');
+            const parts = normalized.toString().split('-');
+            if (parts.length !== 3) return false;
+            const txYmd = `${parts[2].padStart(4,'0')}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            return txYmd <= selectedYmd;
+        }
+
+        function clearBookerDateFilter() {
+            const el = document.getElementById('bookerToDate');
+            if (el) el.value = '';
+            renderBookerDetail();
+        }
+
+        function clearShopsDateFilter() {
+            const el = document.getElementById('shopsToDate');
+            if (el) el.value = '';
+            renderShops();
+        }
+
         /* RENDER BOOKER DETAIL */
         function renderBookerDetail() {
-            updateAsOfLabel("Booker Detail");
             const select = document.getElementById('selectBooker');
             let selectedBooker = select.value;
 
@@ -1898,6 +1954,17 @@
             }
 
             let userTx = getFilteredTransactionsForUser();
+            const selectedDateInput = document.getElementById('bookerToDate')?.value || '';
+            // "As On Date" means the balance that existed at the end of the selected date.
+            // Include all transactions up to and including that date.
+            if (selectedDateInput) {
+                userTx = userTx.filter(t => transactionDateOnOrBefore(t, selectedDateInput));
+            }
+
+            // For this report, the print/export header must show the date selected by the user,
+            // not the latest date available in the database.
+            setReportAsOfDate("Booker Detail", selectedDateInput);
+
             let shopData = {};
 
             userTx.forEach(t => {
@@ -1953,8 +2020,9 @@
 
         /* RENDER SHOP LEDGER */
         function renderLedger() {
-            updateAsOfLabel("Shop Ledger");
             const shopQuery = cleanStr(document.getElementById('searchShopInput').value);
+            const selectedDate = document.getElementById('ledgerToDate')?.value || '';
+            setReportAsOfDate("Shop Ledger", selectedDate);
             const tbody = document.getElementById('ledgerTable');
             tbody.innerHTML = '';
 
@@ -1967,6 +2035,9 @@
 
             let userTx = getFilteredTransactionsForUser();
             let shopTx = userTx.filter(t => cleanStr(t.shop) === shopQuery);
+            if (selectedDate) {
+                shopTx = shopTx.filter(t => transactionDateOnOrBefore(t, selectedDate));
+            }
 
             shopTx.sort((a,b) => parseFormattedDate(a.date) - parseFormattedDate(b.date));
 
@@ -1998,11 +2069,15 @@
 
         /* RENDER SHOPS DIRECTORY */
         function renderShops() {
-            updateAsOfLabel("Shops Directory");
+            const selectedDate = document.getElementById('shopsToDate')?.value || '';
+            setReportAsOfDate("Shops Directory", selectedDate);
             const tbody = document.getElementById('shopsTable');
             tbody.innerHTML = '';
 
             let userTx = getFilteredTransactionsForUser();
+            if (selectedDate) {
+                userTx = userTx.filter(t => transactionDateOnOrBefore(t, selectedDate));
+            }
             let shopData = {};
 
             userTx.forEach(t => {
@@ -2326,7 +2401,6 @@
 
         /* RENDER TRANSACTIONS (DAILY ENTRY) */
         function renderTransactions() {
-            updateAsOfLabel("Daily Transactions");
             const tbody = document.getElementById('transactionTable');
             tbody.innerHTML = '';
 
@@ -2335,6 +2409,8 @@
             // Daily Entry date-to-date filter (inclusive)
             const filterFrom = document.getElementById('entryFilterFrom')?.value || '';
             const filterTo = document.getElementById('entryFilterTo')?.value || '';
+            const dailyReportDate = filterTo || filterFrom;
+            setReportAsOfDate("Daily Transactions", dailyReportDate);
             if (filterFrom || filterTo) {
                 // HTML date input gives YYYY-MM-DD. Compare using local calendar dates
                 // so DD-MM-YYYY transaction dates are filtered correctly as well.
