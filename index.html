@@ -2052,25 +2052,73 @@
                 shopTx = shopTx.filter(t => transactionDateOnOrBefore(t, selectedDate));
             }
 
-            shopTx.sort((a,b) => parseFormattedDate(a.date) - parseFormattedDate(b.date));
+            // Keep Daily Entry exactly as entered, but make the Shop Ledger cleaner:
+            // for the same shop/date, keep each credit entry as its own row while
+            // combining all recovery entries for that date into the first credit row.
+            // This means a same-day credit + recovery appears on one ledger row,
+            // while multiple same-day credits remain separate rows.
+            const indexedShopTx = shopTx.map((t, index) => ({ t, index }));
+            indexedShopTx.sort((a,b) => {
+                const dateDiff = parseFormattedDate(a.t.date) - parseFormattedDate(b.t.date);
+                return dateDiff || (a.index - b.index);
+            });
+
+            const groupedByDate = new Map();
+            indexedShopTx.forEach(item => {
+                const key = normalizeDate(item.t.date);
+                if (!groupedByDate.has(key)) groupedByDate.set(key, []);
+                groupedByDate.get(key).push(item);
+            });
+
+            const ledgerRows = [];
+            groupedByDate.forEach((items, dateKey) => {
+                const creditItems = items.filter(item => (parseFloat(item.t.credit) || 0) > 0);
+                const recoveryItems = items.filter(item => (parseFloat(item.t.recovery) || 0) > 0);
+                const totalRecovery = recoveryItems.reduce((sum, item) => sum + (parseFloat(item.t.recovery) || 0), 0);
+
+                if (creditItems.length > 0) {
+                    creditItems.forEach((item, creditIndex) => {
+                        const t = item.t;
+                        const credit = parseFloat(t.credit) || 0;
+                        // Put the day's combined recovery on the first credit row.
+                        const recovery = creditIndex === 0 ? totalRecovery : 0;
+                        ledgerRows.push({
+                            date: t.date,
+                            booker: t.booker,
+                            ref: t.ref || '-',
+                            credit,
+                            recovery,
+                            originalIndex: item.index
+                        });
+                    });
+                } else if (recoveryItems.length > 0) {
+                    const firstRecovery = recoveryItems[0].t;
+                    ledgerRows.push({
+                        date: firstRecovery.date,
+                        booker: firstRecovery.booker,
+                        ref: firstRecovery.ref || '-',
+                        credit: 0,
+                        recovery: totalRecovery,
+                        originalIndex: recoveryItems[0].index
+                    });
+                }
+            });
 
             let sno = 1;
             let runningBal = 0;
             const rows = [];
 
-            shopTx.forEach(t => {
-                let credit = parseFloat(t.credit) || 0;
-                let recovery = parseFloat(t.recovery) || 0;
-                runningBal += (credit - recovery);
+            ledgerRows.forEach(item => {
+                runningBal += (item.credit - item.recovery);
 
                 rows.push(`
                     <tr>
                         <td class="text-center">${sno++}</td>
-                        <td class="text-center">${t.date}</td>
-                        <td class="text-left">${t.booker}</td>
-                        <td class="text-left">${t.ref || '-'}</td>
-                        <td class="text-right">${credit > 0 ? credit.toLocaleString() : '-'}</td>
-                        <td class="text-right">${recovery > 0 ? recovery.toLocaleString() : '-'}</td>
+                        <td class="text-center">${item.date}</td>
+                        <td class="text-left">${item.booker}</td>
+                        <td class="text-left">${item.ref}</td>
+                        <td class="text-right">${item.credit > 0 ? item.credit.toLocaleString() : '-'}</td>
+                        <td class="text-right">${item.recovery > 0 ? item.recovery.toLocaleString() : '-'}</td>
                         <td class="text-right">${formatBalance(runningBal)}</td>
                     </tr>
                 `);
