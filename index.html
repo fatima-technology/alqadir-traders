@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <title>🟢 Al Qadir Traders - Market Credit Ledger System</title>
 
     <link id="dynamicFavicon"
@@ -309,71 +309,50 @@
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
 
 
-        /* PRODUCT AD SHOWCASE */
-        #productAdShowcase { position: relative; width: 100%; min-height: 175px; margin: 12px 0 18px; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, rgba(10,10,10,0.82), rgba(30,30,30,0.58)); border: 1px solid rgba(255,255,255,0.30); box-shadow: 0 10px 30px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.35); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-        .ad-slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 22px 35px; opacity: 0; transform: scale(1.03); transition: opacity 0.7s ease, transform 0.7s ease; pointer-events: none; }
-        .ad-slide.active { opacity: 1; transform: scale(1); }
-        .ad-content { position: relative; z-index: 2; max-width: 62%; }
-        .ad-kicker { font-size: 11px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.78); margin-bottom: 4px; }
-        .ad-title { font-family: 'Montserrat', sans-serif; font-size: 30px; font-weight: 900; line-height: 1; color: #fff; text-transform: uppercase; text-shadow: 0 3px 12px rgba(0,0,0,0.4); }
-        .ad-subtitle { margin-top: 9px; font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.90); }
-        .ad-tag { display: inline-block; margin-top: 12px; padding: 6px 12px; border-radius: 20px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.32); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; backdrop-filter: blur(6px); }
-        .ad-product-art { width: 210px; min-width: 210px; height: 145px; position: relative; display: flex; align-items: center; justify-content: center; z-index: 2; }
-
-        .ad-can { position: relative; width: 62px; height: 112px; border-radius: 15px 15px 11px 11px; box-shadow: inset -8px 0 10px rgba(0,0,0,0.25), inset 7px 0 9px rgba(255,255,255,0.20), 0 16px 28px rgba(0,0,0,0.38); transform: rotate(-8deg); }
-        .ad-can::before { content: ''; position: absolute; top: -6px; left: 7px; width: 48px; height: 8px; border-radius: 50%; background: #d9d9d9; box-shadow: inset 0 1px 2px rgba(0,0,0,0.45); }
-        .ad-can::after { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 34px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.28); }
-        .ad-can-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #fff; font-weight: 900; line-height: 0.95; text-shadow: 0 2px 5px rgba(0,0,0,0.4); font-size: 9px; }
-        .ad-can-label strong { font-size: 10px; margin-bottom: 4px; }
-
-        .ad-ice-cubes { position: absolute; width: 20px; height: 20px; background: rgba(230,248,255,0.72); border: 1px solid rgba(255,255,255,0.75); transform: rotate(20deg); box-shadow: 0 4px 12px rgba(255,255,255,0.20); }
-        .ad-ice-1 { right: 12px; top: 15px; }
-        .ad-ice-2 { left: 12px; bottom: 18px; transform: rotate(-15deg); }
-
-        .ad-coke { background: linear-gradient(180deg, #e41e2d 0%, #9b0914 100%); }
-        .ad-coke-scene { background: radial-gradient(circle at 70% 50%, rgba(255,255,255,0.10), transparent 35%), linear-gradient(135deg, #520008, #c81322 50%, #72000b); }
-
-        .ad-sprite { background: linear-gradient(180deg, #46e38d, #008f57); }
-        .ad-sprite-scene { background: radial-gradient(circle at 78% 40%, rgba(255,255,255,0.18), transparent 25%), linear-gradient(135deg, #063d2c, #07985f 50%, #02633d); }
-        .ad-sprite-can { transform: rotate(8deg); }
-
-        .ad-fanta { background: linear-gradient(180deg, #ff8b18, #d83c00); }
-        .ad-fanta-scene { background: radial-gradient(circle at 75% 40%, rgba(255,239,110,0.20), transparent 24%), linear-gradient(135deg, #7e2300, #ea5a04 50%, #ad2600); }
-
-        .ad-ice-scene { background: radial-gradient(circle at 70% 35%, rgba(255,255,255,0.20), transparent 24%), linear-gradient(135deg, #024d8d, #11aee8 48%, #0870ab); }
-        .ad-ice-can { background: linear-gradient(180deg, #c9f7ff, #2396d1); color: #00527f; }
-        .ad-ice-can .ad-can-label { color: #004e7b; text-shadow: none; }
-
-        .teen-pack { width: 116px; height: 104px; border-radius: 13px; background: linear-gradient(145deg, #ffffff, #d8d8d8); position: relative; box-shadow: 0 18px 28px rgba(0,0,0,0.35), inset 0 1px 3px rgba(255,255,255,0.95); transform: rotate(-5deg); overflow: hidden; }
-        .teen-pack::before { content: 'COCA-COLA'; position: absolute; left: 0; right: 0; top: 18px; padding: 7px 0; text-align: center; font-size: 12px; font-weight: 900; color: #fff; background: #d1121d; }
-        .teen-pack::after { content: 'REGULAR TEEN PACK'; position: absolute; left: 0; right: 0; bottom: 13px; text-align: center; font-size: 8px; font-weight: 900; color: #222; letter-spacing: 1px; }
-        .teen-bottles { position: absolute; top: 6px; left: 8px; right: 8px; display: flex; justify-content: space-around; }
-        .teen-mini { width: 17px; height: 31px; border-radius: 4px 4px 6px 6px; background: linear-gradient(180deg, #222, #090909); box-shadow: inset 2px 0 3px rgba(255,255,255,0.15); }
-        .teen-mini:nth-child(2) { background: linear-gradient(180deg, #f0f0f0, #b9b9b9); }
-        .teen-mini:nth-child(3) { background: linear-gradient(180deg, #f28a17, #d94900); }
-
-        .ad-brand-mark { position: absolute; right: 15px; top: 12px; z-index: 4; color: rgba(255,255,255,0.55); font-size: 9px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; }
-        .ad-dots { position: absolute; left: 50%; bottom: 11px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 5; }
-        .ad-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.38); transition: all 0.3s ease; }
-        .ad-dot.active { width: 23px; border-radius: 5px; background: #fff; }
-
         @media (max-width: 768px) {
-            body { padding: 8px; }
-            .container { padding: 12px; border-radius: 14px; background: var(--card-bg); }
-            .brand-header-custom { flex-direction: column; text-align: center; align-items: center; }
-            .brand-left, .brand-right, .brand-center { text-align: center; }
-            .brand-right { align-items: center; margin-top: 5px; }
-            .brand-title-en { font-size: 20px; }
-            .brand-title-ur { font-size: 26px; }
-            .coca-cola-logo-img { height: 35px; }
-            .tabs { gap: 4px; }
-            .tab-btn { font-size: 12px; padding: 8px 10px; }
-            #productAdShowcase { min-height: 205px; }
-            .ad-slide { padding: 18px 18px 25px; }
-            .ad-content { max-width: 62%; }
-            .ad-title { font-size: 23px; }
-            .ad-subtitle { font-size: 11px; }
-            .ad-product-art { width: 125px; min-width: 125px; transform: scale(0.82); }
+            html { font-size: 15px; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+            body { padding: 0; overflow-x: hidden; }
+            .container { width: 100%; max-width: none; box-sizing: border-box; padding: 8px; border-radius: 0; background: var(--card-bg); }
+            .user-info-bar { padding: 8px; gap: 7px; align-items: stretch; }
+            .user-info-bar > div { width: 100%; }
+            .user-info-bar > div:last-child { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+            .btn-theme-toggle, .btn-notify, .btn-logout { width: 100%; margin: 0; padding: 8px 4px; font-size: 11px; }
+            .brand-header-custom { flex-direction: column; text-align: center; align-items: center; padding: 10px; gap: 5px; margin-bottom: 8px; }
+            .brand-left, .brand-right, .brand-center { text-align: center; width: 100%; }
+            .brand-right { align-items: center; margin-top: 2px; }
+            .brand-title-en { font-size: 18px; }
+            .brand-sub-en, .brand-desc-en { font-size: 10px; }
+            .brand-title-ur { font-size: 21px; }
+            .coca-cola-logo-img { height: 28px; }
+            .print-date-bar { font-size: 10px; padding: 6px 8px; margin-bottom: 8px; }
+            .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-bottom: 10px; border-bottom: 0; }
+            .tab-btn { min-width: 0; width: 100%; box-sizing: border-box; padding: 10px 5px; border-radius: 7px; font-size: 11px; line-height: 1.2; flex: none; white-space: normal; min-height: 42px; }
+            form { grid-template-columns: 1fr; gap: 9px; padding: 10px; margin-bottom: 10px; }
+            .filter-box { display: grid; grid-template-columns: 1fr; gap: 7px; padding: 9px; margin-bottom: 10px; }
+            .filter-box > * { min-width: 0 !important; width: 100% !important; box-sizing: border-box; }
+            .summary-card { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
+            .card { min-width: 0; padding: 10px 12px; }
+            .card h3 { font-size: 10px; }
+            .card p { font-size: 16px; }
+            .table-responsive { width: 100%; max-width: 100%; overflow-x: hidden; overflow-y: visible; margin-top: 7px; }
+            table { width: 100% !important; min-width: 0 !important; max-width: 100%; table-layout: fixed; font-size: 10px; }
+            th, td { padding: 5px 3px; font-size: 10px; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+            th { font-size: 9px; }
+            input, select { box-sizing: border-box; min-width: 0 !important; width: 100%; padding: 9px 8px; font-size: 14px; }
+            button.btn-add, .btn-excel, .btn-backup, .btn-restore { width: 100%; box-sizing: border-box; }
+            .backup-box { display: grid; grid-template-columns: 1fr; gap: 7px; padding: 10px; }
+            .shop-permission-box { max-height: 180px; }
+            .modal-overlay { padding: 8px; }
+            .modal-card { max-height: 90vh; overflow-y: auto; padding: 14px; }
+            .brand-header-custom::before { font-size: 46px; }
+        }
+
+        @media (max-width: 420px) {
+            .user-info-bar > div:last-child { grid-template-columns: 1fr; }
+            .tabs { grid-template-columns: 1fr 1fr; }
+            .tab-btn { font-size: 10px; min-height: 40px; }
+            th, td { font-size: 9px; padding: 4px 2px; }
+            th { font-size: 8px; }
         }
 
         @page { size: A4 portrait; margin: 0.25in; }
@@ -466,91 +445,6 @@
             <div class="brand-right">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/c/ce/Coca-Cola_logo.svg" alt="Coca Cola Logo" class="coca-cola-logo-img">
                 <div class="coca-cola-sub">OFFICIAL PARTNER</div>
-            </div>
-        </div>
-
-        <!-- ROTATING PRODUCT SHOWCASE -->
-        <div id="productAdShowcase">
-            <div class="ad-slide active ad-coke-scene">
-                <div class="ad-brand-mark">AL QADIR TRADERS</div>
-                <div class="ad-content">
-                    <div class="ad-kicker">Coca-Cola Ads Update (Pakistani & English Dialogues/Slogans)</div>
-                    <div class="ad-title">Coca-Cola</div>
-                    <div class="ad-subtitle">Taste the feeling • پیوثرسا • Asli Mazaa</div>
-                    <div class="ad-tag">Official Distribution</div>
-                </div>
-                <div class="ad-product-art">
-                    <div class="ad-ice-cubes ad-ice-1"></div>
-                    <div class="ad-ice-cubes ad-ice-2"></div>
-                    <div class="ad-can ad-coke"><div class="ad-can-label"><strong>COCA</strong><span>COLA</span></div></div>
-                </div>
-            </div>
-
-            <div class="ad-slide ad-sprite-scene">
-                <div class="ad-brand-mark">AL QADIR TRADERS</div>
-                <div class="ad-content">
-                    <div class="ad-kicker">Coca-Cola Ads Update (Pakistani & English Dialogues/Slogans)</div>
-                    <div class="ad-title">Sprite</div>
-                    <div class="ad-subtitle">Buhat Khoob • Clear Mind • Lemon Refreshment</div>
-                    <div class="ad-tag">Chill Your Day</div>
-                </div>
-                <div class="ad-product-art">
-                    <div class="ad-ice-cubes ad-ice-1"></div>
-                    <div class="ad-ice-cubes ad-ice-2"></div>
-                    <div class="ad-can ad-sprite ad-sprite-can"><div class="ad-can-label"><strong>SPRITE</strong><span>LEMON</span><span>LIME</span></div></div>
-                </div>
-            </div>
-
-            <div class="ad-slide ad-fanta-scene">
-                <div class="ad-brand-mark">AL QADIR TRADERS</div>
-                <div class="ad-content">
-                    <div class="ad-kicker">Coca-Cola Ads Update (Pakistani & English Dialogues/Slogans)</div>
-                    <div class="ad-title">Fanta</div>
-                    <div class="ad-subtitle">Rang jama de • Orange Twist • Full of Fun</div>
-                    <div class="ad-tag">Bright • Bold • Refreshing</div>
-                </div>
-                <div class="ad-product-art">
-                    <div class="ad-ice-cubes ad-ice-1"></div>
-                    <div class="ad-ice-cubes ad-ice-2"></div>
-                    <div class="ad-can ad-fanta"><div class="ad-can-label"><strong>FANTA</strong><span>ORANGE</span></div></div>
-                </div>
-            </div>
-
-            <div class="ad-slide ad-ice-scene">
-                <div class="ad-brand-mark">AL QADIR TRADERS</div>
-                <div class="ad-content">
-                    <div class="ad-kicker">Coca-Cola Ads Update (Pakistani & English Dialogues/Slogans)</div>
-                    <div class="ad-title">ICE</div>
-                    <div class="ad-subtitle">Maximum Chill • Thanda Matlab • Pure Refreshment</div>
-                    <div class="ad-tag">Serve Chilled</div>
-                </div>
-                <div class="ad-product-art">
-                    <div class="ad-ice-cubes ad-ice-1"></div>
-                    <div class="ad-ice-cubes ad-ice-2"></div>
-                    <div class="ad-ice-cubes" style="right:26px; bottom:10px;"></div>
-                    <div class="ad-can ad-ice-can"><div class="ad-can-label"><strong>ICE</strong><span>COLD</span></div></div>
-                </div>
-            </div>
-
-            <div class="ad-slide" style="background: linear-gradient(135deg, #1c1c1c, #4d4d4d 50%, #171717);">
-                <div class="ad-brand-mark">AL QADIR TRADERS</div>
-                <div class="ad-content">
-                    <div class="ad-kicker">Coca-Cola Ads Update (Pakistani & English Dialogues/Slogans)</div>
-                    <div class="ad-title">Regular Teen Pack</div>
-                    <div class="ad-subtitle">Share the Happiness • Har Pal Ka Mazaa</div>
-                    <div class="ad-tag">Stock Available</div>
-                </div>
-                <div class="ad-product-art">
-                    <div class="teen-pack">
-                        <div class="teen-bottles">
-                            <div class="teen-mini"></div><div class="teen-mini"></div><div class="teen-mini"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="ad-dots">
-                <span class="ad-dot active"></span><span class="ad-dot"></span><span class="ad-dot"></span><span class="ad-dot"></span><span class="ad-dot"></span>
             </div>
         </div>
 
@@ -712,6 +606,20 @@
                     <h3>Day Net Balance</h3>
                     <p id="entrySummaryNetBalance">Rs. 0</p>
                 </div>
+            </div>
+
+            <div class="backup-box no-print" style="border-color:#7b1fa2; background: rgba(250,245,255,0.82); margin-bottom:20px; flex-direction:column; align-items:stretch;">
+                <div>
+                    <strong style="color:#7b1fa2; font-size:15px;">📷📄 Shop Ledger Upload — Photo / PDF → Date-wise Daily Entry</strong>
+                    <p style="margin:3px 0 0 0; font-size:12px; color:#555;">Shop ledger ki photo ya PDF select karein. System text/readable rows nikaal kar date, shop, credit aur recovery identify karega. <b>Import se pehle preview/verification zaroor hogi.</b></p>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+                    <input type="file" id="ledgerUploadInput" accept=".pdf,image/*" style="display:none;" onchange="processLedgerUpload(event)">
+                    <button type="button" class="btn-excel" style="background:#7b1fa2; padding:10px 18px; font-size:14px;" onclick="document.getElementById('ledgerUploadInput').click()">📁 Select Ledger Photo / PDF</button>
+                    <button type="button" class="btn-delete" style="padding:10px 14px; font-size:13px;" onclick="clearLedgerUploadPreview()">Clear Preview</button>
+                </div>
+                <div id="ledgerUploadStatus" style="display:none; margin-top:10px; padding:9px; border-radius:6px; background:#fff; border:1px solid #ddd; font-size:12px;"></div>
+                <div id="ledgerUploadPreview" style="display:none; margin-top:10px; background:#fff; padding:10px; border-radius:6px; border:1px solid #ddd; color:#111; overflow:auto;"></div>
             </div>
 
             <div class="backup-box no-print" style="border-color:#1D6F42; background: rgba(240,255,244,0.70); margin-bottom:20px;">
@@ -1038,7 +946,7 @@
                             <th class="text-center">Role</th>
                             <th class="text-left">Assigned Booker / Access Info</th>
                             <th class="text-center">Live Status</th>
-                            <th class="text-left">Last Login / Logout Time</th>
+                            <th class="text-left">Last Activity / Presence</th>
                             <th class="no-print text-center">Action</th>
                         </tr>
                     </thead>
@@ -1105,6 +1013,9 @@
     <!-- FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- Ledger upload helpers: PDF text extraction + image OCR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <script>
         const firebaseConfig = {
@@ -1154,30 +1065,6 @@
             document.body.classList.remove('night-theme');
             document.body.classList.add('day-theme');
         }
-
-        /* PRODUCT AD ROTATOR */
-        (function() {
-            const slides = document.querySelectorAll('#productAdShowcase .ad-slide');
-            const dots = document.querySelectorAll('#productAdShowcase .ad-dot');
-            if (!slides.length) return;
-            let currentAd = 0;
-            let adTimer = null;
-
-            function showAd(index) {
-                slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
-                dots.forEach((dot, i) => dot.classList.toggle('active', i === index));
-            }
-
-            function nextAd() { currentAd = (currentAd + 1) % slides.length; showAd(currentAd); }
-            function startAdRotation() { clearInterval(adTimer); adTimer = setInterval(nextAd, 4200); }
-
-            dots.forEach((dot, index) => {
-                dot.addEventListener('click', function() { currentAd = index; showAd(currentAd); startAdRotation(); });
-            });
-
-            showAd(0);
-            startAdRotation();
-        })();
 
         /* NOTIFICATIONS */
         function checkNotificationStatus() {
@@ -1276,6 +1163,57 @@
         let currentUser = null;
         let transactions = DEFAULT_TRANSACTIONS;
         let systemBookerFilterSetting = "HIDE_ZERO";
+        // Live Firebase presence: a user is ONLINE only while at least one of their browser sessions is connected.
+        let livePresenceCache = {};
+        let liveActivityCache = {};
+        let presenceSessionId = 's_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
+        let presenceStarted = false;
+        function presenceKey(username) { return encodeURIComponent((username || '').toString().trim().toLowerCase()).replace(/\./g, '%2E'); }
+        function formatPresenceTime(ts) {
+            if (!ts) return '-';
+            const d = new Date(Number(ts));
+            if (Number.isNaN(d.getTime())) return '-';
+            return d.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
+        }
+        function recordUserActivity(type, details) {
+            if (!currentUser || !db) return;
+            const key = presenceKey(currentUser.username);
+            const payload = { username: currentUser.username, type: type || 'activity', details: details || '', timestamp: firebase.database.ServerValue.TIMESTAMP };
+            db.ref('pos_user_activity/' + key).push(payload).catch(e => console.warn('Activity log failed:', e));
+        }
+        function startLivePresence() {
+            if (presenceStarted || !currentUser || !currentUser.username) return;
+            presenceStarted = true;
+            const key = presenceKey(currentUser.username);
+            const sessionRef = db.ref('pos_user_presence/' + key + '/' + presenceSessionId);
+            const connectedRef = db.ref('.info/connected');
+            connectedRef.on('value', snap => {
+                if (snap.val() !== true) return;
+                sessionRef.onDisconnect().set({ online:false, lastSeen:firebase.database.ServerValue.TIMESTAMP, username:currentUser.username });
+                sessionRef.set({ online:true, connectedAt:firebase.database.ServerValue.TIMESTAMP, lastSeen:firebase.database.ServerValue.TIMESTAMP, username:currentUser.username });
+            });
+            window.addEventListener('beforeunload', () => { try { sessionRef.set({ online:false, lastSeen:firebase.database.ServerValue.TIMESTAMP, username:currentUser.username }); } catch(e) {} });
+            db.ref('pos_user_presence').on('value', snap => { livePresenceCache = snap.val() || {}; renderUsers(); });
+            db.ref('pos_user_activity').on('value', snap => { liveActivityCache = snap.val() || {}; renderUsers(); });
+        }
+        function getLiveUserStatus(username) {
+            const sessions = livePresenceCache[presenceKey(username)] || {};
+            const list = Object.values(sessions);
+            const online = list.some(x => x && x.online === true);
+            let lastSeen = 0;
+            list.forEach(x => { if (x && Number(x.lastSeen) > lastSeen) lastSeen = Number(x.lastSeen); });
+            return { online, lastSeen };
+        }
+        function getLastUserActivity(username, fallback) {
+            const data = liveActivityCache[presenceKey(username)] || {};
+            const vals = Object.values(data).filter(Boolean).sort((a,b) => Number(b.timestamp||0)-Number(a.timestamp||0));
+            if (vals.length) {
+                const a = vals[0];
+                return `${a.type || 'Activity'}: ${formatPresenceTime(a.timestamp)}${a.details ? ' — ' + a.details : ''}`;
+            }
+            const st = getLiveUserStatus(username);
+            return st.lastSeen ? `Last seen: ${formatPresenceTime(st.lastSeen)}` : (fallback || '-');
+        }
 
         // Restore the last session from the local safety copy FIRST. This runs synchronously
         // before Firebase requests, so refresh does not wait 1-2 seconds for user data.
@@ -1306,6 +1244,8 @@
         } else {
             document.getElementById('loginOverlay').style.display = 'flex';
         }
+
+        if (currentUser) setTimeout(startLivePresence, 0);
 
         /* LIVE CLOCK */
         function updateLiveClock() {
@@ -1609,6 +1549,8 @@
                 sessionStorage.setItem('pos_current_user', JSON.stringify(currentUser));
                 saveUsersToCloud();
                 applyUserPermissions();
+                startLivePresence();
+                recordUserActivity('Login', 'User logged in');
                 showSystemNotification("Login Successful", `Welcome back, ${currentUser.username.toUpperCase()}! 🚀`);
             } else { alert('Invalid Username or Password!'); }
         }
@@ -1623,7 +1565,10 @@
                     USERS_DATABASE[uIdx].lastActive = `Last Active: ${nowStr}`;
                     saveUsersToCloud();
                 }
+                recordUserActivity('Logout', 'User logged out');
+                try { db.ref('pos_user_presence/' + presenceKey(currentUser.username) + '/' + presenceSessionId).set({ online:false, lastSeen:firebase.database.ServerValue.TIMESTAMP, username:currentUser.username }); } catch(e) {}
             }
+            presenceStarted = false;
             sessionStorage.removeItem('pos_current_user');
             currentUser = null;
             document.getElementById('loginOverlay').style.display = 'flex';
@@ -1728,8 +1673,8 @@
             else if (tabId === 'entry') renderTransactions();
             else if (tabId === 'ledger') { populateShopDropdownsForLedger(); renderLedger(); }
             else if (tabId === 'bookerLedger') renderBookerDetail();
-            else if (tabId === 'shops') renderShops();
-            else if (tabId === 'users') renderUsers();
+            else if (tabId === 'shops') { populateEntryBookersDropdown(); renderShops(); }
+            else if (tabId === 'users') { populateEntryBookersDropdown(); renderUsers(); }
         }
 
         function getFilteredTransactionsForUser() {
@@ -1772,16 +1717,34 @@
             const ledgerBooker = document.getElementById('ledgerBookerSelectDropdown');
             const modalBooker = document.getElementById('modalShopBookerSelect');
             const bulkBooker = document.getElementById('modalBulkBookerSelect');
+            const transferFrom = document.getElementById('transferFromBooker');
+            const transferTo = document.getElementById('transferToBooker');
 
-            let bookersSet = new Set();
-            transactions.forEach(t => { if (t.booker) bookersSet.add(t.booker.toString().trim().toUpperCase()); });
-            USERS_DATABASE.forEach(u => { if (u.bookerName && u.bookerName !== 'ALL') bookersSet.add(u.bookerName.toString().trim().toUpperCase()); });
+            // Normal booker list used throughout the app. Include both ledger records
+            // and user accounts so a newly-created/covering booker appears even before
+            // that booker has received a transaction.
+            const bookersSet = new Set();
+            (Array.isArray(transactions) ? transactions : []).forEach(t => {
+                const b = (t && (t.booker || t.orderBooker || t.bookerName)) ? (t.booker || t.orderBooker || t.bookerName).toString().trim().toUpperCase() : '';
+                if (b && b !== 'ALL' && b !== 'UNDEFINED' && b !== 'UNKNOWN') bookersSet.add(b);
+            });
+            (Array.isArray(USERS_DATABASE) ? USERS_DATABASE : []).forEach(u => {
+                if (!u) return;
+                const role = (u.role || '').toString().trim().toLowerCase();
+                const bName = (u.bookerName || '').toString().trim().toUpperCase();
+                const username = (u.username || '').toString().trim().toUpperCase();
+                if (bName && bName !== 'ALL' && bName !== 'UNDEFINED' && bName !== 'UNKNOWN') bookersSet.add(bName);
+                // If a booker account has no separate bookerName, its username is its route name.
+                if (role === 'booker' && username && username !== 'ADMIN') bookersSet.add(username);
+            });
 
-            let bookersList = Array.from(bookersSet).sort();
+            const bookersList = Array.from(bookersSet).sort((a, b) => a.localeCompare(b));
 
             function fillSelect(elem, defaultOpt) {
                 if (!elem) return;
-                elem.innerHTML = defaultOpt + bookersList.map(b => `<option value="${b}">${b}</option>`).join('');
+                const previous = elem.value;
+                elem.innerHTML = defaultOpt + bookersList.map(b => `<option value="${b.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}">${b.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</option>`).join('');
+                if (previous && bookersList.includes(previous.toUpperCase())) elem.value = previous;
             }
 
             fillSelect(select, '<option value="">-- Select Order Booker --</option>');
@@ -1790,6 +1753,69 @@
             fillSelect(ledgerBooker, '<option value="ALL">-- Filter By Booker (All) --</option>');
             fillSelect(modalBooker, '<option value="">-- Select Order Booker --</option>');
             fillSelect(bulkBooker, '<option value="">-- Choose Target Booker --</option>');
+
+            // Bulk route transfer gets its own lists: From = bookers that currently
+            // have shops/ledger records; To = every available booker account/route.
+            if (transferFrom) {
+                const fromSet = new Set();
+                (Array.isArray(transactions) ? transactions : []).forEach(t => {
+                    const b = (t && t.booker) ? t.booker.toString().trim().toUpperCase() : '';
+                    if (b && b !== 'ALL' && b !== 'UNDEFINED' && b !== 'UNKNOWN') fromSet.add(b);
+                });
+                transferFrom.innerHTML = '<option value="">-- From Booker (Absent) --</option>' +
+                    Array.from(fromSet).sort((a,b)=>a.localeCompare(b)).map(b => `<option value="${b.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}">${b.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</option>`).join('');
+            }
+            if (transferTo) {
+                transferTo.innerHTML = '<option value="">-- To Booker (New/Covering) --</option>' +
+                    bookersList.map(b => `<option value="${b.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}">${b.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</option>`).join('');
+            }
+        }
+
+        function reassignBookerShops() {
+            const fromEl = document.getElementById('transferFromBooker');
+            const toEl = document.getElementById('transferToBooker');
+            const fromBooker = (fromEl?.value || '').trim();
+            const toBooker = (toEl?.value || '').trim();
+
+            if (!fromBooker || !toBooker) {
+                alert('Please select both the absent Booker and the new/covering Booker.');
+                return;
+            }
+            if (cleanStr(fromBooker) === cleanStr(toBooker)) {
+                alert('From Booker and To Booker cannot be the same.');
+                return;
+            }
+
+            const affected = transactions.filter(t => cleanStr(t.booker) === cleanStr(fromBooker));
+            if (!affected.length) {
+                alert(`No shop records were found for Booker "${fromBooker}".`);
+                return;
+            }
+
+            const shopSet = new Set(affected.map(t => normalizeShopKey(t.shop)).filter(Boolean));
+            const confirmed = confirm(
+                `Transfer ALL ${shopSet.size} shop(s) and their existing ledger entries from Booker "${fromBooker}" to Booker "${toBooker}"?\n\n` +
+                `Credit, Recovery, dates and balances will NOT be changed. Only the Booker assignment will change.`
+            );
+            if (!confirmed) return;
+
+            const now = new Date().toLocaleString('en-GB');
+            transactions.forEach(t => {
+                if (cleanStr(t.booker) === cleanStr(fromBooker)) {
+                    t.booker = toBooker.toUpperCase();
+                    t.editedBy = currentUser ? currentUser.username : 'Admin';
+                    t.editReason = `Bulk route transfer: ${fromBooker} -> ${toBooker}`;
+                    t.lastEditedAt = now;
+                }
+            });
+
+            saveTransactionsToCloud();
+            populateEntryBookersDropdown();
+            populateShopDropdowns();
+            renderUsers();
+            renderShops();
+            renderBookerDetail();
+            alert(`${shopSet.size} shop(s) transferred successfully from ${fromBooker} to ${toBooker}.\n\nNo balance/recovery adjustment was created.`);
         }
 
         function populateShopDropdowns() {
@@ -2748,11 +2774,13 @@
 
         function renderUsers() {
             const tbody = document.getElementById('usersTable');
+            if (!tbody) return;
             tbody.innerHTML = '';
             let sno = 1;
             const rows = [];
-
             USERS_DATABASE.forEach((u, index) => {
+                const st = getLiveUserStatus(u.username);
+                const activity = getLastUserActivity(u.username, u.lastActive);
                 rows.push(`
                     <tr>
                         <td class="text-center">${sno++}</td>
@@ -2760,8 +2788,8 @@
                         <td class="text-left">${u.password}</td>
                         <td class="text-center"><span style="background:#007bff; color:white; padding:2px 6px; border-radius:4px; font-size:11px;">${u.role.toUpperCase()}</span></td>
                         <td class="text-left">${u.bookerName || '-'} ${(u.allowedShops && u.allowedShops.length > 0) ? `(${u.allowedShops.length} shops)` : ''}</td>
-                        <td class="text-center">${u.isOnline ? '<span style="color:#28a745; font-weight:bold;">🟢 Online</span>' : '<span style="color:#6c757d;">⚪ Offline</span>'}</td>
-                        <td class="text-left">${u.lastActive || '-'}</td>
+                        <td class="text-center">${st.online ? '<span style="color:#28a745; font-weight:bold; white-space:nowrap;">🟢 ONLINE</span>' : '<span style="color:#dc3545; font-weight:bold; white-space:nowrap;">🔴 OFFLINE</span>'}</td>
+                        <td class="text-left" style="font-size:11px;">${activity}</td>
                         <td class="no-print text-center">
                             <button class="btn-edit" onclick="editUser(${index})">Edit</button>
                             <button class="btn-delete" onclick="deleteUser(${index})">Delete</button>
@@ -2899,9 +2927,56 @@
 
             let currentBalance = 0;
             shopTx.forEach(t => currentBalance += (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0));
-            const balanceChanged = Math.abs(currentBalance - newBalance) > 0.000001;
-            const nameChanged = cleanStr(oldShop) !== cleanStr(newShop);
+            const oldShopKey = normalizeShopKey(oldShop);
+            const newShopKey = normalizeShopKey(newShop);
+            const nameChanged = oldShopKey !== newShopKey;
             const bookerChanged = cleanStr(shopTx[0].booker) !== cleanStr(newBooker);
+
+            // Duplicate-shop merge: compare NORMALIZED names (case/extra spaces
+            // included), and NEVER create a balance-adjustment/recovery entry during
+            // a merge. The existing ledger rows from both shop records must remain
+            // exactly as credit/recovery records; the merged balance is simply their
+            // combined net balance.
+            const duplicateTargetExists = nameChanged && transactions.some(t =>
+                normalizeShopKey(t.shop) === newShopKey &&
+                normalizeShopKey(t.shop) !== oldShopKey
+            );
+            if (duplicateTargetExists) {
+                const targetBalanceBeforeMerge = transactions.reduce((sum, t) => {
+                    if (normalizeShopKey(t.shop) === normalizeShopKey(newShop) && cleanStr(t.shop) !== cleanStr(oldShop)) {
+                        return sum + (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0);
+                    }
+                    return sum;
+                }, 0);
+                if (!confirm(`Duplicate shop detected.\n\n${oldShop} will be merged into ${newShop}.\nThe existing balance of both shops will be kept/preserved; no old balance will be marked as paid and no automatic recovery/credit adjustment will be created.\n\nContinue?`)) return;
+
+                const now = new Date().toLocaleString('en-GB');
+                transactions.forEach(t => {
+                    if (normalizeShopKey(t.shop) === oldShopKey) {
+                        t.shop = newShop;
+                        t.booker = newBooker.toUpperCase();
+                        t.editedBy = currentUser ? currentUser.username : 'Admin';
+                        if (reason) t.editReason = reason;
+                        t.lastEditedAt = now;
+                    }
+                });
+
+                // IMPORTANT: do not calculate difference against the modal's
+                // Actual Amount here and do not push any SHOP BALANCE ADJUSTMENT.
+                // A duplicate merge is a name/record merge only. All old credit and
+                // recovery amounts stay untouched, so nothing is auto-paid.
+                saveTransactionsToCloud();
+                closeEditShopModal();
+                renderShops();
+                populateShopDropdowns();
+                populateEntryBookersDropdown();
+                populateAssignedShopDropdown();
+                const mergedBalance = targetBalanceBeforeMerge + currentBalance;
+                alert(`Duplicate shop merged successfully.\n\nCombined pending balance: Rs. ${mergedBalance.toLocaleString()}`);
+                return;
+            }
+
+            const balanceChanged = Math.abs(currentBalance - newBalance) > 0.000001;
 
             if ((balanceChanged || nameChanged || bookerChanged) && !reason) {
                 alert('Please enter Why Edit / Reason.');
@@ -2945,6 +3020,98 @@
             alert('Shop changes saved successfully.');
         }
 
+        /* PHOTO / PDF LEDGER IMPORT */
+        let pendingLedgerRows = [];
+        function setLedgerUploadStatus(msg, ok) {
+            const el = document.getElementById('ledgerUploadStatus');
+            if (!el) return;
+            el.style.display = 'block';
+            el.style.borderColor = ok ? '#b7dfc2' : '#f1b0b7';
+            el.style.background = ok ? '#f3fff6' : '#fff5f5';
+            el.innerHTML = msg;
+        }
+        function clearLedgerUploadPreview() {
+            pendingLedgerRows = [];
+            const p = document.getElementById('ledgerUploadPreview'); if (p) { p.style.display='none'; p.innerHTML=''; }
+            const st = document.getElementById('ledgerUploadStatus'); if (st) { st.style.display='none'; st.innerHTML=''; }
+            const input = document.getElementById('ledgerUploadInput'); if (input) input.value='';
+        }
+        function ledgerDateFromText(v) {
+            const m = String(v||'').match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\b/);
+            return m ? normalizeDate(`${m[1]}-${m[2]}-${m[3]}`) : '';
+        }
+        function ledgerNumber(v) {
+            if (v == null) return 0;
+            const cleaned = String(v).replace(/,/g,'').replace(/[^0-9.\-]/g,'');
+            const n = parseFloat(cleaned); return Number.isFinite(n) ? n : 0;
+        }
+        function parseLedgerText(text, defaultShop) {
+            const lines = String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+            const rows=[];
+            const dateRe=/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/;
+            lines.forEach(line=>{
+                const dateM=line.match(dateRe);
+                if(!dateM) return;
+                const date=ledgerDateFromText(dateM[0]);
+                const rest=line.replace(dateM[0],' ').trim();
+                const nums=rest.match(/-?\d[\d,]*(?:\.\d+)?/g)||[];
+                if(!nums.length) return;
+                const values=nums.map(ledgerNumber);
+                let credit=0,recovery=0;
+                const low=rest.toLowerCase();
+                if(/recovery|received|cash|wasooli|وصولی/.test(low)) { recovery=values[values.length-1]||0; }
+                else if(/credit|udhaar|amount|sale|ادھار/.test(low)) { credit=values[values.length-1]||0; }
+                else if(values.length>=2) { credit=values[values.length-2]||0; recovery=values[values.length-1]||0; }
+                else { credit=values[0]||0; }
+                const ref=rest.replace(/-?\d[\d,]*(?:\.\d+)?/g,' ').replace(/\s+/g,' ').trim();
+                rows.push({date,booker:(document.getElementById('bookerName')?.value||'').trim(),shop:defaultShop||document.getElementById('shopName')?.value.trim()||'',ref:ref||'LEDGER IMPORT',credit,recovery,confidence:(date&&(credit||recovery))?'Review':'Low'});
+            });
+            return rows;
+        }
+        function renderLedgerPreview(rows, rawText) {
+            const box=document.getElementById('ledgerUploadPreview'); if(!box) return;
+            pendingLedgerRows=rows;
+            if(!rows.length) { box.style.display='block'; box.innerHTML='<b>No clear transaction rows found.</b><br>Please make sure the ledger photo/PDF is readable and contains dates plus amounts. You can still use the extracted text below to check the format.'; if(rawText) box.innerHTML += `<pre style="white-space:pre-wrap; max-height:240px; overflow:auto; margin-top:8px;">${String(rawText).replace(/</g,'&lt;')}</pre>`; return; }
+            box.style.display='block';
+            box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;"><b>Preview — ${rows.length} row(s)</b><button type="button" class="btn-add" style="padding:8px 14px;" onclick="importPendingLedgerRows()">✅ Verify & Add to Daily Entry</button></div>` +
+                `<div class="table-responsive"><table><thead><tr><th>Date</th><th>Booker</th><th>Shop</th><th>Ref</th><th>Credit</th><th>Recovery</th></tr></thead><tbody>` +
+                rows.map((r,i)=>`<tr><td>${r.date||'?'}</td><td>${r.booker||'-'}</td><td>${r.shop||'-'}</td><td>${r.ref||'-'}</td><td>${r.credit.toLocaleString()}</td><td>${r.recovery.toLocaleString()}</td></tr>`).join('') + `</tbody></table></div>`;
+        }
+        function importPendingLedgerRows() {
+            if(!pendingLedgerRows.length) return;
+            const bad=pendingLedgerRows.filter(r=>!r.date||!r.shop||(r.credit===0&&r.recovery===0));
+            if(bad.length) { alert(`${bad.length} row(s) need review before import. Please correct the source/preview.`); return; }
+            if(!currentUser || (currentUser.role!=='admin' && currentUser.role!=='data_entry')) { alert('Only Admin / Data Entry can import ledger rows.'); return; }
+            if(!confirm(`Add ${pendingLedgerRows.length} ledger row(s) into Daily Entry?`)) return;
+            const nowUser=currentUser?currentUser.username:'Admin';
+            pendingLedgerRows.forEach(r=>transactions.push({date:normalizeDate(r.date),booker:(r.booker||'').toUpperCase(),shop:r.shop,ref:r.ref||'LEDGER IMPORT',credit:Number(r.credit)||0,recovery:Number(r.recovery)||0,editedBy:nowUser}));
+            saveTransactionsToCloud(); renderTransactions(); populateShopDropdowns(); clearLedgerUploadPreview();
+            alert(`${pendingLedgerRows.length} ledger row(s) imported successfully. 🚀`);
+        }
+        async function processLedgerUpload(event) {
+            const file=event.target.files && event.target.files[0]; if(!file) return;
+            setLedgerUploadStatus('⏳ Reading ledger file... Please wait.');
+            try {
+                let text='';
+                if(file.type==='application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                    if(!window.pdfjsLib) throw new Error('PDF reader library did not load.');
+                    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    const buf=await file.arrayBuffer(); const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+                    const chunks=[];
+                    for(let i=1;i<=pdf.numPages;i++){ const page=await pdf.getPage(i); const tc=await page.getTextContent(); chunks.push(tc.items.map(x=>x.str).join(' ')); }
+                    text=chunks.join('\n');
+                } else {
+                    if(!window.Tesseract) throw new Error('OCR library did not load.');
+                    const result=await Tesseract.recognize(file,'eng',{logger:m=>{ if(m.status==='recognizing text'&&m.progress) setLedgerUploadStatus(`⏳ OCR reading photo... ${Math.round(m.progress*100)}%`); }});
+                    text=result.data.text||'';
+                }
+                const defaultShop=prompt('Shop name (agar ledger me shop name clear nahi hai to yahan enter karein):', document.getElementById('shopName')?.value||'') || '';
+                const rows=parseLedgerText(text,defaultShop);
+                setLedgerUploadStatus(`✅ File read complete. ${rows.length} possible row(s) found. Preview check karein; system existing entries ko automatically overwrite nahi karega.`, true);
+                renderLedgerPreview(rows,text);
+            } catch(err) { console.error('Ledger upload:',err); setLedgerUploadStatus('❌ Ledger read failed: '+(err.message||err)+'. Please use a clearer PDF/photo or check internet connection for the OCR/PDF libraries.'); }
+        }
+
         function addTransaction() {
             const date = document.getElementById('entryDate').value.trim();
             const booker = document.getElementById('bookerName').value.trim();
@@ -2970,6 +3137,7 @@
             else transactions.push(newTx);
 
             saveTransactionsToCloud();
+            recordUserActivity('Entry', `${editIdx >= 0 ? 'Updated' : 'Added'}: ${shop}`);
             playEntrySound();
             alert("Entry Saved Successfully! 🚀");
 
