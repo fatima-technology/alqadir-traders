@@ -331,10 +331,10 @@
             form { grid-template-columns: 1fr; gap: 9px; padding: 10px; margin-bottom: 10px; }
             .filter-box { display: grid; grid-template-columns: 1fr; gap: 7px; padding: 9px; margin-bottom: 10px; }
             .filter-box > * { min-width: 0 !important; width: 100% !important; box-sizing: border-box; }
-            .summary-card { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
-            .card { min-width: 0; padding: 10px 12px; }
-            .card h3 { font-size: 10px; }
-            .card p { font-size: 16px; }
+            .summary-card { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-bottom: 7px; align-items: stretch; }
+            .card { min-width: 0; padding: 7px 7px; border-radius: 6px; border-left-width: 3px; }
+            .card h3 { font-size: 8.5px; line-height: 1.15; letter-spacing: .2px; }
+            .card p { font-size: 13px; line-height: 1.15; margin-top: 3px; }
             .table-responsive { width: 100%; max-width: 100%; overflow-x: hidden; overflow-y: visible; margin-top: 7px; }
             table { width: 100% !important; min-width: 0 !important; max-width: 100%; table-layout: fixed; font-size: 10px; }
             th, td { padding: 5px 3px; font-size: 10px; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
@@ -352,6 +352,10 @@
             .user-info-bar > div:last-child { grid-template-columns: 1fr; }
             .tabs { grid-template-columns: 1fr 1fr; }
             .tab-btn { font-size: 10px; min-height: 40px; }
+            .summary-card { gap: 4px; margin-bottom: 6px; }
+            .card { padding: 6px 5px; }
+            .card h3 { font-size: 8px; line-height: 1.1; }
+            .card p { font-size: 12px; }
             th, td { font-size: 9px; padding: 4px 2px; }
             th { font-size: 8px; }
         }
@@ -362,8 +366,39 @@
             body { background: white !important; padding: 0; margin: 0; direction: ltr !important; text-align: left !important; font-size: 12pt; color: #000 !important; }
             .container { box-shadow: none; padding: 0; width: 100%; max-width: 100%; border: none; background: transparent !important; backdrop-filter: none !important; }
             th { background-color: #0d0d0d !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .brand-header-custom { border-bottom: 3px solid #d1121d !important; -webkit-print-color-adjust: exact; margin-bottom: 5px !important; flex-direction: row !important; justify-content: space-between; background: white !important; }
-            .print-date-bar { border: none !important; background: transparent !important; margin-bottom: 10px !important; padding: 0 !important; color: #000 !important; }
+            .brand-header-custom {
+                border-bottom: 2px solid #d1121d !important;
+                -webkit-print-color-adjust: exact;
+                margin: 0 0 3px !important;
+                padding: 4px 10px !important;
+                height: 58px !important;
+                min-height: 58px !important;
+                box-sizing: border-box !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                flex-wrap: nowrap !important;
+                gap: 6px !important;
+                background: white !important;
+                border-radius: 0 !important;
+                overflow: hidden !important;
+                backdrop-filter: none !important;
+            }
+            .brand-header-custom::before { font-size: 34px !important; }
+            .brand-left, .brand-center, .brand-right { min-width: 0 !important; }
+            .brand-left { flex: 1 1 42% !important; text-align: left !important; }
+            .brand-center { flex: 0 0 24% !important; text-align: center !important; }
+            .brand-right { flex: 1 1 24% !important; align-items: flex-end !important; text-align: right !important; }
+            .brand-title-en { font-size: 15px !important; line-height: 1 !important; letter-spacing: .3px !important; }
+            .brand-sub-en { font-size: 7px !important; letter-spacing: 1px !important; margin-top: 2px !important; line-height: 1 !important; }
+            .brand-desc-en { font-size: 6.5px !important; letter-spacing: .7px !important; margin-top: 2px !important; line-height: 1 !important; }
+            .arabic-logo-symbol { font-size: 12px !important; margin-bottom: -2px !important; }
+            .brand-title-ur { font-size: 17px !important; line-height: 1.05 !important; }
+            .coca-cola-logo-img { height: 25px !important; max-width: 92px !important; }
+            .coca-cola-sub { font-size: 6px !important; letter-spacing: .8px !important; margin-top: 1px !important; }
+            .print-date-bar { display:grid !important; grid-template-columns: 1fr 1.25fr 1fr !important; align-items:center !important; gap:8px !important; border: none !important; background: transparent !important; margin-bottom: 10px !important; padding: 0 !important; color: #000 !important; flex-wrap: nowrap !important; }
+            .print-date-bar > div { min-width:0 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+            .print-date-bar > div:nth-child(2) { text-align:center !important; }
             .card { padding: 6px 12px !important; border-left: 3px solid #d1121d !important; background: #fff !important; border: 1px solid #ddd; }
             table { margin-top: 5px !important; direction: ltr !important; width: 100% !important; border-collapse: collapse !important; min-width: 100% !important; }
             th, td { padding: 6px 8px !important; font-size: 10pt !important; border: 1px solid #999 !important; }
@@ -1270,6 +1305,16 @@
             return configs[key] || { title: (filename || 'AL QADIR TRADERS REPORT').replace(/_/g, ' ').toUpperCase(), subtitle: 'Report' };
         }
 
+        function getReportHeadingParts() {
+            const bar = document.querySelector('.print-date-bar');
+            if (!bar) return { type: 'REPORT TYPE: --', live: 'LIVE TIME & DATE: --', updated: 'DATA UPDATED UPTO: --' };
+            const children = Array.from(bar.children);
+            const type = (children[0]?.innerText || 'REPORT TYPE: --').replace(/\s+/g, ' ').trim();
+            const live = (children[1]?.querySelector('#liveDateTimeLabel') ? 'LIVE TIME & DATE: ' + children[1].querySelector('#liveDateTimeLabel').innerText : 'LIVE TIME & DATE: --').replace(/\s+/g, ' ').trim();
+            const updated = (children[1]?.querySelector('#asOfDateLabel') ? 'DATA UPDATED UPTO: ' + children[1].querySelector('#asOfDateLabel').innerText : 'DATA UPDATED UPTO: --').replace(/\s+/g, ' ').trim();
+            return { type, live, updated };
+        }
+
         function getExportTable(table) {
             const clone = table.cloneNode(true);
             clone.querySelectorAll('.no-print').forEach(el => el.remove());
@@ -1326,8 +1371,7 @@
                 }
             }
 
-            const dateBar = document.querySelector('.print-date-bar');
-            const dateText = dateBar ? dateBar.innerText.replace(/\s+/g,' ').trim() : ('Generated: ' + generated);
+            const headingParts = getReportHeadingParts();
             const html = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head>
@@ -1344,7 +1388,7 @@ body{font-family:Arial,sans-serif;font-size:10pt;color:#111;background:#fff;marg
 .header-desc{font-size:8pt;color:#555;margin-top:2px;}
 .report-title{font-size:13pt;font-weight:bold;margin:7px 0 3px;}
 .report-subtitle{font-size:9pt;color:#555;margin-bottom:4px;}
-.datebar{font-size:9pt;font-weight:bold;color:#333;border-bottom:1px solid #ddd;padding:3px 0 6px;margin-bottom:8px;}
+.datebar{width:100%;border-collapse:collapse;font-size:9pt;font-weight:bold;color:#333;border-bottom:1px solid #ddd;margin:3px 0 8px;} .datebar td{padding:4px 6px;border:0;white-space:nowrap;} .datebar td:nth-child(1){text-align:left;} .datebar td:nth-child(2){text-align:center;} .datebar td:nth-child(3){text-align:right;}
 .summary-table{width:100%;border-collapse:collapse;margin:5px 0 10px;}
 .summary-table td{border:1px solid #bbb;border-left:3px solid #d1121d;padding:6px 8px;vertical-align:top;}
 .summary-label{font-size:8pt;font-weight:bold;color:#555;}
@@ -1363,7 +1407,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
   </div>
   <div class="report-title">${escHtml(cfg.title)}</div>
   <div class="report-subtitle">${escHtml(cfg.subtitle)}</div>
-  <div class="datebar">${escHtml(dateText)} &nbsp; | &nbsp; Generated: ${escHtml(generated)}</div>
+  <table class="datebar"><tr><td>${escHtml(headingParts.type)}</td><td>${escHtml(headingParts.live)}</td><td>${escHtml(headingParts.updated)}</td></tr></table>
   ${summaryHtml}
   ${cleanTable.outerHTML.replace('<table','<table class="report-table"')}
 </div>
@@ -3280,8 +3324,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 const tab = table.closest('.tab-content');
                 const reportTitle = title ? String(title).replace(/_/g, ' ').toUpperCase() : cfg.title;
                 const generated = new Date().toLocaleString('en-GB');
-                const dateBar = document.querySelector('.print-date-bar');
-                const dateText = dateBar ? (dateBar.innerText || '').replace(/\s+/g, ' ').trim() : ('Generated: ' + generated);
+                const headingParts = getReportHeadingParts();
                 const heading = tab ? Array.from(tab.querySelectorAll('h3')).find(h => !h.closest('.summary-card'))?.innerText?.trim() : '';
                 const summary = tab ? Array.from(tab.querySelectorAll('.summary-card .card')).map(card => ({
                     label: (card.querySelector('h3')?.innerText || '').replace(/\s+/g,' ').trim(),
@@ -3334,7 +3377,12 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                     st+='BT /F1 6 Tf 1 0 0 1 '+(PW-116)+' '+(pageTop-31)+' Tm ('+esc('OFFICIAL PARTNER')+') Tj ET\n';
                     st+='0.82 0.07 0.11 RG 2.5 w '+M+' '+(pageTop-48)+' m '+(PW-M)+' '+(pageTop-48)+' l S\n';
                     st+='0 0 0 rg BT /F1 8.8 Tf 1 0 0 1 '+M+' '+(pageTop-61)+' Tm ('+esc(reportTitle)+') Tj ET\n';
-                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+M+' '+(pageTop-71)+' Tm ('+esc(dateText.slice(0,150))+') Tj ET\n';
+                    /* PRINT-STYLE TOP INFORMATION ROW: exactly three columns like browser Print preview. */
+                    const infoY = pageTop-71;
+                    const c1 = M, c2 = M + usableW*0.38, c3 = M + usableW*0.72;
+                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+c1+' '+infoY+' Tm ('+esc(headingParts.type)+') Tj ET\n';
+                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+c2+' '+infoY+' Tm ('+esc(headingParts.live)+') Tj ET\n';
+                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+c3+' '+infoY+' Tm ('+esc(headingParts.updated)+') Tj ET\n';
 
                     let y=pageTop-headerH;
                     /* SUMMARY CARDS — same two/three card row used by print. */
