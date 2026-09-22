@@ -270,6 +270,7 @@
         .btn-logout { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-notify { background: #ff9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 5px; }
         .btn-theme-toggle { background: #343a40; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 5px; }
+        .booker-export-hide { display: inline-block; }
 
         .backup-box { background: rgba(243,240,255,0.68); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px dashed #6f42c1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; backdrop-filter: blur(8px); }
         .filter-box { background: var(--soft-bg); padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 1px solid rgba(255,255,255,0.45); backdrop-filter: blur(8px); }
@@ -502,7 +503,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
                 <h3 style="font-size:15px; margin:0;">Booker Summary</h3>
                 <div class="no-print" style="display:flex; gap:8px;">
-                    <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                    <button class="btn-add booker-export-hide" data-booker-hide="1" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
                     <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('dashBookerTable','Booker_Summary')">PDF Download 📄</button>
                     <button class="btn-excel" onclick="exportTableToExcel('dashBookerTable', 'Booker_Summary')">Download Excel 📊</button>
                 </div>
@@ -716,8 +717,8 @@
                     <input type="date" id="ledgerToDate" onchange="renderLedger()" style="width:auto;">
                 </div>
                 <button class="btn-add" style="grid-column:auto; padding:9px 15px; font-size:13px;" onclick="renderLedger()">View Ledger</button>
-                <button class="btn-excel" onclick="exportTableToExcel('ledgerTable', 'Shop_Ledger')">Excel 📊</button>
-                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                <button class="btn-excel booker-export-hide" data-booker-hide="1" onclick="exportTableToExcel('ledgerTable', 'Shop_Ledger')">Excel 📊</button>
+                <button class="btn-add booker-export-hide" data-booker-hide="1" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
                 <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('ledgerMainTable','Shop_Ledger')">PDF Download 📄</button>
             </div>
 
@@ -775,8 +776,8 @@
                         <option value="ZERO">Zero Balance (0)</option>
                     </select>
                 </div>
-                <button class="btn-excel" onclick="exportTableToExcel('bookerShopsTable', 'Booker_Detail')">Excel 📊</button>
-                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                <button class="btn-excel booker-export-hide" data-booker-hide="1" onclick="exportTableToExcel('bookerShopsTable', 'Booker_Detail')">Excel 📊</button>
+                <button class="btn-add booker-export-hide" data-booker-hide="1" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
                 <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('bookerDetailMainTable','Booker_Detail')">PDF Download 📄</button>
             </div>
 
@@ -840,7 +841,7 @@
                 <button class="btn-backup admin-only" onclick="openBulkTransferModal()" style="padding:8px 12px; font-weight:bold; background:#007bff;">🔀 Transfer Selected Shops</button>
                 <button class="btn-delete admin-only" onclick="deleteSelectedShops()" style="padding:9px 15px; font-weight:bold;">Delete Selected Shops 🗑️</button>
                 <button class="btn-excel" onclick="exportTableToExcel('shopsTable', 'All_Shops_Balance')">Excel 📊</button>
-                <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
+                <button class="btn-add booker-export-hide" data-booker-hide="1" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
                 <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('shopsMainTable','All_Shops_Balance')">PDF Download 📄</button>
             </div>
 
@@ -1279,51 +1280,94 @@
         function exportTableToExcel(tbodyId, filename) {
             const tbody = document.getElementById(tbodyId);
             if (!tbody) { alert('Report table not found.'); return; }
-            const table = tbody.closest('table');
-            if (!table) { alert('Report table not found.'); return; }
-            const tab = table.closest('.tab-content');
+            const source = tbody.closest('table');
+            if (!source) { alert('Report table not found.'); return; }
+            const tab = source.closest('.tab-content');
             const cfg = getReportConfig(tbodyId, filename);
             const generated = new Date().toLocaleString('en-GB');
+            const escHtml = value => String(value ?? '')
+                .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-            // Build the export from the same visible report structure used by Print:
-            // brand header + date bar + report content (filters/buttons removed).
-            const brand = document.querySelector('.brand-header-custom');
+            // Build a clean Excel-2016-friendly report. Avoid flex/grid/backdrop-filter
+            // because older Excel versions render those browser-only layouts poorly.
+            const cleanTable = getExportTable(source);
+            cleanTable.removeAttribute('id');
+            cleanTable.style.width = '100%';
+            cleanTable.style.borderCollapse = 'collapse';
+            cleanTable.style.tableLayout = 'auto';
+
+            cleanTable.querySelectorAll('th').forEach(th => {
+                th.style.backgroundColor = '#0d0d0d';
+                th.style.color = '#ffffff';
+                th.style.fontWeight = 'bold';
+                th.style.border = '1px solid #555555';
+                th.style.padding = '7px 6px';
+                th.style.textAlign = 'center';
+            });
+            cleanTable.querySelectorAll('td').forEach(td => {
+                td.style.border = '1px solid #999999';
+                td.style.padding = '6px';
+                td.style.verticalAlign = 'middle';
+                td.style.whiteSpace = 'normal';
+                td.style.wordWrap = 'break-word';
+            });
+
+            let summaryHtml = '';
+            if (tab) {
+                const cards = Array.from(tab.querySelectorAll('.summary-card .card')).map(card => ({
+                    label: card.querySelector('h3')?.innerText?.trim() || '',
+                    value: card.querySelector('p')?.innerText?.trim() || ''
+                })).filter(x => x.label || x.value);
+                if (cards.length) {
+                    summaryHtml = '<table class="summary-table"><tr>' + cards.map(c =>
+                        `<td><div class="summary-label">${escHtml(c.label)}</div><div class="summary-value">${escHtml(c.value)}</div></td>`
+                    ).join('') + '</tr></table>';
+                }
+            }
+
             const dateBar = document.querySelector('.print-date-bar');
-            const content = tab ? tab.cloneNode(true) : table.cloneNode(true);
-            content.querySelectorAll('.no-print, button, input, select, textarea, form').forEach(el => el.remove());
-            content.querySelectorAll('.table-responsive').forEach(w => { w.style.overflow='visible'; w.style.width='100%'; });
-            content.querySelectorAll('.summary-card').forEach(w => w.classList.add('export-summary'));
-
-            const brandHtml = brand ? brand.cloneNode(true).outerHTML : '<div class="brand-fallback">AL QADIR TRADERS</div>';
-            const dateHtml = dateBar ? dateBar.cloneNode(true).outerHTML : '';
-            const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
-            <head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-            <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${cfg.title.slice(0,31)}</x:Name><x:WorksheetOptions><x:PageSetup><x:Layout x:Orientation="Portrait"/><x:FitToPage/></x:PageSetup><x:Print><x:ValidPrinterInfo/><x:PaperSizeIndex>9</x:PaperSizeIndex><x:HorizontalResolution>300</x:HorizontalResolution><x:VerticalResolution>300</x:VerticalResolution></x:Print><x:Selected/><x:ProtectContents>False</x:ProtectContents></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-            <style>
-              @page{size:A4 portrait;margin:.25in;}
-              body{font-family:Arial,sans-serif;font-size:10pt;color:#000;background:#fff;margin:0;padding:0;}
-              .container{width:100%;max-width:none;}
-              .brand-header-custom{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #d1121d;padding:4px 0 6px;margin-bottom:7px;background:#fff;}
-              .brand-left{width:34%;}.brand-center{width:32%;text-align:center;}.brand-right{width:34%;text-align:right;}
-              .brand-title-en{font-size:18pt;font-weight:bold;}.brand-sub-en{font-size:9pt;font-weight:bold;}.brand-desc-en{font-size:8pt;color:#555;}
-              .arabic-logo-symbol{font-size:13pt;}.brand-title-ur{font-size:15pt;font-weight:bold;}.coca-cola-logo-img{height:28px;max-width:150px;}
-              .coca-cola-sub{font-size:7pt;font-weight:bold;color:#555;}
-              .print-date-bar{display:flex;justify-content:space-between;font-size:9pt;font-weight:bold;color:#000;margin-bottom:9px;padding:3px 0;border-bottom:1px solid #ddd;}
-              .filter-box,form,.no-print,button,input,select,textarea{display:none!important;}
-              .summary-card{display:flex;gap:8px;margin:6px 0 10px;}
-              .summary-card .card{flex:1;border:1px solid #bbb;border-left:3px solid #d1121d;padding:6px 9px;background:#fff;}
-              .summary-card h3{font-size:9pt;margin:0 0 3px;}.summary-card p{font-size:12pt;font-weight:bold;margin:0;}
-              h3{font-size:13pt;margin:7px 0;}
-              table{border-collapse:collapse;width:100%;table-layout:auto;margin-top:5px;}
-              th{background:#0d0d0d;color:#fff;font-weight:bold;text-align:center;border:1px solid #555;padding:6px 7px;white-space:normal;}
-              td{border:1px solid #999;padding:6px 7px;vertical-align:middle;white-space:normal;word-wrap:break-word;}
-              tr:nth-child(even) td{background:#f5f5f5;}
-              .text-right{text-align:right}.text-left{text-align:left}.text-center{text-align:center}
-            </style></head><body>
-            ${brandHtml}
-            ${dateHtml}
-            <div class="report-content">${content.outerHTML}</div>
-            </body></html>`;
+            const dateText = dateBar ? dateBar.innerText.replace(/\s+/g,' ').trim() : ('Generated: ' + generated);
+            const html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>${escHtml(cfg.title.slice(0,31))}</x:Name><x:WorksheetOptions><x:PageSetup><x:Layout x:Orientation="Portrait"/><x:FitToPage/></x:PageSetup><x:FitToPage/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+<style>
+@page{size:A4 portrait;margin:.25in;}
+body{font-family:Arial,sans-serif;font-size:10pt;color:#111;background:#fff;margin:0;padding:0;}
+.report{width:100%;}
+.header{border-bottom:3px solid #d1121d;padding:5px 0 7px;margin-bottom:7px;}
+.header-title{font-size:17pt;font-weight:bold;margin:0;}
+.header-sub{font-size:9pt;font-weight:bold;color:#d1121d;margin-top:2px;}
+.header-desc{font-size:8pt;color:#555;margin-top:2px;}
+.report-title{font-size:13pt;font-weight:bold;margin:7px 0 3px;}
+.report-subtitle{font-size:9pt;color:#555;margin-bottom:4px;}
+.datebar{font-size:9pt;font-weight:bold;color:#333;border-bottom:1px solid #ddd;padding:3px 0 6px;margin-bottom:8px;}
+.summary-table{width:100%;border-collapse:collapse;margin:5px 0 10px;}
+.summary-table td{border:1px solid #bbb;border-left:3px solid #d1121d;padding:6px 8px;vertical-align:top;}
+.summary-label{font-size:8pt;font-weight:bold;color:#555;}
+.summary-value{font-size:12pt;font-weight:bold;margin-top:2px;}
+table.report-table{width:100%;border-collapse:collapse;table-layout:auto;}
+table.report-table th{background:#0d0d0d;color:#fff;font-weight:bold;border:1px solid #555;padding:6px;white-space:normal;text-align:center;}
+table.report-table td{border:1px solid #999;padding:6px;vertical-align:middle;white-space:normal;word-wrap:break-word;}
+table.report-table tr:nth-child(even) td{background:#f5f5f5;}
+</style>
+</head><body>
+<div class="report">
+  <div class="header">
+    <div class="header-title">AL QADIR TRADERS</div>
+    <div class="header-sub">MARKET CREDIT LEDGER SYSTEM</div>
+    <div class="header-desc">AUTHORIZED DISTRIBUTOR</div>
+  </div>
+  <div class="report-title">${escHtml(cfg.title)}</div>
+  <div class="report-subtitle">${escHtml(cfg.subtitle)}</div>
+  <div class="datebar">${escHtml(dateText)} &nbsp; | &nbsp; Generated: ${escHtml(generated)}</div>
+  ${summaryHtml}
+  ${cleanTable.outerHTML.replace('<table','<table class="report-table"')}
+</div>
+</body></html>`;
 
             const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -1601,6 +1645,7 @@
             document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = '');
             document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
             document.querySelectorAll('.admin-only-content').forEach(el => el.style.display = '');
+            document.querySelectorAll('.booker-export-hide').forEach(el => el.style.display = '');
 
             const role = currentUser.role;
 
@@ -1626,6 +1671,8 @@
                 });
                 document.getElementById('tabLedgerBtn').style.display = '';
                 document.getElementById('tabBookerBtn').style.display = '';
+                // Booker login: PDF only. Excel and browser Print are intentionally hidden.
+                document.querySelectorAll('.booker-export-hide').forEach(el => el.style.display = 'none');
                 openTab('bookerLedger', document.getElementById('tabBookerBtn'));
                 return;
             }
@@ -3217,7 +3264,7 @@
             master.indeterminate = checked > 0 && checked < boxes.length;
         }
 
-        /* MOBILE-FRIENDLY PDF DOWNLOAD - print-style A4 PDF, no external library */
+        /* PDF DOWNLOAD - closely mirrors the browser's Print layout */
         function downloadCurrentTablePDF(tableId, filename, title) {
             try {
                 const table = document.getElementById(tableId);
@@ -3233,50 +3280,45 @@
                 const tab = table.closest('.tab-content');
                 const reportTitle = title ? String(title).replace(/_/g, ' ').toUpperCase() : cfg.title;
                 const generated = new Date().toLocaleString('en-GB');
-
-                // Pull the same summary cards and date-bar values shown by the Print view.
+                const dateBar = document.querySelector('.print-date-bar');
+                const dateText = dateBar ? (dateBar.innerText || '').replace(/\s+/g, ' ').trim() : ('Generated: ' + generated);
+                const heading = tab ? Array.from(tab.querySelectorAll('h3')).find(h => !h.closest('.summary-card'))?.innerText?.trim() : '';
                 const summary = tab ? Array.from(tab.querySelectorAll('.summary-card .card')).map(card => ({
                     label: (card.querySelector('h3')?.innerText || '').replace(/\s+/g,' ').trim(),
                     value: (card.querySelector('p')?.innerText || '').replace(/\s+/g,' ').trim()
                 })).filter(x => x.label || x.value) : [];
-                const dateBar = document.querySelector('.print-date-bar');
-                const dateText = dateBar ? (dateBar.innerText || '').replace(/\s+/g,' ').trim() : ('Generated: ' + generated);
-                const heading = tab ? Array.from(tab.querySelectorAll('h3')).find(h => !h.closest('.summary-card'))?.innerText?.trim() : '';
 
-                /* A4 portrait, matching the browser @media print report. */
+                /* A4 portrait: same compact hierarchy as @media print, with no artificial top gap. */
                 const PW=595.28, PH=841.89, M=24, usableW=PW-M*2;
-                const topHeaderH=108, summaryH=58;
-                const font=7.2, headFont=7.2, lineH=9.5, padX=4, padY=5;
+                const headerH=78, dateH=22, summaryH=50, headingH=20;
+                const font=7.25, headFont=7.1, lineH=9.2, padX=4, padY=5;
                 const colCount=Math.max.apply(null, rows.map(r=>r.length));
                 const weights=Array(colCount).fill(1);
-                rows[0].forEach((v,i)=>{weights[i]=Math.min(30,Math.max(7,String(v).length));});
-                let weightSum=weights.reduce((a,b)=>a+b,0);
-                let colWidths=weights.map(w=>usableW*w/weightSum);
-                const minCol=35;
-                if(colWidths.some(w=>w<minCol)){
-                    const total=colWidths.reduce((a,b)=>a+b,0);
-                    const deficit=colWidths.reduce((a,w)=>a+Math.max(0,minCol-w),0);
-                    const donors=colWidths.map((w,i)=>w>minCol+deficit/Math.max(1,colCount)?i:-1).filter(i=>i>=0);
-                    if(donors.length) donors.forEach(i=>colWidths[i]-=deficit/donors.length);
-                    const t=colWidths.reduce((a,b)=>a+b,0); colWidths=colWidths.map(w=>Math.max(minCol,w)*usableW/t);
-                }
+                rows[0].forEach((v,i)=>{weights[i]=Math.min(34,Math.max(7,String(v).length));});
+                /* Give ledger's text-heavy columns sensible room, like the printed table. */
+                if(colCount===7){ weights[0]=6; weights[1]=10; weights[2]=12; weights[3]=16; weights[4]=13; weights[5]=13; weights[6]=14; }
+                if(colCount===5){ weights[0]=6; weights[1]=28; weights[2]=20; weights[3]=20; weights[4]=20; }
+                if(colCount===7 && tableId==='shopsMainTable'){ weights[0]=5; weights[1]=6; weights[2]=23; weights[3]=17; weights[4]=15; weights[5]=15; weights[6]=19; }
+                const weightSum=weights.reduce((a,b)=>a+b,0);
+                const colWidths=weights.map(w=>usableW*w/weightSum);
                 const esc=s=>String(s??'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)').replace(/[^\x20-\x7E]/g,'?');
                 const wrap=(text,width,size)=>{
-                    const maxChars=Math.max(5,Math.floor(width/(size*0.52)));
+                    const maxChars=Math.max(5,Math.floor(width/(size*0.50)));
                     const words=String(text||'').split(/\s+/); const out=[]; let line='';
                     words.forEach(w=>{ if(!line){line=w;return;} if((line+' '+w).length<=maxChars) line+=' '+w; else {out.push(line);line=w;} });
                     if(line) out.push(line); return out.length?out:[''];
                 };
-
                 const objs=[]; const add=o=>{objs.push(o);return objs.length;};
                 const fontId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
                 const pagesId=add(''); const kids=[];
-                let pageRows=[]; let pages=[]; let used=topHeaderH + (summary.length ? summaryH : 0) + (heading ? 20 : 0);
+                const pageTop = PH-M;
+                const tableStartY = pageTop - headerH - dateH - (summary.length ? summaryH : 0) - (heading ? headingH : 0);
+                let pageRows=[]; let pages=[]; let used=0;
 
                 rows.forEach((r,ri)=>{
                     const wrapped=r.map((v,i)=>wrap(v,colWidths[i]||usableW/colCount,font));
                     const h=Math.max(18,Math.min(54,Math.max.apply(null,wrapped.map(a=>a.length))*lineH+padY*2));
-                    if(pageRows.length && used+h>PH-M-8){ pages.push(pageRows); pageRows=[]; used=topHeaderH+(summary.length?summaryH:0)+(heading?20:0); }
+                    if(pageRows.length && used+h>PH-M-tableStartY-10){ pages.push(pageRows); pageRows=[]; used=0; }
                     pageRows.push({cells:wrapped,height:h,header:ri===0}); used+=h;
                 });
                 if(pageRows.length) pages.push(pageRows);
@@ -3284,31 +3326,33 @@
                 pages.forEach((pageRows,pageIndex)=>{
                     let st='q\n';
                     st+='1 1 1 rg 0 0 '+PW+' '+PH+' re f\n';
-                    // Brand header — same hierarchy as Print view.
-                    st+='BT /F1 15 Tf 1 0 0 1 '+M+' '+(PH-25)+' Tm ('+esc('AL QADIR TRADERS')+') Tj ET\n';
-                    st+='BT /F1 7 Tf 1 0 0 1 '+M+' '+(PH-38)+' Tm ('+esc('MARKET CREDIT LEDGER SYSTEM  |  AUTHORIZED DISTRIBUTOR')+') Tj ET\n';
-                    st+='BT /F1 8 Tf 1 0 0 1 '+(PW-170)+' '+(PH-32)+' Tm ('+esc('OFFICIAL PARTNER')+') Tj ET\n';
-                    st+='0.82 0.07 0.11 RG 2 w '+M+' '+(PH-45)+' m '+(PW-M)+' '+(PH-45)+' l S\n';
-                    st+='BT /F1 10 Tf 1 0 0 1 '+M+' '+(PH-61)+' Tm ('+esc(reportTitle)+') Tj ET\n';
-                    st+='BT /F1 6.7 Tf 1 0 0 1 '+M+' '+(PH-72)+' Tm ('+esc(cfg.subtitle)+'  |  Generated: '+esc(generated)+') Tj ET\n';
-                    st+='BT /F1 6.7 Tf 1 0 0 1 '+M+' '+(PH-83)+' Tm ('+esc(dateText.slice(0,145))+') Tj ET\n';
+                    /* PRINT-LIKE BRAND HEADER */
+                    st+='BT /F1 14 Tf 1 0 0 1 '+M+' '+(pageTop-17)+' Tm ('+esc('AL QADIR TRADERS')+') Tj ET\n';
+                    st+='BT /F1 6.8 Tf 1 0 0 1 '+M+' '+(pageTop-29)+' Tm ('+esc('MARKET CREDIT LEDGER SYSTEM')+') Tj ET\n';
+                    st+='BT /F1 6.5 Tf 1 0 0 1 '+M+' '+(pageTop-40)+' Tm ('+esc('AUTHORIZED DISTRIBUTOR')+') Tj ET\n';
+                    st+='BT /F1 10 Tf 1 0 0 1 '+(PW-116)+' '+(pageTop-20)+' Tm ('+esc('AL QADIR')+') Tj ET\n';
+                    st+='BT /F1 6 Tf 1 0 0 1 '+(PW-116)+' '+(pageTop-31)+' Tm ('+esc('OFFICIAL PARTNER')+') Tj ET\n';
+                    st+='0.82 0.07 0.11 RG 2.5 w '+M+' '+(pageTop-48)+' m '+(PW-M)+' '+(pageTop-48)+' l S\n';
+                    st+='0 0 0 rg BT /F1 8.8 Tf 1 0 0 1 '+M+' '+(pageTop-61)+' Tm ('+esc(reportTitle)+') Tj ET\n';
+                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+M+' '+(pageTop-71)+' Tm ('+esc(dateText.slice(0,150))+') Tj ET\n';
 
-                    let y=PH-topHeaderH;
-                    // Print-like summary cards.
+                    let y=pageTop-headerH;
+                    /* SUMMARY CARDS — same two/three card row used by print. */
                     if(summary.length){
                         const gap=7, sw=(usableW-gap*(summary.length-1))/summary.length;
                         summary.forEach((card,i)=>{
-                            const x=M+i*(sw+gap); const sy=y-summaryH+10;
-                            st+='1 1 1 rg '+x+' '+sy+' '+sw+' 40 re f\n';
-                            st+='0.75 0.75 0.75 RG 0.7 w '+x+' '+sy+' '+sw+' 40 re S\n';
-                            st+='0.82 0.07 0.11 RG 2 w '+x+' '+sy+' m '+x+' '+(sy+40)+' l S\n';
-                            st+='0 0 0 rg BT /F1 6.5 Tf 1 0 0 1 '+(x+7)+' '+(sy+27)+' Tm ('+esc(card.label)+') Tj ET\n';
-                            st+='0 0 0 rg BT /F1 10 Tf 1 0 0 1 '+(x+7)+' '+(sy+12)+' Tm ('+esc(card.value)+') Tj ET\n';
+                            const x=M+i*(sw+gap), sy=y-summaryH+9;
+                            st+='1 1 1 rg '+x+' '+sy+' '+sw+' 36 re f\n';
+                            st+='0.78 0.78 0.78 RG 0.7 w '+x+' '+sy+' '+sw+' 36 re S\n';
+                            st+='0.82 0.07 0.11 RG 2.2 w '+x+' '+sy+' m '+x+' '+(sy+36)+' l S\n';
+                            st+='0.18 0.18 0.18 rg BT /F1 6.3 Tf 1 0 0 1 '+(x+7)+' '+(sy+24)+' Tm ('+esc(card.label)+') Tj ET\n';
+                            st+='0 0 0 rg BT /F1 9.5 Tf 1 0 0 1 '+(x+7)+' '+(sy+10)+' Tm ('+esc(card.value)+') Tj ET\n';
                         });
                         y-=summaryH;
                     }
-                    if(heading){ st+='0 0 0 rg BT /F1 8.5 Tf 1 0 0 1 '+M+' '+(y-5)+' Tm ('+esc(heading)+') Tj ET\n'; y-=20; }
+                    if(heading){ st+='0 0 0 rg BT /F1 8.5 Tf 1 0 0 1 '+M+' '+(y-5)+' Tm ('+esc(heading)+') Tj ET\n'; y-=headingH; }
 
+                    /* On subsequent pages keep the table header, but do not repeat the large report header. */
                     pageRows.forEach(row=>{
                         let x=M;
                         row.cells.forEach((lines,i)=>{
@@ -3322,8 +3366,9 @@
                         });
                         y-=row.height;
                     });
-                    // Footer page number, like a formal printed report.
-                    st+='0.45 0.45 0.45 rg BT /F1 6 Tf 1 0 0 1 '+(PW-M-55)+' '+12+' Tm ('+esc('Page '+(pageIndex+1)+' / '+pages.length)+') Tj ET\n';
+                    st+='0.55 0.55 0.55 rg 0.5 w '+M+' 25 m '+(PW-M)+' 25 l S\n';
+                    st+='BT /F1 6 Tf 1 0 0 1 '+M+' 13 Tm ('+esc('AL QADIR TRADERS  |  Market Credit Ledger System')+') Tj ET\n';
+                    st+='BT /F1 6 Tf 1 0 0 1 '+(PW-M-58)+' 13 Tm ('+esc('Page '+(pageIndex+1)+' / '+pages.length)+') Tj ET\n';
                     st+='Q';
                     const cid=add('<< /Length '+st.length+' >>\nstream\n'+st+'\nendstream');
                     const pid=add('<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /Font << /F1 '+fontId+' 0 R >> >> /Contents '+cid+' 0 R >>');
