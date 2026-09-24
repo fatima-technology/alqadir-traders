@@ -2226,57 +2226,24 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 shopTx = shopTx.filter(t => transactionDateOnOrBefore(t, selectedDate));
             }
 
-            // Keep Daily Entry exactly as entered, but make the Shop Ledger cleaner:
-            // for the same shop/date, keep each credit entry as its own row while
-            // combining all recovery entries for that date into the first credit row.
-            // This means a same-day credit + recovery appears on one ledger row,
-            // while multiple same-day credits remain separate rows.
+            // Shop Ledger must preserve every original Daily Entry transaction as a separate row.
+            // Never combine same-date credits or recoveries: each entry must remain traceable
+            // with its own date, booker, reference, amount and running balance.
             const indexedShopTx = shopTx.map((t, index) => ({ t, index }));
             indexedShopTx.sort((a,b) => {
                 const dateDiff = parseFormattedDate(a.t.date) - parseFormattedDate(b.t.date);
                 return dateDiff || (a.index - b.index);
             });
 
-            const groupedByDate = new Map();
-            indexedShopTx.forEach(item => {
-                const key = normalizeDate(item.t.date);
-                if (!groupedByDate.has(key)) groupedByDate.set(key, []);
-                groupedByDate.get(key).push(item);
-            });
-
-            const ledgerRows = [];
-            groupedByDate.forEach((items, dateKey) => {
-                const creditItems = items.filter(item => (parseFloat(item.t.credit) || 0) > 0);
-                const recoveryItems = items.filter(item => (parseFloat(item.t.recovery) || 0) > 0);
-                const totalRecovery = recoveryItems.reduce((sum, item) => sum + (parseFloat(item.t.recovery) || 0), 0);
-
-                if (creditItems.length > 0) {
-                    creditItems.forEach((item, creditIndex) => {
-                        const t = item.t;
-                        const credit = parseFloat(t.credit) || 0;
-                        // Put the day's combined recovery on the first credit row.
-                        const recovery = creditIndex === 0 ? totalRecovery : 0;
-                        ledgerRows.push({
-                            date: t.date,
-                            booker: t.booker,
-                            ref: t.ref || '-',
-                            credit,
-                            recovery,
-                            originalIndex: item.index
-                        });
-                    });
-                } else if (recoveryItems.length > 0) {
-                    const firstRecovery = recoveryItems[0].t;
-                    ledgerRows.push({
-                        date: firstRecovery.date,
-                        booker: firstRecovery.booker,
-                        ref: firstRecovery.ref || '-',
-                        credit: 0,
-                        recovery: totalRecovery,
-                        originalIndex: recoveryItems[0].index
-                    });
-                }
-            });
+            // Keep a 1:1 ledger row for every source transaction.
+            const ledgerRows = indexedShopTx.map(item => ({
+                date: item.t.date,
+                booker: item.t.booker,
+                ref: item.t.ref || '-',
+                credit: parseFloat(item.t.credit) || 0,
+                recovery: parseFloat(item.t.recovery) || 0,
+                originalIndex: item.index
+            }));
 
             let sno = 1;
             let runningBal = 0;
