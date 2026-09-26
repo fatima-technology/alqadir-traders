@@ -135,6 +135,46 @@
             overflow: hidden;
         }
 
+        /* POST-LOGIN FIREBASE SYNC LOADER */
+        #loginSyncOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10050;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: linear-gradient(135deg, rgba(5,5,8,.97), rgba(52,0,4,.97));
+            color: #fff;
+        }
+        #loginSyncOverlay.show { display: flex; }
+        .login-sync-card {
+            width: min(430px, 100%);
+            text-align: center;
+            background: rgba(25,5,7,.92);
+            border: 1px solid rgba(255,255,255,.16);
+            border-top: 4px solid #e41e2d;
+            border-radius: 18px;
+            padding: 28px 22px 24px;
+            box-shadow: 0 18px 45px rgba(0,0,0,.55);
+            backdrop-filter: blur(10px);
+        }
+        .login-sync-spinner {
+            width: 52px; height: 52px; margin: 0 auto 14px;
+            border: 4px solid rgba(255,255,255,.18);
+            border-top-color: #e41e2d;
+            border-right-color: #fff;
+            border-radius: 50%;
+            animation: loginSyncSpin .85s linear infinite;
+        }
+        @keyframes loginSyncSpin { to { transform: rotate(360deg); } }
+        .login-sync-title { font-size: 18px; font-weight: 800; margin-bottom: 7px; }
+        .login-sync-status { font-size: 12px; color: #8ff0a4; margin-bottom: 12px; min-height: 18px; }
+        .login-sync-progress { height: 6px; background: rgba(255,255,255,.12); border-radius: 999px; overflow: hidden; margin: 0 auto 16px; max-width: 300px; }
+        .login-sync-progress > span { display:block; width:0%; height:100%; background: linear-gradient(90deg,#e41e2d,#28a745); border-radius:999px; transition: width .25s ease; }
+        .login-sync-quote { font-family: 'Noto Nastaliq Urdu','Amiri',serif; font-size: 15px; line-height: 1.8; color:#f5f5f5; min-height: 55px; }
+        .login-sync-sub { font-size: 10px; color: rgba(255,255,255,.62); margin-top: 7px; }
+
         .login-card {
             position: relative;
             z-index: 2;
@@ -479,6 +519,18 @@
         </div>
     </div>
 
+    <!-- LOGIN SYNC / LOADING SCREEN -->
+    <div id="loginSyncOverlay" aria-live="polite" aria-busy="true">
+        <div class="login-sync-card">
+            <div class="login-sync-spinner"></div>
+            <div class="login-sync-title">System Syncing...</div>
+            <div class="login-sync-status" id="loginSyncStatus">Firebase server data verify ho raha hai...</div>
+            <div class="login-sync-progress"><span id="loginSyncProgressBar"></span></div>
+            <div class="login-sync-quote" id="loginSyncQuote">"محنت کبھی ضائع نہیں جاتی۔"</div>
+            <div class="login-sync-sub">Please wait — system data will be ready before login completes.</div>
+        </div>
+    </div>
+
     <!-- MAIN CONTAINER -->
     <div class="container">
 
@@ -708,6 +760,7 @@
                     <button class="btn-excel" style="background:#007bff; padding:10px 14px; font-size:13px;" onclick="downloadCSVSample()">📥 Download CSV Sample</button>
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;" onchange="uploadBulkCSV(event)">
                     <button class="btn-excel" style="background:#1D6F42; padding:10px 18px; font-size:14px;" onclick="document.getElementById('csvFileInput').click()">📁 Select CSV File & Upload</button>
+                    <button type="button" class="btn-edit" style="padding:10px 14px; font-size:13px;" onclick="openBookerNameCleanup()">🧹 Fix Wrong Booker Name</button>
                 </div>
             </div>
 
@@ -1699,24 +1752,141 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             this.textContent = isPass ? '🙈' : '👁️';
         });
 
-        /* LOGIN */
-        function attemptLogin() {
-            const uInput = cleanStr(document.getElementById('loginUser').value);
-            const pInput = document.getElementById('loginPass').value.trim();
-            const userIdx = USERS_DATABASE.findIndex(u => cleanStr(u.username) === uInput && u.password === pInput);
+        /* LOGIN: fixed sync window so Firebase data is refreshed before the dashboard appears. */
+        const LOGIN_SYNC_MS = 3600;
+        const LOGIN_SYNC_QUOTES = [
+            'محنت کبھی ضائع نہیں جاتی۔',
+            'صبر کامیابی کی پہلی سیڑھی ہے۔',
+            'اچھا کام ہمیشہ اچھا نتیجہ لاتا ہے۔',
+            'آج کی محنت، کل کی آسانی ہے۔',
+            'نیت صاف ہو تو راستے آسان ہو جاتے ہیں۔'
+        ];
 
+        function setLoginSyncUI(progress, status, quoteIndex) {
+            const bar = document.getElementById('loginSyncProgressBar');
+            const statusEl = document.getElementById('loginSyncStatus');
+            const quoteEl = document.getElementById('loginSyncQuote');
+            if (bar) bar.style.width = Math.max(0, Math.min(100, progress)) + '%';
+            if (statusEl && status) statusEl.innerText = status;
+            if (quoteEl && Number.isInteger(quoteIndex)) quoteEl.innerText = LOGIN_SYNC_QUOTES[quoteIndex % LOGIN_SYNC_QUOTES.length];
+        }
+
+        function showLoginSyncLoader() {
+            const overlay = document.getElementById('loginSyncOverlay');
+            if (overlay) overlay.classList.add('show');
+            setLoginSyncUI(5, 'Firebase server data verify ho raha hai...', Math.floor(Math.random() * LOGIN_SYNC_QUOTES.length));
+        }
+
+        function hideLoginSyncLoader() {
+            const overlay = document.getElementById('loginSyncOverlay');
+            if (overlay) overlay.classList.remove('show');
+        }
+
+        function waitMs(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+        async function refreshLatestFirebaseDataForLogin() {
+            const results = await Promise.all([
+                db.ref('pos_transactions').once('value'),
+                db.ref('pos_users_db').once('value'),
+                db.ref('pos_booker_filter_setting').once('value')
+            ]);
+
+            const txVal = results[0].val();
+            const usersVal = results[1].val();
+            const filterVal = results[2].val();
+
+            const localTx = safeLocalGet(LOCAL_TX_KEY);
+            const localUsers = safeLocalGet(LOCAL_USERS_KEY);
+
+            if (txVal) {
+                transactions = normalizeLoadedTransactions(txVal);
+                safeLocalSet(LOCAL_TX_KEY, transactions);
+            } else if (Array.isArray(localTx)) {
+                transactions = normalizeLoadedTransactions(localTx);
+            }
+            if (usersVal) {
+                USERS_DATABASE = Array.isArray(usersVal) ? usersVal : Object.values(usersVal);
+                safeLocalSet(LOCAL_USERS_KEY, USERS_DATABASE);
+            } else if (Array.isArray(localUsers) && localUsers.length) {
+                USERS_DATABASE = localUsers;
+            }
+            if (filterVal !== null && filterVal !== undefined) systemBookerFilterSetting = filterVal;
+
+            cloudTxReady = true;
+            cloudUsersReady = true;
+            populateShopDropdowns();
+            populateEntryBookersDropdown();
+            return true;
+        }
+
+        async function performLoginSync(candidateUsername, candidatePassword) {
+            showLoginSyncLoader();
+            const started = Date.now();
+            const quoteTimer = setInterval(() => {
+                const elapsed = Date.now() - started;
+                const progress = Math.min(92, 8 + (elapsed / LOGIN_SYNC_MS) * 80);
+                setLoginSyncUI(progress, elapsed < 1700 ? 'Firebase data sync ho raha hai...' : 'Ledger, users aur permissions verify ho rahe hain...', Math.floor(elapsed / 850) % LOGIN_SYNC_QUOTES.length);
+            }, 200);
+
+            let syncOk = false;
+            try {
+                // Keep the loader visible for the requested fixed window while the fresh reads happen in parallel.
+                await Promise.all([refreshLatestFirebaseDataForLogin(), waitMs(LOGIN_SYNC_MS)]);
+                syncOk = true;
+            } catch (e) {
+                console.error('Login Firebase sync failed:', e);
+                // Local safety mirrors remain available; do not block login indefinitely.
+                setLoginSyncUI(92, 'Firebase temporarily unavailable — local safety data verify ki ja rahi hai...', 0);
+                await waitMs(Math.max(0, LOGIN_SYNC_MS - (Date.now() - started)));
+            } finally {
+                clearInterval(quoteTimer);
+            }
+
+            const freshUser = USERS_DATABASE.find(u => cleanStr(u.username) === cleanStr(candidateUsername) && u.password === candidatePassword);
+            if (!freshUser) {
+                hideLoginSyncLoader();
+                return { ok:false, reason:'invalid' };
+            }
+
+            const userIdx = USERS_DATABASE.findIndex(u => u === freshUser);
+            const nowStr = new Date().toLocaleString('en-US', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
             if (userIdx !== -1) {
-                const nowStr = new Date().toLocaleString('en-US', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
                 USERS_DATABASE[userIdx].isOnline = true;
                 USERS_DATABASE[userIdx].lastActive = `Login: ${nowStr}`;
                 currentUser = USERS_DATABASE[userIdx];
-                sessionStorage.setItem('pos_current_user', JSON.stringify(currentUser));
-                saveUsersToCloud();
-                applyUserPermissions();
-                startLivePresence();
-                recordUserActivity('Login', 'User logged in');
-                showSystemNotification("Login Successful", `Welcome back, ${currentUser.username.toUpperCase()}! 🚀`);
-            } else { alert('Invalid Username or Password!'); }
+            } else {
+                currentUser = freshUser;
+            }
+
+            sessionStorage.setItem('pos_current_user', JSON.stringify(currentUser));
+            setLoginSyncUI(100, syncOk ? 'Sync complete — system ready.' : 'System ready from verified local safety data.', 3);
+            try { await saveUsersToCloud(); } catch (e) { console.warn('Login user status save:', e); }
+            applyUserPermissions();
+            startLivePresence();
+            recordUserActivity('Login', syncOk ? 'User logged in after Firebase sync' : 'User logged in using local safety data');
+            showSystemNotification('Login Successful', `Welcome back, ${currentUser.username.toUpperCase()}! 🚀`);
+            await waitMs(180);
+            hideLoginSyncLoader();
+            return { ok:true };
+        }
+
+        /* LOGIN */
+        async function attemptLogin() {
+            const uInput = cleanStr(document.getElementById('loginUser').value);
+            const pInput = document.getElementById('loginPass').value.trim();
+            if (!uInput || !pInput) { alert('Username aur Password enter karein.'); return; }
+
+            const loginBtn = document.querySelector('.btn-login');
+            if (loginBtn) { loginBtn.disabled = true; loginBtn.style.opacity = '0.65'; }
+            try {
+                const result = await performLoginSync(uInput, pInput);
+                if (!result.ok) {
+                    alert('Invalid Username or Password!');
+                    return;
+                }
+            } finally {
+                if (loginBtn) { loginBtn.disabled = false; loginBtn.style.opacity = ''; }
+            }
         }
 
         /* LOGOUT */
@@ -1871,11 +2041,27 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             if (!currentUser || currentUser.role === 'admin') return transactions;
 
             const role = currentUser.role;
-            const userBooker = (currentUser.bookerName || '').toString().trim().toUpperCase();
+            const userBooker = String(currentUser.bookerName || '').trim().toUpperCase();
             const allowedShops = new Set((currentUser.allowedShops || []).map(s => normalizeShopKey(s)));
+            const assignedShopKey = role === 'shop' ? normalizeShopKey(userBooker) : '';
+
+            // Build role filters ONCE, not once per transaction. This is important when
+            // the ledger contains thousands of rows and keeps mobile/dashboard rendering fast.
+            const allowedBookers = new Set(
+                (role === 'dashboard_only' ? (currentUser.allowedDashBookers || []) : (role === 'custom' ? (currentUser.customAllowedBookers || []) : []))
+                .map(b => String(b || '').trim().toUpperCase()).filter(Boolean)
+            );
+            const hiddenDashboardShops = role === 'dashboard_only'
+                ? new Set((currentUser.hiddenDashboardShops || []).map(s => normalizeShopKey(s)).filter(Boolean))
+                : null;
+            const hiddenMap = role === 'custom' ? (currentUser.customHiddenShopsByBooker || {}) : null;
+            const oldCustomAllowed = role === 'custom' && Array.isArray(currentUser.customAllowedShops) && currentUser.customAllowedShops.length > 0 && !currentUser.customHiddenShopsByBooker
+                ? new Set(currentUser.customAllowedShops.map(s => normalizeShopKey(s)).filter(Boolean))
+                : null;
+            const hiddenCache = new Map();
 
             return transactions.filter(t => {
-                const tBooker = (t.booker || '').toString().trim().toUpperCase();
+                const tBooker = String(t.booker || '').trim().toUpperCase();
                 const tShop = normalizeShopKey(t.shop);
 
                 if (role === 'booker') {
@@ -1884,41 +2070,29 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 }
 
                 if (role === 'shop') {
-                    const assignedShop = userBooker;
-                    return !!assignedShop && tShop === normalizeShopKey(assignedShop);
+                    return !!assignedShopKey && tShop === assignedShopKey;
                 }
 
                 if (role === 'dashboard_only') {
-                    const allowedBookers = new Set((currentUser.allowedDashBookers || []).map(b => b.toString().trim().toUpperCase()));
-                    if (allowedBookers.size === 0 || !allowedBookers.has(tBooker)) return false;
-                    const hidden = new Set((currentUser.hiddenDashboardShops || []).map(s => normalizeShopKey(s)));
-                    return !hidden.has(tShop);
+                    return allowedBookers.size > 0 && allowedBookers.has(tBooker) && !hiddenDashboardShops.has(tShop);
                 }
 
                 if (role === 'custom') {
-                    const allowedBookers = new Set((currentUser.customAllowedBookers || []).map(b => b.toString().trim().toUpperCase()).filter(Boolean));
                     if (!allowedBookers.has(tBooker)) return false;
-
-                    // Selected bookers control the overall scope. Every shop belonging to
-                    // those bookers is visible by default; only explicitly hidden shops
-                    // for that specific booker are excluded. This keeps Dashboard totals
-                    // and Booker Detail consistent.
-                    const hiddenMap = currentUser.customHiddenShopsByBooker || {};
-                    const hiddenForBooker = new Set((hiddenMap[tBooker] || []).map(s => normalizeShopKey(s)).filter(Boolean));
-                    if (hiddenForBooker.has(tShop)) return false;
-
-                    // Backward compatibility for older Custom users: if they only have
-                    // customAllowedShops saved, continue honoring that old visible-shop
-                    // restriction until the user edits/saves the account again.
-                    if (Array.isArray(currentUser.customAllowedShops) && currentUser.customAllowedShops.length > 0 && !currentUser.customHiddenShopsByBooker) {
-                        const oldAllowed = new Set(currentUser.customAllowedShops.map(s => normalizeShopKey(s)).filter(Boolean));
-                        return oldAllowed.has(tShop);
+                    if (hiddenMap) {
+                        let hiddenForBooker = hiddenCache.get(tBooker);
+                        if (!hiddenForBooker) {
+                            hiddenForBooker = new Set((hiddenMap[tBooker] || []).map(s => normalizeShopKey(s)).filter(Boolean));
+                            hiddenCache.set(tBooker, hiddenForBooker);
+                        }
+                        if (hiddenForBooker.has(tShop)) return false;
                     }
+                    if (oldCustomAllowed && !oldCustomAllowed.has(tShop)) return false;
                     return true;
                 }
 
                 // Data-entry user can enter data but has no reporting tabs.
-                return [];
+                return false;
             });
         }
 
@@ -2275,7 +2449,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                         <td class="text-left"><strong>${sName}</strong></td>
                         <td class="text-right">${data.credit.toLocaleString()}</td>
                         <td class="text-right">${data.recovery.toLocaleString()}</td>
-                        <td class="text-right">${formatBalance(bal)}${(currentUser && currentUser.role === 'admin' && bal > 0 && bal < 100) ? ` <button class="btn-small-settle no-print" title="Pay/adjust remaining amount under Rs. 100" onclick='settleSmallBalance(${JSON.stringify(sName)}, ${JSON.stringify(selectedBooker)}, ${bal}, "booker")'>✓ Settle</button>` : ''}</td>
+                        <td class="text-right">${formatBalance(bal)}${(currentUser && currentUser.role === 'admin' && Math.abs(bal) > 0 && Math.abs(bal) < 100) ? ` <button class="btn-small-settle no-print" title="Settle outstanding/excess amount under Rs. 100" onclick='settleSmallBalance(${JSON.stringify(sName)}, ${JSON.stringify(selectedBooker)}, ${bal}, "booker")'>✓ Settle</button>` : ''}</td>
                     </tr>
                 `);
             });
@@ -2349,8 +2523,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             const ledgerAction = document.getElementById('ledgerSmallBalanceAction');
             if (ledgerAction) {
                 const firstBooker = shopTx.length ? String(shopTx[0].booker || '').trim() : '';
-                ledgerAction.innerHTML = (currentUser && currentUser.role === 'admin' && runningBal > 0 && runningBal < 100 && firstBooker)
-                    ? `<button class="btn-small-settle" title="Pay/adjust remaining amount under Rs. 100" onclick='settleSmallBalance(${JSON.stringify(shopQuery)}, ${JSON.stringify(firstBooker)}, ${runningBal}, "ledger")'>✓ Settle Under Rs. 100</button>`
+                ledgerAction.innerHTML = (currentUser && currentUser.role === 'admin' && Math.abs(runningBal) > 0 && Math.abs(runningBal) < 100 && firstBooker)
+                    ? `<button class="btn-small-settle" title="Settle outstanding/excess amount under Rs. 100" onclick='settleSmallBalance(${JSON.stringify(shopQuery)}, ${JSON.stringify(firstBooker)}, ${runningBal}, "ledger")'>✓ Settle & Clear Under Rs. 100</button>`
                     : '';
             }
         }
@@ -2409,7 +2583,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                         <td class="text-left">${data.booker}</td>
                         <td class="text-right">${data.credit.toLocaleString()}</td>
                         <td class="text-right">${data.recovery.toLocaleString()}</td>
-                        <td class="text-right">${formatBalance(bal)}${(currentUser && currentUser.role === 'admin' && bal > 0 && bal < 100) ? ` <button class="btn-small-settle no-print" title="Pay/adjust remaining amount under Rs. 100" onclick='settleSmallBalance(${JSON.stringify(sName)}, ${JSON.stringify(data.booker)}, ${bal}, "shops")'>✓ Settle</button>` : ''}</td>
+                        <td class="text-right">${formatBalance(bal)}${(currentUser && currentUser.role === 'admin' && Math.abs(bal) > 0 && Math.abs(bal) < 100) ? ` <button class="btn-small-settle no-print" title="Settle outstanding/excess amount under Rs. 100" onclick='settleSmallBalance(${JSON.stringify(sName)}, ${JSON.stringify(data.booker)}, ${bal}, "shops")'>✓ Settle</button>` : ''}</td>
                         <td class="no-print text-center">
                             <button class="btn-edit admin-only" onclick='openEditShopModal(${JSON.stringify(sName)}, ${JSON.stringify(data.booker)}, ${bal})'>✏️ Edit</button>
                             <button class="btn-delete admin-only" onclick='deleteShopRecord(${JSON.stringify(sName)})' title="Delete Shop">🗑️</button>
@@ -2431,10 +2605,12 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 return;
             }
             amount = Math.round((parseFloat(amount) || 0) * 100) / 100;
-            if (!(amount > 0 && amount < 100)) {
-                alert('This option is only available when the remaining balance is below Rs. 100.');
+            if (!(Math.abs(amount) > 0 && Math.abs(amount) < 100)) {
+                alert('This option is only available when the outstanding/excess amount is below Rs. 100.');
                 return;
             }
+            const isExcess = amount < 0;
+            const adjustmentAmount = Math.abs(amount);
             const safeShop = String(shopName || '').trim();
             const safeBooker = String(bookerName || '').trim();
             if (!safeShop || !safeBooker) {
@@ -2463,22 +2639,24 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 alert('Last ledger date could not be found for this shop. No adjustment was created.');
                 return;
             }
-            const msg = `Remaining balance Rs. ${amount.toLocaleString()} for ${safeShop} will be marked as paid/adjusted.\n\nAdjustment date: ${settlementDate} (last ledger entry)\n\nReason: Small balance adjustment — customer did not pay the remaining amount in cash.\n\nContinue?`;
+            const msg = isExcess
+                ? `Excess amount Rs. ${adjustmentAmount.toLocaleString()} for ${safeShop} will be cleared/adjusted.\n\nAdjustment date: ${settlementDate} (last ledger entry)\n\nReason: Excess payment adjustment — customer paid extra.\n\nContinue?`
+                : `Remaining balance Rs. ${adjustmentAmount.toLocaleString()} for ${safeShop} will be marked as paid/adjusted.\n\nAdjustment date: ${settlementDate} (last ledger entry)\n\nReason: Small balance adjustment — customer did not pay the remaining amount in cash.\n\nContinue?`;
             if (!confirm(msg)) return;
-            const ref = `Small Balance Adjustment - Under Rs. 100`;
+            const ref = isExcess ? `Excess Payment Adjustment - Under Rs. 100` : `Small Balance Adjustment - Under Rs. 100`;
             transactions.push({
                 date: settlementDate,
                 booker: safeBooker.toUpperCase(),
                 shop: safeShop,
                 ref: ref,
-                credit: 0,
-                recovery: amount,
+                credit: isExcess ? adjustmentAmount : 0,
+                recovery: isExcess ? 0 : adjustmentAmount,
                 editedBy: currentUser.username || 'Admin'
             });
             saveTransactionsToCloud();
-            recordUserActivity('Recovery', `Small balance adjusted: ${safeShop} Rs. ${amount}`);
+            recordUserActivity(isExcess ? 'Credit' : 'Recovery', `${isExcess ? 'Excess amount adjusted' : 'Small balance adjusted'}: ${safeShop} Rs. ${adjustmentAmount}`);
 
-            alert(`Rs. ${amount.toLocaleString()} adjusted successfully.\nReason: ${ref}`);
+            alert(`Rs. ${adjustmentAmount.toLocaleString()} adjusted successfully.\nReason: ${ref}`);
             if (source === 'booker') renderBookerDetail();
             else if (source === 'shops') renderShops();
             else renderLedger();
@@ -2656,6 +2834,138 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             return rows;
         }
 
+        /* BOOKER NAME VALIDATION / CLEANUP ----------------------------------
+           CSV imports are strict: a Booker name must already exist in the
+           configured Booker accounts. A typo never creates a new Booker.
+           If a typo is found, the import is paused and the user can correct
+           the affected rows in a review dialog before anything is saved.
+        ------------------------------------------------------------------- */
+        let pendingCSVImport = null;
+
+        function getConfiguredBookerNames() {
+            const set = new Set();
+            (Array.isArray(USERS_DATABASE) ? USERS_DATABASE : []).forEach(u => {
+                if (!u) return;
+                const role = String(u.role || '').trim().toLowerCase();
+                const b = String(u.bookerName || '').trim().replace(/\s+/g, ' ').toUpperCase();
+                const username = String(u.username || '').trim().replace(/\s+/g, ' ').toUpperCase();
+                if (role === 'booker' && username && username !== 'ADMIN') set.add(username);
+                if (b && b !== 'ALL' && b !== 'UNDEFINED' && b !== 'UNKNOWN') set.add(b);
+            });
+            return Array.from(set).filter(Boolean).sort((a,b) => a.localeCompare(b));
+        }
+
+        function normalizeBookerMatchName(value) {
+            return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+        }
+
+        function bookerNameDistance(a, b) {
+            a = normalizeBookerMatchName(a); b = normalizeBookerMatchName(b);
+            const prev = Array.from({length: b.length + 1}, (_, i) => i);
+            for (let i = 1; i <= a.length; i++) {
+                const cur = [i];
+                for (let j = 1; j <= b.length; j++) {
+                    cur[j] = Math.min(
+                        cur[j - 1] + 1,
+                        prev[j] + 1,
+                        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+                    );
+                }
+                for (let j = 0; j < cur.length; j++) prev[j] = cur[j];
+            }
+            return prev[b.length];
+        }
+
+        function suggestBookerNames(input, knownNames) {
+            const q = normalizeBookerMatchName(input);
+            if (!q) return [];
+            const scored = knownNames.map(name => {
+                const n = normalizeBookerMatchName(name);
+                let score = bookerNameDistance(q, n);
+                if (n.startsWith(q) || q.startsWith(n)) score = Math.max(0, score - 3);
+                const qWords = q.split(' ').filter(Boolean), nWords = n.split(' ').filter(Boolean);
+                if (qWords.length && qWords.every(w => nWords.some(nw => nw === w || nw.startsWith(w)))) score = Math.max(0, score - 2);
+                return { name, score };
+            }).sort((a,b) => a.score - b.score || a.name.localeCompare(b.name));
+            return scored.slice(0, 3).map(x => x.name);
+        }
+
+        function htmlEscapeBooker(value) {
+            return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        function closeBookerValidationModal() {
+            const m = document.getElementById('bookerValidationModal');
+            if (m) m.remove();
+            pendingCSVImport = null;
+        }
+
+        function showBookerValidationModal(invalidRows, imported, errors, input) {
+            pendingCSVImport = { imported, errors, input };
+            const known = getConfiguredBookerNames();
+            const html = `
+                <div id="bookerValidationModal" style="position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:999999;display:flex;align-items:center;justify-content:center;padding:15px;box-sizing:border-box;">
+                  <div style="background:#fff;width:min(900px,100%);max-height:90vh;overflow:auto;border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.35);padding:18px;color:#222;">
+                    <h3 style="margin:0 0 7px;color:#c62828;">⚠️ Booker Name Error — File Upload Paused</h3>
+                    <p style="margin:0 0 12px;font-size:13px;line-height:1.5;">In rows mein Booker ka naam existing Booker list se match nahi kar raha. <b>File abhi save nahi hui.</b> Neeche correct Booker select karein, phir <b>Fix Names & Continue</b> karein.</p>
+                    <div style="overflow:auto;border:1px solid #ddd;border-radius:8px;">
+                      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:650px;">
+                        <thead><tr style="background:#111;color:#fff;"><th style="padding:8px;text-align:center;">Row</th><th style="padding:8px;">File mein naam</th><th style="padding:8px;">Possible correct Booker</th><th style="padding:8px;">Fix to</th></tr></thead>
+                        <tbody>
+                          ${invalidRows.map((x,i) => {
+                              const suggestions = x.suggestions.length ? x.suggestions : known;
+                              const opts = suggestions.map(n => `<option value="${htmlEscapeBooker(n)}">${htmlEscapeBooker(n)}</option>`).join('');
+                              return `<tr data-invalid-index="${i}" style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px;text-align:center;">${x.rowNumber}</td>
+                                <td style="padding:8px;color:#c62828;font-weight:bold;">${htmlEscapeBooker(x.booker)}</td>
+                                <td style="padding:8px;">${x.suggestions.length ? x.suggestions.map(htmlEscapeBooker).join(', ') : 'No close match — select manually'}</td>
+                                <td style="padding:8px;"><select class="csv-booker-fix" data-index="${i}" style="min-width:230px;padding:7px;">${opts ? `<option value="">-- Select Correct Booker --</option>${opts}` : '<option value="">No configured Booker</option>'}</select></td>
+                              </tr>`;
+                          }).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                    ${errors.length ? `<div style="margin-top:10px;padding:8px;background:#fff8e1;border:1px solid #ffe082;border-radius:7px;font-size:12px;"><b>Other rows not imported:</b><br>${errors.slice(0,8).map(htmlEscapeBooker).join('<br>')}${errors.length>8?'<br>...':''}</div>` : ''}
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap;">
+                      <button type="button" class="btn-delete" style="padding:9px 16px;" onclick="closeBookerValidationModal()">Cancel — File Not Uploaded</button>
+                      <button type="button" class="btn-add" style="padding:9px 16px;" onclick="applyCSVBookerFixesAndContinue()">✅ Fix Names & Continue</button>
+                    </div>
+                  </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function applyCSVBookerFixesAndContinue() {
+            if (!pendingCSVImport) return;
+            const fixes = Array.from(document.querySelectorAll('.csv-booker-fix')).map(sel => String(sel.value || '').trim());
+            if (fixes.some(v => !v)) {
+                alert('Har wrong Booker row ke liye correct Booker select karein. File abhi upload nahi hui.');
+                return;
+            }
+            const invalidRows = Array.from(document.querySelectorAll('#bookerValidationModal tbody tr')).map((tr,i) => ({ rowIndex: i, select: tr.querySelector('.csv-booker-fix') }));
+            invalidRows.forEach((x,i) => {
+                const importedIndex = pendingCSVImport.invalidMap ? pendingCSVImport.invalidMap[i] : -1;
+                if (importedIndex >= 0 && pendingCSVImport.imported[importedIndex]) pendingCSVImport.imported[importedIndex].booker = fixes[i].toUpperCase();
+            });
+            const data = pendingCSVImport;
+            const count = data.imported.length;
+            const input = data.input;
+            closeBookerValidationModal();
+            if (!confirm(`Booker names fixed. Import ${count} entries from CSV?`)) {
+                if (input) input.value = '';
+                return;
+            }
+            transactions.push(...data.imported);
+            saveTransactionsToCloud();
+            renderTransactions();
+            populateEntryBookersDropdown();
+            populateShopDropdowns();
+            let message = `CSV Upload Successful! ${count} entries imported after Booker name correction.`;
+            if (data.errors.length) message += '\n\nSkipped ' + data.errors.length + ' row(s):\n' + data.errors.slice(0,10).join('\n') + (data.errors.length>10?'\n...':'');
+            alert(message);
+            if (input) input.value = '';
+        }
+
         function uploadBulkCSV(event) {
             const input = event && event.target ? event.target : document.getElementById('csvFileInput');
             const file = input && input.files ? input.files[0] : null;
@@ -2683,13 +2993,17 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                     headers.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });
                     const imported = [];
                     const errors = [];
+                    const invalidBookerRows = [];
+                    const invalidMap = [];
+                    const knownBookers = getConfiguredBookerNames();
 
                     for (let r = 1; r < rows.length; r++) {
                         const row = rows[r];
                         if (!row || row.every(v => !String(v || '').trim())) continue;
 
                         const dateRaw = String(row[col.date] ?? '').trim();
-                        const booker = String(row[col.booker] ?? '').trim();
+                        const bookerRaw = String(row[col.booker] ?? '').trim();
+                        const booker = normalizeBookerMatchName(bookerRaw);
                         const shop = String(row[col.shop] ?? '').trim();
                         const ref = String(row[col.ref] ?? '').trim();
                         const creditRaw = String(row[col.credit] ?? '').trim();
@@ -2698,7 +3012,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                         const recovery = recoveryRaw === '' ? 0 : parseFloat(recoveryRaw.replace(/,/g, ''));
                         const date = normalizeDate(dateRaw);
 
-                        if (!dateRaw || !booker || !shop) {
+                        if (!dateRaw || !bookerRaw || !shop) {
                             errors.push('Row ' + (r + 1) + ': Date, Booker and Shop are required.');
                             continue;
                         }
@@ -2711,19 +3025,36 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                             continue;
                         }
 
+                        const importedIndex = imported.length;
                         imported.push({
                             date: date,
-                            booker: booker.toUpperCase(),
+                            booker: booker,
                             shop: shop,
                             ref: ref,
                             credit: credit,
                             recovery: recovery,
                             editedBy: currentUser ? currentUser.username : 'Admin'
                         });
+
+                        if (!knownBookers.includes(booker)) {
+                            invalidMap.push(importedIndex);
+                            invalidBookerRows.push({
+                                rowNumber: r + 1,
+                                booker: bookerRaw,
+                                importedIndex,
+                                suggestions: suggestBookerNames(booker, knownBookers)
+                            });
+                        }
                     }
 
                     if (!imported.length) {
                         alert('No valid entries found in CSV.\n\n' + errors.slice(0, 10).join('\n'));
+                        return;
+                    }
+
+                    if (invalidBookerRows.length) {
+                        showBookerValidationModal(invalidBookerRows, imported, errors, input);
+                        if (pendingCSVImport) pendingCSVImport.invalidMap = invalidMap;
                         return;
                     }
 
@@ -2742,7 +3073,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                     console.error('CSV upload failed:', err);
                     alert('CSV upload failed. Please use the downloaded sample format.');
                 } finally {
-                    if (input) input.value = '';
+                    if (input && !pendingCSVImport) input.value = '';
                 }
             };
             reader.onerror = function() {
@@ -2750,6 +3081,68 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 alert('Could not read the CSV file.');
             };
             reader.readAsText(file, 'UTF-8');
+        }
+
+        function openBookerNameCleanup() {
+            const known = getConfiguredBookerNames();
+            const rawTxNames = Array.from(new Set((Array.isArray(transactions) ? transactions : []).map(t => String(t && t.booker || '').trim().replace(/\s+/g, ' ')).filter(Boolean)));
+            const allTxNames = Array.from(new Set(rawTxNames.map(n => normalizeBookerMatchName(n)))).filter(Boolean).sort((a,b) => a.localeCompare(b));
+            if (!allTxNames.length) { alert('No Booker names found in ledger.'); return; }
+            if (!known.length) { alert('No configured Booker accounts found. Please create the correct Booker first.'); return; }
+            // WRONG BOOKER dropdown must show every Booker name actually present in historical
+            // transactions. Do not filter out configured names: an imported/old spelling can
+            // still exist in transactions even when a matching/current Booker account exists.
+            // This keeps the two lists complete and lets Admin explicitly choose source -> target.
+            const txNames = allTxNames;
+            const optionsFrom = txNames.map(n => `<option value="${htmlEscapeBooker(n)}">${htmlEscapeBooker(n)}</option>`).join('');
+            const optionsTo = known.map(n => `<option value="${htmlEscapeBooker(n)}">${htmlEscapeBooker(n)}</option>`).join('');
+            const m = document.createElement('div');
+            m.id='bookerCleanupModal';
+            m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:999999;display:flex;align-items:center;justify-content:center;padding:15px;box-sizing:border-box;';
+            m.innerHTML=`<div style="background:#fff;width:min(620px,100%);border-radius:12px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.35);color:#222;">
+              <h3 style="margin:0 0 8px;color:#0b7285;">🧹 Fix / Remove Wrong Booker Name</h3>
+              <p style="font-size:13px;line-height:1.5;margin:0 0 12px;">Agar kisi CSV/file se galat Booker name pehle save ho gaya hai, us naam ki <b>tamam existing entries</b> ko correct Booker par move karein. Is se Credit, Recovery, Date ya Balance change nahi hoga.</p>
+              <label style="font-weight:bold;font-size:12px;">Wrong Booker Name</label>
+              <select id="cleanupWrongBooker" style="width:100%;padding:10px;margin:5px 0 10px;">${optionsFrom}</select>
+              <label style="font-weight:bold;font-size:12px;">Correct Existing Booker</label>
+              <select id="cleanupCorrectBooker" style="width:100%;padding:10px;margin:5px 0 12px;">${optionsTo}</select>
+              <div id="cleanupCount" style="padding:8px;background:#f5f5f5;border-radius:6px;font-size:12px;margin-bottom:12px;"></div>
+              <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;"><button type="button" class="btn-delete" style="padding:9px 15px;" onclick="document.getElementById('bookerCleanupModal')?.remove()">Cancel</button><button type="button" class="btn-add" style="padding:9px 15px;" onclick="applyBookerNameCleanup()">✅ Fix All Entries</button></div>
+            </div>`;
+            document.body.appendChild(m);
+            const update=()=>{
+                const wrong=normalizeBookerMatchName(document.getElementById('cleanupWrongBooker')?.value||'');
+                const count=transactions.filter(t=>normalizeBookerMatchName(t.booker)===wrong).length;
+                const el=document.getElementById('cleanupCount'); if(el) el.innerHTML=`This wrong Booker name has <b>${count}</b> ledger entr${count===1?'y':'ies'}.`;
+            };
+            document.getElementById('cleanupWrongBooker')?.addEventListener('change',update);
+            update();
+        }
+
+        function applyBookerNameCleanup() {
+            const wrong=normalizeBookerMatchName(document.getElementById('cleanupWrongBooker')?.value||'');
+            const correct=normalizeBookerMatchName(document.getElementById('cleanupCorrectBooker')?.value||'');
+            if(!wrong || !correct || wrong===correct){ alert('Wrong aur Correct Booker alag select karein.'); return; }
+            const count=transactions.filter(t=>normalizeBookerMatchName(t.booker)===wrong).length;
+            if(!count){ alert('Is naam ki koi ledger entry nahi mili.'); return; }
+            if(!confirm(`Booker "${wrong}" ki ${count} entries ko "${correct}" par move karna hai?\n\nCredit, Recovery, Date aur Balance change nahi honge. Sirf Booker name correct hoga.`)) return;
+            const now=new Date().toLocaleString('en-GB');
+            transactions.forEach(t=>{
+                if(normalizeBookerMatchName(t.booker)===wrong){
+                    t.booker=correct;
+                    t.editedBy=currentUser?currentUser.username:'Admin';
+                    t.editReason=`Booker name correction: ${wrong} -> ${correct}`;
+                    t.lastEditedAt=now;
+                }
+            });
+            saveTransactionsToCloud();
+            populateEntryBookersDropdown();
+            populateShopDropdowns();
+            renderTransactions();
+            renderShops();
+            renderBookerDetail();
+            document.getElementById('bookerCleanupModal')?.remove();
+            alert(`Done. ${count} entries ka Booker name "${correct}" kar diya gaya. Wrong name ab ledger mein nahi rahega.`);
         }
 
         /* RENDER TRANSACTIONS (DAILY ENTRY) */
