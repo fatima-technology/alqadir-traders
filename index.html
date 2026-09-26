@@ -347,7 +347,7 @@
             .brand-sub-en, .brand-desc-en { font-size:7px; line-height:1.05; }
             .brand-title-ur { font-size:14px; }
             .coca-cola-logo-img { height:20px; max-width:70px; }
-            .print-date-bar { font-size:8px; padding:4px 6px; margin-bottom:6px; display:grid !important; grid-template-columns:1fr 1.25fr 1fr; gap:3px; align-items:center; }
+            .print-date-bar { font-size:8px; padding:4px 6px; margin-bottom:6px; display:grid !important; grid-template-columns:1fr 1fr 1fr; gap:4px; align-items:center; }
             .print-date-bar > div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
             .tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin-bottom:7px; border-bottom:0; }
             .tab-btn { min-width:0; width:100%; box-sizing:border-box; padding:7px 3px; border-radius:6px; font-size:9px; line-height:1.1; flex:none; white-space:normal; min-height:34px; }
@@ -356,6 +356,12 @@
             .filter-box > * { min-width:0 !important; width:100% !important; box-sizing:border-box; }
             .filter-box > button { padding:7px 5px !important; font-size:10px !important; }
             .filter-box > div { min-width:0 !important; }
+            .ledger-filter-bar { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px !important; align-items:stretch !important; margin-bottom:9px !important; }
+            .ledger-filter-field { display:flex !important; flex-direction:column !important; gap:4px !important; min-width:0 !important; width:100% !important; }
+            .ledger-filter-field label { font-size:10px !important; font-weight:700 !important; color:#555 !important; }
+            .ledger-filter-field select, .ledger-filter-field input { width:100% !important; min-width:0 !important; min-height:43px !important; padding:9px 8px !important; font-size:13px !important; box-sizing:border-box !important; }
+            .ledger-search-field { grid-column:1 / -1; }
+            .ledger-view-btn { grid-column:1 / -1 !important; width:100% !important; min-height:44px !important; font-size:13px !important; }
             .summary-card { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin-bottom:6px; align-items:stretch; }
             .card { min-width:0; padding:6px 6px; border-radius:6px; border-left-width:3px; }
             .card h3 { font-size:8px; line-height:1.1; letter-spacing:.1px; }
@@ -523,10 +529,8 @@
         <!-- DATE BAR -->
         <div class="print-date-bar">
             <div>REPORT TYPE: <span id="reportTypeLabel">General Statement</span></div>
-            <div>
-                LIVE TIME & DATE: <span id="liveDateTimeLabel" style="color:#007bff; margin-right:15px;">--</span>
-                DATA UPDATED UPTO: <span id="asOfDateLabel">--</span>
-            </div>
+            <div>LIVE TIME & DATE: <span id="liveDateTimeLabel" style="color:#007bff;">--</span></div>
+            <div>DATA UPDATED UPTO: <span id="asOfDateLabel">--</span></div>
         </div>
 
         <!-- TABS NAV -->
@@ -771,23 +775,17 @@
 
         <!-- SHOP LEDGER TAB -->
         <div id="ledger" class="tab-content">
-            <div class="no-print" style="margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <select id="ledgerBookerSelectDropdown" style="flex:1; min-width:180px;" onchange="populateShopDropdownsForLedger()">
+            <div class="no-print ledger-filter-bar" style="margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div class="ledger-filter-field"><label>👔 Booker</label><select id="ledgerBookerSelectDropdown" onchange="populateShopDropdownsForLedger()">
                     <option value="ALL">-- Filter By Booker (All) --</option>
-                </select>
-                <select id="shopSelectDropdown" style="flex:1; min-width:180px;" onchange="syncSearchInput(this.value)">
+                </select></div>
+                <div class="ledger-filter-field"><label>🏪 Shop</label><select id="shopSelectDropdown" onchange="syncSearchInput(this.value)">
                     <option value="">-- Choose Shop --</option>
-                </select>
-                <input type="text" id="searchShopInput" placeholder="Type or Select Shop Name..." style="flex:2; min-width:150px;" oninput="renderLedger()">
-                <div style="display:flex; align-items:center; gap:5px;">
-                    <label style="font-size:12px; font-weight:bold;">From Date:</label>
-                    <input type="date" id="ledgerFromDate" onchange="renderLedger()" style="width:auto;">
-                </div>
-                <div style="display:flex; align-items:center; gap:5px;">
-                    <label style="font-size:12px; font-weight:bold;">To Date:</label>
-                    <input type="date" id="ledgerToDate" onchange="renderLedger()" style="width:auto;">
-                </div>
-                <button class="btn-add" style="grid-column:auto; padding:9px 15px; font-size:13px;" onclick="renderLedger()">View Ledger</button>
+                </select></div>
+                <div class="ledger-filter-field ledger-search-field"><label>🔍 Shop Name</label><input type="text" id="searchShopInput" placeholder="Type or Select Shop Name..." oninput="renderLedger()"></div>
+                <div class="ledger-filter-field"><label>📅 From Date</label><input type="date" id="ledgerFromDate" onchange="renderLedger()"></div>
+                <div class="ledger-filter-field"><label>📅 To Date</label><input type="date" id="ledgerToDate" onchange="renderLedger()"></div>
+                <button class="btn-add ledger-view-btn" style="grid-column:auto; padding:9px 15px; font-size:13px;" onclick="renderLedger()">👁️ View Ledger</button>
                 <button class="btn-excel booker-export-hide" data-booker-hide="1" onclick="exportTableToExcel('ledgerTable', 'Shop_Ledger')">Excel 📊</button>
                 <button class="btn-add booker-export-hide" data-booker-hide="1" style="grid-column:auto; background:#6c757d; padding:9px 15px; font-size:13px;" onclick="window.print()">Print 🖨️</button>
                 <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('ledgerMainTable','Shop_Ledger')">PDF Download 📄</button>
@@ -956,6 +954,7 @@
                     <select id="newUserRole" onchange="toggleUserRoleFields()">
                         <option value="data_entry">Data Entry Operator (Only Data Entry Allowed)</option>
                         <option value="dashboard_only">Dashboard Only (Selected Booker Access)</option>
+                        <option value="custom">Custom Access (Admin Decides Everything)</option>
                         <option value="booker">Booker (View Only - Assigned Booker Shops)</option>
                         <option value="shop">Shop Ledger (Single Shop Access)</option>
                         <option value="admin">Admin (Full Access)</option>
@@ -993,6 +992,24 @@
                         <option value="ALL">-- Select Booker --</option>
                     </select>
                     <div class="shop-permission-box" id="dashHiddenShopsCheckboxes" style="max-height:180px;"></div>
+                </div>
+
+                <div class="form-group" id="customAccessGroup" style="grid-column:1/-1; display:none; border:1px solid #17a2b8; background:#f4fcff; padding:12px; border-radius:8px;">
+                    <label style="color:#0b7285; font-size:14px;">🛠️ Custom Access — Admin decides exactly what this user can see:</label>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin:8px 0 12px;">
+                        <label class="checkbox-label"><input type="checkbox" id="customTabDashboard"> 📊 Dashboard</label>
+                        <label class="checkbox-label"><input type="checkbox" id="customTabBooker"> 👔 Booker Detail</label>
+                        <label class="checkbox-label"><input type="checkbox" id="customTabLedger"> 🔍 Shop Ledger</label>
+                    </div>
+                    <div style="font-weight:bold; margin-bottom:5px;">Allowed Bookers — in bookers ka data Dashboard + Booker Detail mein show hoga:</div>
+                    <div class="shop-permission-box" id="customBookersCheckboxes" style="max-height:150px; margin-bottom:12px;"></div>
+                    <div style="font-weight:bold; margin-bottom:5px;">Hide Shops — selected booker ki jo shops yahan select hongi, woh Dashboard totals aur Booker Detail dono se hide hongi:</div>
+                    <select id="customHideBookerSelect" onchange="populateCustomHiddenShops(this.value)" style="margin-bottom:8px;">
+                        <option value="">-- Select Allowed Booker --</option>
+                    </select>
+                    <input type="text" id="customShopSearchInput" placeholder="🔍 Search shop to hide..." oninput="filterCustomShops(this.value)" style="margin-bottom:8px;">
+                    <div class="shop-permission-box" id="customShopsCheckboxes" style="max-height:200px;"></div>
+                    <small style="display:block; margin-top:7px; color:#666;">Selected Bookers ki tamam shops default show hongi. Sirf yahan selected shops hide hongi. Shop Ledger Custom Access user ke liye available nahi hoga.</small>
                 </div>
 
                 <button type="button" class="btn-add" id="saveUserBtn" onclick="saveUser()">Create User 👤</button>
@@ -1366,8 +1383,8 @@
             if (!bar) return { type: 'REPORT TYPE: --', live: 'LIVE TIME & DATE: --', updated: 'DATA UPDATED UPTO: --' };
             const children = Array.from(bar.children);
             const type = (children[0]?.innerText || 'REPORT TYPE: --').replace(/\s+/g, ' ').trim();
-            const live = (children[1]?.querySelector('#liveDateTimeLabel') ? 'LIVE TIME & DATE: ' + children[1].querySelector('#liveDateTimeLabel').innerText : 'LIVE TIME & DATE: --').replace(/\s+/g, ' ').trim();
-            const updated = (children[1]?.querySelector('#asOfDateLabel') ? 'DATA UPDATED UPTO: ' + children[1].querySelector('#asOfDateLabel').innerText : 'DATA UPDATED UPTO: --').replace(/\s+/g, ' ').trim();
+            const live = (children[1]?.innerText || 'LIVE TIME & DATE: --').replace(/\s+/g, ' ').trim();
+            const updated = (children[2]?.innerText || 'DATA UPDATED UPTO: --').replace(/\s+/g, ' ').trim();
             return { type, live, updated };
         }
 
@@ -1648,28 +1665,31 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         }
 
         function setReportAsOfDate(type, selectedDate) {
-            if (!selectedDate) {
-                updateAsOfLabel(type);
-                return;
-            }
             const reportType = document.getElementById('reportTypeLabel');
             const asOf = document.getElementById('asOfDateLabel');
-            const label = selectedDateToLabel(selectedDate);
-            if (reportType) reportType.innerText = `${type} | AS ON ${label}`;
-            if (asOf) asOf.innerText = label;
+            if (reportType) reportType.innerText = selectedDate ? `${type} | AS ON ${selectedDateToLabel(selectedDate)}` : type;
+            if (asOf) {
+                if (selectedDate) {
+                    asOf.innerText = selectedDateToLabel(selectedDate);
+                } else {
+                    const visibleTx = getFilteredTransactionsForUser();
+                    let maxDate = '', maxTime = -1;
+                    visibleTx.forEach(t => { const d=parseFormattedDate(t.date); const tm=d instanceof Date && !isNaN(d) ? d.getTime() : -1; if(tm>maxTime){maxTime=tm;maxDate=t.date||'';} });
+                    asOf.innerText = maxDate || '--';
+                }
+            }
         }
 
         function updateAsOfLabel(type) {
-            document.getElementById('reportTypeLabel').innerText = type;
-            if (transactions.length > 0) {
-                let maxDate = '';
-                let maxTime = 0;
-                transactions.forEach(t => {
-                    const d = parseFormattedDate(t.date).getTime();
-                    if (d >= maxTime) { maxTime = d; maxDate = t.date || ''; }
-                });
-                document.getElementById('asOfDateLabel').innerText = maxDate || "--";
-            } else { document.getElementById('asOfDateLabel').innerText = "--"; }
+            const reportType = document.getElementById('reportTypeLabel');
+            const asOf = document.getElementById('asOfDateLabel');
+            if (reportType) reportType.innerText = type;
+            if (asOf) {
+                const visibleTx = (currentUser && currentUser.role !== 'admin') ? getFilteredTransactionsForUser() : transactions;
+                let maxDate = '', maxTime = -1;
+                visibleTx.forEach(t => { const d=parseFormattedDate(t.date); const tm=d instanceof Date && !isNaN(d) ? d.getTime() : -1; if(tm>maxTime){maxTime=tm;maxDate=t.date||'';} });
+                asOf.innerText = maxDate || '--';
+            }
         }
 
         document.getElementById('togglePasswordBtn').addEventListener('click', function() {
@@ -1787,6 +1807,28 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 return;
             }
 
+            if (role === 'custom') {
+                const tabs = new Set(currentUser.customTabs || []);
+                const showDash = tabs.has('dashboard');
+                const showBooker = tabs.has('booker');
+                // Custom Access is intentionally limited to Dashboard + Booker Detail.
+                // Shop Ledger is not exposed for this role.
+                const showLedger = false;
+                ['tabDashBtn','tabEntryBtn','tabLedgerBtn','tabBookerBtn','tabShopsBtn','tabUsersBtn','tabBackupBtn'].forEach(id => {
+                    const el=document.getElementById(id); if(el) el.style.display='none';
+                });
+                if(showDash) document.getElementById('tabDashBtn').style.display='';
+                if(showLedger) document.getElementById('tabLedgerBtn').style.display='';
+                if(showBooker) document.getElementById('tabBookerBtn').style.display='';
+                // Custom Access users may print the reports they are allowed to see.
+                // Excel remains unavailable; PDF remains available as before.
+                document.querySelectorAll('.booker-export-hide').forEach(el => el.style.display='inline-block');
+                if(showDash) openTab('dashboard', document.getElementById('tabDashBtn'));
+                else if(showBooker) openTab('bookerLedger', document.getElementById('tabBookerBtn'));
+                else if(showLedger) openTab('ledger', document.getElementById('tabLedgerBtn'));
+                return;
+            }
+
             if (role === 'dashboard_only') {
                 // Dashboard user sees ONLY the dashboard and only selected bookers/shops.
                 ['tabEntryBtn','tabLedgerBtn','tabBookerBtn','tabShopsBtn','tabUsersBtn','tabBackupBtn'].forEach(id => {
@@ -1851,6 +1893,28 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                     if (allowedBookers.size === 0 || !allowedBookers.has(tBooker)) return false;
                     const hidden = new Set((currentUser.hiddenDashboardShops || []).map(s => normalizeShopKey(s)));
                     return !hidden.has(tShop);
+                }
+
+                if (role === 'custom') {
+                    const allowedBookers = new Set((currentUser.customAllowedBookers || []).map(b => b.toString().trim().toUpperCase()).filter(Boolean));
+                    if (!allowedBookers.has(tBooker)) return false;
+
+                    // Selected bookers control the overall scope. Every shop belonging to
+                    // those bookers is visible by default; only explicitly hidden shops
+                    // for that specific booker are excluded. This keeps Dashboard totals
+                    // and Booker Detail consistent.
+                    const hiddenMap = currentUser.customHiddenShopsByBooker || {};
+                    const hiddenForBooker = new Set((hiddenMap[tBooker] || []).map(s => normalizeShopKey(s)).filter(Boolean));
+                    if (hiddenForBooker.has(tShop)) return false;
+
+                    // Backward compatibility for older Custom users: if they only have
+                    // customAllowedShops saved, continue honoring that old visible-shop
+                    // restriction until the user edits/saves the account again.
+                    if (Array.isArray(currentUser.customAllowedShops) && currentUser.customAllowedShops.length > 0 && !currentUser.customHiddenShopsByBooker) {
+                        const oldAllowed = new Set(currentUser.customAllowedShops.map(s => normalizeShopKey(s)).filter(Boolean));
+                        return oldAllowed.has(tShop);
+                    }
+                    return true;
                 }
 
                 // Data-entry user can enter data but has no reporting tabs.
@@ -1988,6 +2052,12 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                     bookerSelect.disabled = true;
                 }
                 bookerFilter = ownBooker;
+            } else if (currentUser && currentUser.role === 'custom' && bookerSelect) {
+                const allowed = (currentUser.customAllowedBookers || []).map(b => b.toString().trim().toUpperCase());
+                bookerSelect.innerHTML = '<option value="ALL">-- Allowed Bookers --</option>' + allowed.map(b => `<option value="${b}">${b}</option>`).join('');
+                if (!allowed.includes((bookerSelect.value || '').toUpperCase()) && bookerSelect.value !== 'ALL') bookerSelect.value = 'ALL';
+                bookerSelect.disabled = allowed.length === 0;
+                bookerFilter = bookerSelect.value || 'ALL';
             } else if (bookerSelect) {
                 bookerSelect.disabled = false;
             }
@@ -2031,6 +2101,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 document.getElementById('dashBookerFilterContainer').style.display = 'none';
                 const allowed = new Set((currentUser.allowedDashBookers || []).map(b => b.toString().trim().toUpperCase()));
                 userTx = userTx.filter(t => allowed.has((t.booker || '').toString().trim().toUpperCase()));
+            } else if (currentUser && currentUser.role === 'custom') {
+                document.getElementById('dashBookerFilterContainer').style.display = 'none';
             } else {
                 document.getElementById('dashBookerFilterContainer').style.display = 'flex';
             }
@@ -2125,6 +2197,13 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 selectedBooker = currentUser.bookerName.toUpperCase();
                 select.value = selectedBooker;
                 select.disabled = true;
+            } else if (currentUser && currentUser.role === 'custom') {
+                const allowed = (currentUser.customAllowedBookers || []).map(b => b.toString().trim().toUpperCase());
+                const previous = select.value;
+                select.innerHTML = '<option value="">-- Select Allowed Booker --</option>' + allowed.map(b => `<option value="${b}">${b}</option>`).join('');
+                selectedBooker = allowed.includes(previous) ? previous : (allowed[0] || '');
+                select.value = selectedBooker;
+                select.disabled = allowed.length === 0;
             } else {
                 select.disabled = false;
             }
@@ -2807,6 +2886,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             const dashGroup = document.getElementById('dashBookersGroup');
             const allowedShopsGroup = document.getElementById('allowedShopsGroup');
             const hiddenDashGroup = document.getElementById('dashHiddenShopsGroup');
+            const customGroup = document.getElementById('customAccessGroup');
             const label = bookerGroup.querySelector('label');
             const bookerInput = document.getElementById('newBookerName');
             const shopSelect = document.getElementById('newShopName');
@@ -2818,6 +2898,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             dashGroup.style.display = (role === 'dashboard_only') ? 'flex' : 'none';
             allowedShopsGroup.style.display = (role === 'booker') ? 'flex' : 'none';
             hiddenDashGroup.style.display = (role === 'dashboard_only') ? 'flex' : 'none';
+            customGroup.style.display = (role === 'custom') ? 'flex' : 'none';
 
             if (label) label.innerHTML = role === 'shop'
                 ? 'Assigned Shop Name <span class="required-star">*</span>:'
@@ -2829,6 +2910,99 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 populateDashboardBookerDropdown();
                 populateDashboardHiddenShops('ALL');
             }
+            if (role === 'custom') populateCustomAccessLists();
+        }
+
+        function populateCustomAccessLists(selectedBookers = [], hiddenMap = {}) {
+            const b=document.getElementById('customBookersCheckboxes'), sh=document.getElementById('customShopsCheckboxes'), picker=document.getElementById('customHideBookerSelect');
+            if(!b || !sh || !picker) return;
+            const bs=new Set((selectedBookers||[]).map(x=>x.toString().trim().toUpperCase()).filter(Boolean));
+            const bookers=new Set();
+            transactions.forEach(t=>{if(t.booker) bookers.add(t.booker.toString().trim().toUpperCase());});
+            USERS_DATABASE.forEach(u=>{if(u && u.bookerName && u.bookerName!=='ALL') bookers.add(u.bookerName.toString().trim().toUpperCase());});
+            const bookerList=Array.from(bookers).filter(Boolean).sort();
+            b.innerHTML=bookerList.map(x=>`<label class="checkbox-label"><input type="checkbox" class="custom-booker-cb" value="${x}" ${bs.has(x)?'checked':''} onchange="refreshCustomHideBookers()"> ${x}</label>`).join('');
+
+            picker.innerHTML='<option value="">-- Select Allowed Booker --</option>' + bookerList.filter(x=>bs.has(x)).map(x=>`<option value="${x}">${x}</option>`).join('');
+            const currentPicker = picker.dataset.selectedBooker || '';
+            picker.value = bs.has(currentPicker) ? currentPicker : (bookerList.find(x=>bs.has(x)) || '');
+            picker.dataset.hiddenMap = JSON.stringify(hiddenMap || {});
+            populateCustomHiddenShops(picker.value);
+        }
+
+        function refreshCustomHideBookers() {
+            const picker=document.getElementById('customHideBookerSelect');
+            if(!picker) return;
+            const selected=new Set(Array.from(document.querySelectorAll('.custom-booker-cb:checked')).map(cb=>cb.value.toString().trim().toUpperCase()));
+            const current=picker.value;
+            picker.innerHTML='<option value="">-- Select Allowed Booker --</option>' + Array.from(selected).sort().map(x=>`<option value="${x}">${x}</option>`).join('');
+            picker.value=selected.has(current) ? current : (Array.from(selected).sort()[0] || '');
+            populateCustomHiddenShops(picker.value);
+        }
+
+        function populateCustomHiddenShops(booker) {
+            const sh=document.getElementById('customShopsCheckboxes');
+            const picker=document.getElementById('customHideBookerSelect');
+            if(!sh || !picker) return;
+            picker.dataset.selectedBooker = booker || '';
+            let hiddenMap={};
+            try { hiddenMap=JSON.parse(picker.dataset.hiddenMap || '{}') || {}; } catch(e) { hiddenMap={}; }
+            const hiddenSet=new Set((hiddenMap[booker] || []).map(x=>normalizeShopKey(x)).filter(Boolean));
+            const selectedBookers=new Set(Array.from(document.querySelectorAll('.custom-booker-cb:checked')).map(cb=>cb.value.toString().trim().toUpperCase()));
+            if(!booker || !selectedBookers.has((booker||'').toUpperCase())) { sh.innerHTML='<div style="padding:8px;color:#666;">Pehle Allowed Booker select karein.</div>'; return; }
+            const shops=new Map();
+            transactions.forEach(t=>{
+                const tb=(t.booker||'').toString().trim().toUpperCase();
+                if(tb!==booker.toString().trim().toUpperCase() || !t.shop) return;
+                const n=t.shop.toString().trim(), k=normalizeShopKey(n);
+                if(k&&!shops.has(k)) shops.set(k,n);
+            });
+            sh.innerHTML=Array.from(shops.values()).sort((a,c)=>a.localeCompare(c)).map(n=>{
+                const k=normalizeShopKey(n);
+                return `<label class="checkbox-label"><input type="checkbox" class="custom-shop-cb" data-booker="${booker}" value="${n.replace(/"/g,'&quot;')}" ${hiddenSet.has(k)?'checked':''} onchange="toggleCustomHiddenShop(this)"> Hide ${n}</label>`;
+            }).join('') || '<div style="padding:8px;color:#666;">Is booker ki koi shop nahi mili.</div>';
+        }
+
+        function toggleCustomHiddenShop(cb) {
+            const picker=document.getElementById('customHideBookerSelect');
+            if(!picker) return;
+            const booker=(cb.dataset.booker || picker.value || '').toString().trim().toUpperCase();
+            if(!booker) return;
+            let hiddenMap={};
+            try { hiddenMap=JSON.parse(picker.dataset.hiddenMap || '{}') || {}; } catch(e) { hiddenMap={}; }
+            const key=normalizeShopKey(cb.value);
+            const arr=Array.isArray(hiddenMap[booker]) ? hiddenMap[booker].slice() : [];
+            const existingIndex=arr.findIndex(x=>normalizeShopKey(x)===key);
+            if(cb.checked) { if(existingIndex<0) arr.push(cb.value); }
+            else if(existingIndex>=0) arr.splice(existingIndex,1);
+            hiddenMap[booker]=arr;
+            picker.dataset.hiddenMap=JSON.stringify(hiddenMap);
+        }
+
+        function filterCustomShops(query){ const q=cleanStr(query); document.querySelectorAll('#customShopsCheckboxes .checkbox-label').forEach(x=>x.style.display=cleanStr(x.innerText).includes(q)?'flex':'none'); }
+        function setCustomTabChecks(tabs){ const set=new Set(tabs||[]); ['Dashboard','Booker'].forEach(x=>{const e=document.getElementById('customTab'+x); if(e)e.checked=set.has(x.toLowerCase());}); const ledger=document.getElementById('customTabLedger'); if(ledger){ledger.checked=false; ledger.disabled=true; ledger.parentElement.style.display='none';} }
+        function populateCustomAccessForEdit(u){
+            setCustomTabChecks(u.customTabs||[]);
+            let hiddenMap=u.customHiddenShopsByBooker||{};
+            // Migrate an older Custom user that used the previous visible-shop list:
+            // keep those old visible shops visible and hide the other shops for each selected booker.
+            if(!u.customHiddenShopsByBooker && Array.isArray(u.customAllowedShops) && u.customAllowedShops.length){
+                const visible=new Set(u.customAllowedShops.map(x=>normalizeShopKey(x)).filter(Boolean));
+                hiddenMap={};
+                (u.customAllowedBookers||[]).forEach(booker=>{
+                    const b=booker.toString().trim().toUpperCase();
+                    const hidden=[];
+                    const seen=new Set();
+                    transactions.forEach(t=>{
+                        const tb=(t.booker||'').toString().trim().toUpperCase();
+                        if(tb!==b || !t.shop) return;
+                        const n=t.shop.toString().trim(), k=normalizeShopKey(n);
+                        if(k && !visible.has(k) && !seen.has(k)){ hidden.push(n); seen.add(k); }
+                    });
+                    hiddenMap[b]=hidden;
+                });
+            }
+            populateCustomAccessLists(u.customAllowedBookers||[],hiddenMap);
         }
 
         function populateDashboardBookerCheckboxes(selected = []) {
@@ -2929,6 +3103,12 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 ...(document.getElementById('editUserIndex').dataset.hiddenShops || '').split('|').filter(Boolean),
                 ...Array.from(document.querySelectorAll('.user-dash-hidden-shop-cb:checked')).map(cb => cb.value)
             ]));
+            const customTabs=['dashboard','booker'].filter(id=>document.getElementById('customTab'+id.charAt(0).toUpperCase()+id.slice(1))?.checked);
+            const customAllowedBookers=Array.from(document.querySelectorAll('.custom-booker-cb:checked')).map(cb=>cb.value);
+            const customPicker=document.getElementById('customHideBookerSelect');
+            let customHiddenShopsByBooker={};
+            try { customHiddenShopsByBooker=JSON.parse(customPicker?.dataset.hiddenMap || '{}') || {}; } catch(e) { customHiddenShopsByBooker={}; }
+            if(role==='custom' && (!customTabs.length || !customAllowedBookers.length)){ alert('Custom Access ke liye kam az kam 1 Tab aur 1 Booker select karein.'); return; }
 
             const newUser = {
                 username: u,
@@ -2938,6 +3118,10 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 allowedShops: role === 'booker' ? allowedShops : [],
                 allowedDashBookers: role === 'dashboard_only' ? allowedDashBookers : [],
                 hiddenDashboardShops: role === 'dashboard_only' ? hiddenDashboardShops : [],
+                customTabs: role === 'custom' ? customTabs : [],
+                customAllowedBookers: role === 'custom' ? customAllowedBookers : [],
+                customHiddenShopsByBooker: role === 'custom' ? customHiddenShopsByBooker : {},
+                customAllowedShops: [],
                 isOnline: false,
                 lastActive: '-'
             };
@@ -3001,6 +3185,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             populateDashboardBookerCheckboxes(u.allowedDashBookers || []);
             populateDashboardBookerDropdown();
             populateDashboardHiddenShops('ALL');
+            populateCustomAccessForEdit(u);
             const hidden = new Set(u.hiddenDashboardShops || []);
             document.querySelectorAll('.user-dash-hidden-shop-cb').forEach(cb => cb.checked = hidden.has(cb.value));
             document.getElementById('saveUserBtn').innerText = 'Update User 👤';
