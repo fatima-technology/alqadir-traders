@@ -1313,13 +1313,13 @@
             const btn = document.getElementById('btnEnableNotifications');
             if (!btn) return;
             const supported = ('Notification' in window) && (window.isSecureContext !== false);
-            if (!supported) { btn.innerText = '⚠️ In-App Only'; btn.disabled = false; btn.style.background = '#6c757d'; }
+            if (!supported) { btn.innerText = '🔔 App Notifications'; btn.disabled = false; btn.style.background = '#28a745'; }
             else if (Notification.permission === 'granted') { btn.innerText = '🔔 Device Notifications Active'; btn.disabled = false; btn.style.background = '#28a745'; }
             else if (Notification.permission === 'denied') { btn.innerText = '🔕 Device Blocked — In-App Active'; btn.disabled = false; btn.style.background = '#6c757d'; }
             else { btn.innerText = '🔔 Enable Device Notifications'; btn.disabled = false; btn.style.background = '#ff9800'; }
         }
         async function requestNotificationPermission() {
-            if (!('Notification' in window)) { alert('Is mobile/browser mein device notification supported nahi. In-app Firebase notifications phir bhi active hain.'); return; }
+            if (!('Notification' in window)) { alert('🔔 App Notifications\n\nIs APK/WebView mein browser wali notification permission available nahi hai. WebIntoApp ki Firebase Push setting app level par configured hai. Recovery notifications app ke notification system ke through handle hongi.'); return; }
             try {
                 const permission = await Notification.requestPermission();
                 checkNotificationStatus();
@@ -1461,13 +1461,13 @@
             const all=transactions.filter(t=>t&&normalizeShopKey(t.shop)===shopKey);
             if(!all.length)return {balance:0,eligible:false,lastCreditDate:''};
             const sorted=all.slice().sort((a,b)=>parseFormattedDate(a.date)-parseFormattedDate(b.date));
-            let running=0, eligible=false, lastCreditDate='';
+            let running=0, eligible=false, lastCreditDate='', newCredit=0;
             for(const t of sorted){
                 const c=Number(t.credit)||0, r=Number(t.recovery)||0;
-                if(c>0 && running>0){ eligible=true; lastCreditDate=t.date; }
+                if(c>0 && running>0){ eligible=true; lastCreditDate=t.date; newCredit=c; }
                 running += c-r;
             }
-            return {balance:running,eligible:eligible&&running>0,lastCreditDate};
+            return {balance:running,eligible:eligible&&running>0,lastCreditDate,newCredit};
         }
         function reminderDue(setting, now){
             if(setting.enabled===false)return false;
@@ -1490,12 +1490,16 @@
             const setting=reminderSettings[notificationKey(shopKey)]||getShopReminderDefaults();
             const now=new Date(); const stamp=Date.now();
             const title='🔔 Outstanding Balance Recovery Reminder';
-            const body=`${shopName} — Rs. ${Math.round(state.balance).toLocaleString()} balance baqi hai. Kindly is amount ko clear/recover karein.`;
+            const previousBalance=Math.max(0,Number(state.balance||0)-Number(state.newCredit||0));
+            const newCredit=Math.max(0,Number(state.newCredit||0));
+            const body=`${shopName} ka total outstanding balance Rs. ${Math.round(state.balance).toLocaleString()} hai. Is mein Rs. ${Math.round(newCredit).toLocaleString()} ka naya credit add hua hai. Kindly recovery karein.`;
             const baseId=`${notificationKey(shopKey)}_${localDateKey(now)}_${stamp}`;
             const writes={};
             route.recipients.forEach(username=>{
-                writes['pos_notifications/'+notificationKey(username)+'/'+baseId]={title,body,shop:shopName,shopKey,booker:route.booker,balance:state.balance,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false,type:'recovery_reminder'};
+                writes['pos_notifications/'+notificationKey(username)+'/'+baseId]={title,body,shop:shopName,shopKey,booker:route.booker,balance:state.balance,previousBalance,newCredit,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false,type:'recovery_reminder'};
             });
+            // Separate outbox for the future server-side FCM sender. This never changes ledger transactions.
+            writes['pos_notification_outbox/'+baseId]={title,body,shop:shopName,shopKey,booker:route.booker,balance:state.balance,previousBalance,newCredit,recipients:route.recipients,createdAt:firebase.database.ServerValue.TIMESTAMP,type:'recovery_reminder',status:'pending'};
             if(!Object.keys(writes).length)return false;
             await db.ref().update(writes);
             await db.ref('pos_shop_reminder_settings/'+notificationKey(shopKey)+'/lastSentAt').set(stamp);
