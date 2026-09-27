@@ -323,6 +323,19 @@
         .btn-delete { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: bold; }
         .btn-logout { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-notify { background: #ff9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 5px; }
+        .notification-bell-btn { position:relative; background:#111827; color:#fff; border:0; border-radius:18px; padding:6px 11px; cursor:pointer; font-size:12px; font-weight:800; }
+        .notification-count { position:absolute; top:-5px; right:-4px; min-width:17px; height:17px; padding:0 4px; border-radius:999px; background:#e41e2d; color:#fff; font-size:9px; display:flex; align-items:center; justify-content:center; border:2px solid #fff; }
+        .notification-count[hidden] { display:none !important; }
+        .reminder-admin-box { background:rgba(255,248,240,.9); border:1px solid #ffc107; border-left:4px solid #ff9800; border-radius:8px; padding:12px; margin-bottom:12px; }
+        .reminder-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; align-items:end; }
+        .reminder-grid .form-group { gap:3px; }
+        .reminder-grid label { font-size:11px; }
+        .reminder-grid input,.reminder-grid select { padding:7px; font-size:12px; }
+        .reminder-status { font-size:11px; font-weight:700; margin-top:7px; color:#555; }
+        .notification-item { border:1px solid #ddd; border-left:4px solid #ff9800; border-radius:7px; padding:9px; margin-bottom:7px; background:#fff; }
+        .notification-item.unread { background:#fff8e8; }
+        .notification-item small { color:#777; }
+        @media(max-width:768px){ .notification-bell-btn{padding:6px 9px;font-size:10px}.reminder-grid{grid-template-columns:1fr 1fr}.reminder-grid .wide{grid-column:1/-1;} }
         .btn-theme-toggle { background: #343a40; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 5px; }
         .booker-export-hide { display: inline-block; }
 
@@ -553,8 +566,9 @@
                     </div>
                     <div class="profile-live-status"><span class="status-dot"></span> System Connected</div>
                     <div class="profile-menu-actions">
+                        <button class="notification-bell-btn" id="notificationBellBtn" onclick="openNotificationsModal(); closeProfileMenu();">🔔 Notifications <span id="notificationCount" class="notification-count" hidden>0</span></button>
                         <button class="btn-theme-toggle" id="btnThemeToggle" onclick="toggleDayNightTheme(); closeProfileMenu();">🌞 Day/Night</button>
-                        <button class="btn-notify" id="btnEnableNotifications" onclick="requestNotificationPermission()">🔔 Enable Notifications</button>
+                        <button class="btn-notify" id="btnEnableNotifications" onclick="requestNotificationPermission()">🔔 Enable Device Notifications</button>
                         <button class="btn-logout" onclick="logout()">Logout</button>
                     </div>
                 </div>
@@ -933,6 +947,23 @@
 
         <!-- SHOPS DIRECTORY TAB -->
         <div id="shops" class="tab-content">
+            <div class="reminder-admin-box admin-only no-print">
+                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <strong style="color:#e67e00;">🔔 Shop Recovery Reminder Settings</strong>
+                    <span style="font-size:10px;color:#666;">Existing ledger data is read-only here; settings are stored separately.</span>
+                </div>
+                <div class="reminder-grid" style="margin-top:9px;">
+                    <div class="form-group wide"><label>Shop</label><select id="reminderShopSelect" onchange="loadReminderSettingForShop()"><option value="">-- Select Shop --</option></select></div>
+                    <div class="form-group"><label>Reminder</label><select id="reminderEnabled"><option value="ON">ON</option><option value="OFF">OFF</option></select></div>
+                    <div class="form-group"><label>Frequency</label><select id="reminderFrequency" onchange="toggleReminderFrequencyFields()"><option value="daily1">Daily — 1 time</option><option value="daily2">Daily — 2 times</option><option value="every2">Every 2 days</option><option value="every3">Every 3 days</option><option value="weekly">Weekly</option><option value="custom">Custom days</option></select></div>
+                    <div class="form-group" id="reminderCustomDaysWrap" style="display:none;"><label>Custom Days</label><input type="number" id="reminderCustomDays" min="1" max="365" value="2"></div>
+                    <div class="form-group"><label>Time 1</label><input type="time" id="reminderTime1" value="11:00"></div>
+                    <div class="form-group" id="reminderTime2Wrap" style="display:none;"><label>Time 2</label><input type="time" id="reminderTime2" value="17:00"></div>
+                    <button type="button" class="btn-excel" style="background:#ff9800;padding:8px 12px;" onclick="saveShopReminderSetting()">💾 Save Reminder</button>
+                    <button type="button" class="btn-delete" style="padding:8px 12px;" onclick="disableSelectedShopReminder()">⛔ Turn Off</button>
+                </div>
+                <div class="reminder-status" id="reminderSettingStatus">Select a shop to manage its reminder.</div>
+            </div>
             <div class="filter-box no-print">
                 <div style="flex:1; font-weight:bold; font-size:14px;">Shops Directory & Balances</div>
                 <div style="display:flex; align-items:center; gap:5px; min-width:240px; flex:1.4;">
@@ -1122,6 +1153,18 @@
 
     </div>
 
+    <!-- NOTIFICATION CENTER -->
+    <div class="modal-overlay" id="notificationModal">
+        <div class="modal-card" style="max-width:560px;">
+            <h3>🔔 Recovery Notifications</h3>
+            <div id="notificationList" style="max-height:55vh;overflow:auto;"></div>
+            <div class="modal-actions">
+                <button class="btn-delete" onclick="closeNotificationsModal()">Close</button>
+                <button class="btn-excel" style="background:#007bff;" onclick="markAllNotificationsRead()">✓ Mark All Read</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODALS -->
     <div class="modal-overlay" id="editShopModal">
         <div class="modal-card">
@@ -1228,33 +1271,207 @@
             if (wrap && !wrap.contains(e.target)) closeProfileMenu();
         });
 
-        /* NOTIFICATIONS */
+        /* NOTIFICATIONS — SAFE, USER-TARGETED, FIREBASE-BACKED */
+        let notificationItems = [];
+        let reminderSettings = {};
+        let notificationEngineTimer = null;
+        let notificationEngineBusy = false;
+        const NOTIFICATION_MAX_ITEMS = 80;
+
+        function notificationKey(value) {
+            return (value || 'unknown').toString().trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_').slice(0,80) || 'unknown';
+        }
+        function todayDateKey() { return new Date().toISOString().slice(0,10); }
+        function localDateKey(d) {
+            const x = d instanceof Date ? d : new Date(d);
+            const y=x.getFullYear(), m=String(x.getMonth()+1).padStart(2,'0'), day=String(x.getDate()).padStart(2,'0');
+            return `${y}-${m}-${day}`;
+        }
+        function daysBetween(a,b){
+            const aa=new Date(a+'T00:00:00'), bb=new Date(b+'T00:00:00');
+            return Math.floor((bb-aa)/86400000);
+        }
+        function getCurrentUserNotificationRef(){
+            if(!currentUser || !currentUser.username) return null;
+            return db.ref('pos_notifications/' + notificationKey(currentUser.username));
+        }
         function checkNotificationStatus() {
             const btn = document.getElementById('btnEnableNotifications');
             if (!btn) return;
-            if (!("Notification" in window)) { btn.innerText = "❌ Not Supported"; btn.disabled = true; }
-            else if (Notification.permission === "granted") { btn.innerText = "🔔 Notifications Active"; btn.style.background = "#28a745"; }
-            else if (Notification.permission === "denied") { btn.innerText = "🔕 Notifications Blocked"; btn.style.background = "#6c757d"; }
-            else { btn.innerText = "🔔 Enable Notifications"; btn.style.background = "#ff9800"; }
+            const supported = ('Notification' in window) && (window.isSecureContext !== false);
+            if (!supported) { btn.innerText = '⚠️ In-App Only'; btn.disabled = false; btn.style.background = '#6c757d'; }
+            else if (Notification.permission === 'granted') { btn.innerText = '🔔 Device Notifications Active'; btn.disabled = false; btn.style.background = '#28a745'; }
+            else if (Notification.permission === 'denied') { btn.innerText = '🔕 Device Blocked — In-App Active'; btn.disabled = false; btn.style.background = '#6c757d'; }
+            else { btn.innerText = '🔔 Enable Device Notifications'; btn.disabled = false; btn.style.background = '#ff9800'; }
         }
-
-        function requestNotificationPermission() {
-            if (!("Notification" in window)) { alert("Browser Notifications are not supported in your browser."); return; }
-            Notification.requestPermission().then(permission => {
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) { alert('Is mobile/browser mein device notification supported nahi. In-app Firebase notifications phir bhi active hain.'); return; }
+            try {
+                const permission = await Notification.requestPermission();
                 checkNotificationStatus();
-                if (permission === "granted") showSystemNotification("Al Qadir Traders System", "Notifications activated successfully! 🔔");
-            });
+                if (permission === 'granted') showSystemNotification('Al Qadir Traders System', 'Device notifications activated successfully! 🔔');
+            } catch(e) { console.warn('Notification permission:',e); }
         }
-
         function showSystemNotification(title, body) {
             playEntrySound();
-            if ("Notification" in window && Notification.permission === "granted") {
-                try { new Notification(title, { body:body, icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%2328a745'/></svg>" }); }
-                catch (e) { console.log("Notification error: ", e); }
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    const n = new Notification(title, { body:body, icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%2328a745'/></svg>", tag:'alqadir-recovery-reminder' });
+                    n.onclick=()=>{ try{window.focus();}catch(e){} };
+                } catch(e) { console.warn('Notification error:',e); }
             }
         }
-
-        document.addEventListener("DOMContentLoaded", () => { checkNotificationStatus(); syncProfileLabel(); });
+        function openNotificationsModal(){
+            const modal=document.getElementById('notificationModal'); if(!modal) return;
+            renderNotificationList(); modal.style.display='flex';
+        }
+        function closeNotificationsModal(){ const m=document.getElementById('notificationModal'); if(m)m.style.display='none'; }
+        function renderNotificationList(){
+            const box=document.getElementById('notificationList'); if(!box) return;
+            if(!notificationItems.length){ box.innerHTML='<div style="padding:20px;text-align:center;color:#777;">No recovery notifications.</div>'; return; }
+            box.innerHTML=notificationItems.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(n=>`
+                <div class="notification-item ${n.read?'':'unread'}">
+                    <div style="font-weight:800;">${escapeHtml(n.title||'Recovery Reminder')}</div>
+                    <div style="font-size:12px;margin-top:3px;">${escapeHtml(n.body||'')}</div>
+                    <small>${n.createdAt?new Date(n.createdAt).toLocaleString():'-'}</small>
+                </div>`).join('');
+        }
+        function escapeHtml(v){ return (v??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function updateNotificationBadge(){
+            const count=notificationItems.filter(n=>!n.read).length, badge=document.getElementById('notificationCount');
+            if(!badge)return; badge.textContent=Math.min(count,99); badge.hidden=count===0;
+        }
+        function subscribeToUserNotifications(){
+            if(!currentUser || !currentUser.username) return;
+            const ref=getCurrentUserNotificationRef(); if(!ref)return;
+            ref.limitToLast(NOTIFICATION_MAX_ITEMS).on('value',snap=>{
+                const val=snap.val()||{};
+                notificationItems=Object.keys(val).map(k=>({...val[k],_id:k}));
+                updateNotificationBadge(); renderNotificationList();
+            });
+        }
+        function markAllNotificationsRead(){
+            if(!currentUser || !notificationItems.length)return;
+            const updates={}; notificationItems.forEach(n=>{ if(n._id && !n.read) updates[n._id+'/read']=true; });
+            if(Object.keys(updates).length) getCurrentUserNotificationRef().update(updates);
+        }
+        function getShopReminderDefaults(){ return {enabled:true,frequency:'every2',customDays:2,time1:'11:00',time2:'17:00',lastSentAt:0}; }
+        function subscribeToReminderSettings(){
+            db.ref('pos_shop_reminder_settings').on('value',snap=>{
+                reminderSettings=snap.val()||{};
+                populateReminderShopSelect();
+                loadReminderSettingForShop();
+            });
+        }
+        function populateReminderShopSelect(){
+            const sel=document.getElementById('reminderShopSelect'); if(!sel)return;
+            const map=new Map(); transactions.forEach(t=>{if(t&&t.shop){const name=t.shop.toString().trim(); const k=normalizeShopKey(name); if(k&&!map.has(k))map.set(k,name);}});
+            const old=sel.value;
+            sel.innerHTML='<option value="">-- Select Shop --</option>'+Array.from(map.values()).sort((a,b)=>a.localeCompare(b)).map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('');
+            if(old)sel.value=old;
+        }
+        function toggleReminderFrequencyFields(){
+            const f=document.getElementById('reminderFrequency')?.value;
+            const d=document.getElementById('reminderCustomDaysWrap'), t=document.getElementById('reminderTime2Wrap');
+            if(d)d.style.display=f==='custom'?'flex':'none'; if(t)t.style.display=f==='daily2'?'flex':'none';
+        }
+        function loadReminderSettingForShop(){
+            const sel=document.getElementById('reminderShopSelect'); if(!sel)return; const shop=sel.value;
+            const st=shop?(reminderSettings[notificationKey(normalizeShopKey(shop))]||getShopReminderDefaults()):getShopReminderDefaults();
+            document.getElementById('reminderEnabled').value=st.enabled===false?'OFF':'ON';
+            document.getElementById('reminderFrequency').value=st.frequency||'every2';
+            document.getElementById('reminderCustomDays').value=st.customDays||2;
+            document.getElementById('reminderTime1').value=st.time1||'11:00'; document.getElementById('reminderTime2').value=st.time2||'17:00';
+            toggleReminderFrequencyFields();
+            const status=document.getElementById('reminderSettingStatus'); if(status)status.textContent=shop?`Selected: ${shop} — Reminder ${st.enabled===false?'OFF':'ON'}.`:'Select a shop to manage its reminder.';
+        }
+        function saveShopReminderSetting(){
+            const shop=document.getElementById('reminderShopSelect')?.value; if(!shop){alert('Pehle shop select karein.');return;}
+            const key=notificationKey(normalizeShopKey(shop));
+            const data={enabled:document.getElementById('reminderEnabled').value==='ON',frequency:document.getElementById('reminderFrequency').value,customDays:Math.max(1,parseInt(document.getElementById('reminderCustomDays').value,10)||2),time1:document.getElementById('reminderTime1').value||'11:00',time2:document.getElementById('reminderTime2').value||'17:00',lastSentAt:(reminderSettings[key]?.lastSentAt||0),updatedAt:firebase.database.ServerValue.TIMESTAMP,updatedBy:currentUser?.username||'Admin'};
+            db.ref('pos_shop_reminder_settings/'+key).set(data).then(()=>{alert('Shop reminder setting saved.');}).catch(e=>alert('Reminder setting save failed: '+e.message));
+        }
+        function disableSelectedShopReminder(){
+            const shop=document.getElementById('reminderShopSelect')?.value; if(!shop){alert('Pehle shop select karein.');return;}
+            const key=notificationKey(normalizeShopKey(shop)); const old=reminderSettings[key]||getShopReminderDefaults(); old.enabled=false; old.updatedAt=firebase.database.ServerValue.TIMESTAMP; old.updatedBy=currentUser?.username||'Admin';
+            db.ref('pos_shop_reminder_settings/'+key).set(old).then(()=>alert('Is shop ka reminder OFF kar diya gaya hai.')).catch(e=>alert('Save failed: '+e.message));
+        }
+        function getShopBookerAndUsers(shopKey){
+            const txs=transactions.filter(t=>t&&normalizeShopKey(t.shop)===shopKey);
+            const booker=(txs.slice().sort((a,b)=>parseFormattedDate(b.date)-parseFormattedDate(a.date))[0]?.booker||'').toString().trim().toUpperCase();
+            const recipients=[];
+            USERS_DATABASE.forEach(u=>{
+                if(!u||!u.username)return;
+                const ub=(u.bookerName||'').toString().trim().toUpperCase();
+                if(u.role==='shop' && normalizeShopKey(ub)===shopKey) recipients.push(u.username);
+                else if(u.role==='booker' && ub && ub===booker) recipients.push(u.username);
+            });
+            return {booker,recipients:[...new Set(recipients)]};
+        }
+        function getShopReminderState(shopKey){
+            const all=transactions.filter(t=>t&&normalizeShopKey(t.shop)===shopKey);
+            if(!all.length)return {balance:0,eligible:false,lastCreditDate:''};
+            const sorted=all.slice().sort((a,b)=>parseFormattedDate(a.date)-parseFormattedDate(b.date));
+            let running=0, eligible=false, lastCreditDate='';
+            for(const t of sorted){
+                const c=Number(t.credit)||0, r=Number(t.recovery)||0;
+                if(c>0 && running>0){ eligible=true; lastCreditDate=t.date; }
+                running += c-r;
+            }
+            return {balance:running,eligible:eligible&&running>0,lastCreditDate};
+        }
+        function reminderDue(setting, now){
+            if(setting.enabled===false)return false;
+            const last=Number(setting.lastSentAt)||0, freq=setting.frequency||'every2';
+            const today=localDateKey(now), hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+            const t1=setting.time1||'11:00', t2=setting.time2||'17:00';
+            if(!last) return hm >= t1;
+            const lastDate=localDateKey(last), diff=daysBetween(lastDate,today);
+            if(freq==='daily1') return diff>=1 && hm >= t1;
+            if(freq==='daily2'){
+                if(diff>=1 && hm >= t1) return true;
+                const lastHm=new Date(last).getHours().toString().padStart(2,'0')+':'+new Date(last).getMinutes().toString().padStart(2,'0');
+                return diff===0 && hm >= t2 && lastHm < t2;
+            }
+            const interval=freq==='every2'?2:freq==='every3'?3:freq==='weekly'?7:Math.max(1,Number(setting.customDays)||2);
+            return diff>=interval && hm >= t1;
+        }
+        async function createRecoveryReminder(shopName, shopKey, state){
+            const route=getShopBookerAndUsers(shopKey); if(!route.recipients.length)return false;
+            const setting=reminderSettings[notificationKey(shopKey)]||getShopReminderDefaults();
+            const now=new Date(); const stamp=Date.now();
+            const title='🔔 Old Balance Recovery Reminder';
+            const body=`${shopName} — Rs. ${Math.round(state.balance).toLocaleString()} balance baqi hai. Kindly is amount ko clear/recover karein.`;
+            const baseId=`${notificationKey(shopKey)}_${localDateKey(now)}_${stamp}`;
+            const writes={};
+            route.recipients.forEach(username=>{
+                writes['pos_notifications/'+notificationKey(username)+'/'+baseId]={title,body,shop:shopName,shopKey,booker:route.booker,balance:state.balance,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false,type:'recovery_reminder'};
+            });
+            if(!Object.keys(writes).length)return false;
+            await db.ref().update(writes);
+            await db.ref('pos_shop_reminder_settings/'+notificationKey(shopKey)+'/lastSentAt').set(stamp);
+            return true;
+        }
+        async function runRecoveryReminderEngine(){
+            if(notificationEngineBusy || !transactions.length || !currentUser)return;
+            notificationEngineBusy=true;
+            try{
+                const shops=new Map(); transactions.forEach(t=>{if(t&&t.shop){const name=t.shop.toString().trim(),key=normalizeShopKey(name);if(key&&!shops.has(key))shops.set(key,name);}});
+                const now=new Date();
+                for(const [key,name] of shops){
+                    const state=getShopReminderState(key); if(!state.eligible)continue;
+                    const setting=reminderSettings[notificationKey(key)]||getShopReminderDefaults();
+                    if(!reminderDue(setting,now))continue;
+                    await createRecoveryReminder(name,key,state);
+                }
+            }catch(e){console.warn('Recovery reminder engine:',e);} finally{notificationEngineBusy=false;}
+        }
+        function startNotificationEngine(){
+            if(notificationEngineTimer)clearInterval(notificationEngineTimer);
+            notificationEngineTimer=setInterval(runRecoveryReminderEngine,60000);
+            setTimeout(runRecoveryReminderEngine,2500);
+        }
+        document.addEventListener('DOMContentLoaded',()=>{checkNotificationStatus();syncProfileLabel();});
 
         /* TAB THEMES */
         const TAB_THEMES = {
@@ -1407,7 +1624,10 @@
             document.getElementById('loginOverlay').style.display = 'flex';
         }
 
-        if (currentUser) setTimeout(startLivePresence, 0);
+        if (currentUser) {
+            setTimeout(() => { try { subscribeToUserNotifications(); startNotificationEngine(); } catch(e) { console.warn('Initial notification setup:',e); } }, 0);
+            setTimeout(startLivePresence, 0);
+        }
 
         /* LIVE CLOCK */
         function updateLiveClock() {
@@ -1651,6 +1871,12 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             }
         });
 
+        db.ref('pos_shop_reminder_settings').on('value', snapshot => {
+            reminderSettings = snapshot.val() || {};
+            populateReminderShopSelect();
+            loadReminderSettingForShop();
+        });
+
         function saveBookerFilterAndRender() {
             const filterElem = document.getElementById('bookerBalanceFilter');
             if (filterElem && currentUser && currentUser.role === 'admin') {
@@ -1862,7 +2088,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             setLoginSyncUI(100, syncOk ? 'Sync complete — system ready.' : 'System ready from verified local safety data.', 3);
             try { await saveUsersToCloud(); } catch (e) { console.warn('Login user status save:', e); }
             applyUserPermissions();
-            startLivePresence();
+            subscribeToUserNotifications();
+            startNotificationEngine();
             recordUserActivity('Login', syncOk ? 'User logged in after Firebase sync' : 'User logged in using local safety data');
             showSystemNotification('Login Successful', `Welcome back, ${currentUser.username.toUpperCase()}! 🚀`);
             await waitMs(180);
@@ -3898,6 +4125,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             else transactions.push(newTx);
 
             saveTransactionsToCloud();
+            // Reminder engine only READS transaction history; it never modifies ledger data.
+            setTimeout(runRecoveryReminderEngine, 700);
             recordUserActivity('Entry', `${editIdx >= 0 ? 'Updated' : 'Added'}: ${shop}`);
             playEntrySound();
             alert("Entry Saved Successfully! 🚀");
