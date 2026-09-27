@@ -323,8 +323,11 @@
         .btn-delete { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: bold; }
         .btn-logout { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn-notify { background: #ff9800; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 5px; }
-        .notification-bell-btn { position:relative; background:#111827; color:#fff; border:0; border-radius:18px; padding:6px 11px; cursor:pointer; font-size:12px; font-weight:800; }
-        .notification-count { position:absolute; top:-5px; right:-4px; min-width:17px; height:17px; padding:0 4px; border-radius:999px; background:#e41e2d; color:#fff; font-size:9px; display:flex; align-items:center; justify-content:center; border:2px solid #fff; }
+        .notification-bell-btn { position:relative; background:#111827; color:#fff; border:0; border-radius:18px; padding:7px 11px; cursor:pointer; font-size:13px; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,.16); }
+        .notification-bell-btn:hover { background:#222b3a; transform:translateY(-1px); }
+        .notification-bell-btn.has-unread { animation: notificationBellPulse 1.35s infinite; }
+        @keyframes notificationBellPulse { 0%,100%{box-shadow:0 2px 8px rgba(0,0,0,.16)} 50%{box-shadow:0 0 0 7px rgba(228,30,45,.18),0 4px 12px rgba(228,30,45,.28)} }
+        .notification-count { position:absolute; top:-7px; right:-6px; min-width:19px; height:19px; padding:0 4px; border-radius:999px; background:#e41e2d; color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; border:2px solid #fff; font-weight:900; }
         .notification-count[hidden] { display:none !important; }
         .reminder-admin-box { background:rgba(255,248,240,.9); border:1px solid #ffc107; border-left:4px solid #ff9800; border-radius:8px; padding:12px; margin-bottom:12px; }
         .reminder-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; align-items:end; }
@@ -335,7 +338,14 @@
         .notification-item { border:1px solid #ddd; border-left:4px solid #ff9800; border-radius:7px; padding:9px; margin-bottom:7px; background:#fff; }
         .notification-item.unread { background:#fff8e8; }
         .notification-item small { color:#777; }
-        @media(max-width:768px){ .notification-bell-btn{padding:6px 9px;font-size:10px}.reminder-grid{grid-template-columns:1fr 1fr}.reminder-grid .wide{grid-column:1/-1;} }
+        /* Notification panel: keep mobile swipe/overscroll inside the panel so WebIntoApp/WebView does not trigger page pull-to-refresh. */
+        #notificationModal { overscroll-behavior-y: contain; touch-action: none; }
+        #notificationModal .modal-card { overflow: hidden; overscroll-behavior-y: contain; touch-action: pan-y; }
+        #notificationModal #notificationList { max-height:55vh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; touch-action:pan-y; }
+        .notification-login-toast { position:fixed; top:72px; right:18px; z-index:10060; background:#111827; color:#fff; border-radius:10px; padding:10px 14px; box-shadow:0 8px 25px rgba(0,0,0,.28); font-size:12px; font-weight:800; display:none; max-width:min(360px,calc(100vw - 30px)); }
+        .notification-login-toast.show { display:block; animation: notificationToastIn .25s ease-out; }
+        @keyframes notificationToastIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        @media(max-width:768px){ .notification-bell-btn{padding:7px 9px;font-size:11px}.notification-login-toast{top:64px;right:10px}.reminder-grid{grid-template-columns:1fr 1fr}.reminder-grid .wide{grid-column:1/-1;} }
         .btn-theme-toggle { background: #343a40; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; margin-right: 5px; }
         .booker-export-hide { display: inline-block; }
 
@@ -552,7 +562,9 @@
             <div class="compact-system-status">
                 <span class="status-dot"></span><span>System Connected</span>
             </div>
-            <div class="profile-menu-wrap">
+            <div style="display:flex;align-items:center;gap:7px;margin-left:auto;position:relative;z-index:10010;">
+                <button class="notification-bell-btn" id="notificationBellBtn" onclick="openNotificationsModal(); closeProfileMenu();" aria-label="Open notifications" title="Notifications">🔔 <span id="notificationCount" class="notification-count" hidden>0</span></button>
+                <div class="profile-menu-wrap">
                 <button class="profile-menu-btn" id="profileMenuBtn" type="button" onclick="toggleProfileMenu()" aria-label="Open profile menu">
                     👤 <strong id="profileUserLabel">ADMIN</strong> ▾
                 </button>
@@ -566,14 +578,16 @@
                     </div>
                     <div class="profile-live-status"><span class="status-dot"></span> System Connected</div>
                     <div class="profile-menu-actions">
-                        <button class="notification-bell-btn" id="notificationBellBtn" onclick="openNotificationsModal(); closeProfileMenu();">🔔 Notifications <span id="notificationCount" class="notification-count" hidden>0</span></button>
                         <button class="btn-theme-toggle" id="btnThemeToggle" onclick="toggleDayNightTheme(); closeProfileMenu();">🌞 Day/Night</button>
                         <button class="btn-notify" id="btnEnableNotifications" onclick="requestNotificationPermission()">🔔 Enable Device Notifications</button>
                         <button class="btn-logout" onclick="logout()">Logout</button>
                     </div>
                 </div>
+                </div>
             </div>
         </div>
+
+        <div id="notificationLoginToast" class="notification-login-toast" role="status"></div>
 
         <!-- BRAND HEADER -->
         <div class="brand-header-custom">
@@ -1157,7 +1171,7 @@
     <div class="modal-overlay" id="notificationModal">
         <div class="modal-card" style="max-width:560px;">
             <h3>🔔 Recovery Notifications</h3>
-            <div id="notificationList" style="max-height:55vh;overflow:auto;"></div>
+            <div id="notificationList"></div>
             <div class="modal-actions">
                 <button class="btn-delete" onclick="closeNotificationsModal()">Close</button>
                 <button class="btn-excel" style="background:#007bff;" onclick="markAllNotificationsRead()">✓ Mark All Read</button>
@@ -1326,6 +1340,24 @@
             renderNotificationList(); modal.style.display='flex';
         }
         function closeNotificationsModal(){ const m=document.getElementById('notificationModal'); if(m)m.style.display='none'; }
+        // Stop downward/upward overscroll from escaping the notification list and refreshing the WebView page.
+        (function setupNotificationScrollGuard(){
+            const modal = document.getElementById('notificationModal');
+            if(!modal) return;
+            let startY = 0;
+            modal.addEventListener('touchstart', function(e){
+                const list = e.target.closest ? e.target.closest('#notificationList') : null;
+                if(list && e.touches && e.touches.length) startY = e.touches[0].clientY;
+            }, {passive:true});
+            modal.addEventListener('touchmove', function(e){
+                const list = e.target.closest ? e.target.closest('#notificationList') : null;
+                if(!list || !e.touches || !e.touches.length) return;
+                const y = e.touches[0].clientY, dy = y - startY;
+                const atTop = list.scrollTop <= 0;
+                const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 1;
+                if((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
+            }, {passive:false});
+        })();
         function renderNotificationList(){
             const box=document.getElementById('notificationList'); if(!box) return;
             if(!notificationItems.length){ box.innerHTML='<div style="padding:20px;text-align:center;color:#777;">No recovery notifications.</div>'; return; }
@@ -1337,12 +1369,29 @@
                 </div>`).join('');
         }
         function escapeHtml(v){ return (v??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        let previousUnreadNotificationCount = 0;
+        let notificationToastTimer = null;
         function updateNotificationBadge(){
-            const count=notificationItems.filter(n=>!n.read).length, badge=document.getElementById('notificationCount');
-            if(!badge)return; badge.textContent=Math.min(count,99); badge.hidden=count===0;
+            const count=notificationItems.filter(n=>!n.read).length, badge=document.getElementById('notificationCount'), bell=document.getElementById('notificationBellBtn');
+            if(!badge)return;
+            badge.textContent=Math.min(count,99); badge.hidden=count===0;
+            if(bell) bell.classList.toggle('has-unread', count>0);
+            if(count>previousUnreadNotificationCount && previousUnreadNotificationCount>=0 && currentUser){
+                const newest=notificationItems.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+                if(newest && !newest.read) showNotificationLoginToast(count, newest);
+            }
+            previousUnreadNotificationCount=count;
+        }
+        function showNotificationLoginToast(count,newest){
+            const toast=document.getElementById('notificationLoginToast'); if(!toast)return;
+            toast.innerHTML='🔔 <strong>New Notification</strong><br><span style="font-weight:600">'+escapeHtml(newest?.title||'Recovery Reminder')+'</span>'+(count>1?' <span style="opacity:.8">('+count+' unread)</span>':'');
+            toast.classList.add('show');
+            clearTimeout(notificationToastTimer);
+            notificationToastTimer=setTimeout(()=>toast.classList.remove('show'),5000);
         }
         function subscribeToUserNotifications(){
             if(!currentUser || !currentUser.username) return;
+            previousUnreadNotificationCount = 0;
             const ref=getCurrentUserNotificationRef(); if(!ref)return;
             ref.limitToLast(NOTIFICATION_MAX_ITEMS).on('value',snap=>{
                 const val=snap.val()||{};
