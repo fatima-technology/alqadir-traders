@@ -3595,8 +3595,10 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         /* DATA ENTRY & MODALS */
         /* SHOP EDIT / TRANSFER / DELETE */
         function getShopTransactions(shopName) {
-            const key = cleanStr(shopName);
-            return transactions.filter(t => cleanStr(t.shop) === key);
+            // Always resolve a shop by its normalized key so case, spacing,
+            // hyphen/format differences do not leave historical rows behind.
+            const key = normalizeShopKey(shopName);
+            return transactions.filter(t => normalizeShopKey(t.shop) === key);
         }
 
         function openEditShopModal(shopName, bookerName, balance) {
@@ -3653,16 +3655,23 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             if (!oldShop || !targetBooker) { alert('Please select a target Booker.'); return; }
             const shopTx = getShopTransactions(oldShop);
             if (!shopTx.length) { alert('Shop record not found.'); return; }
-            if (cleanStr(shopTx[0].booker) === cleanStr(targetBooker)) { alert('This shop is already assigned to this Booker.'); return; }
+            const targetBookerKey = cleanStr(targetBooker);
+            const allAlreadyTarget = shopTx.every(t => cleanStr(t.booker) === targetBookerKey);
+            if (allAlreadyTarget) { alert('This shop is already assigned to this Booker.'); return; }
             if (!reason) { alert('Please enter the reason for transfer.'); return; }
-            if (!confirm(`Transfer all entries of "${oldShop}" to Booker "${targetBooker}"?`)) return;
+            if (!confirm(`Transfer ALL ${shopTx.length} entries of "${oldShop}" to Booker "${targetBooker}"?`)) return;
             const now = new Date().toLocaleString('en-GB');
+            const shopKey = normalizeShopKey(oldShop);
+            let changedCount = 0;
             transactions.forEach(t => {
-                if (cleanStr(t.shop) === cleanStr(oldShop)) {
+                // IMPORTANT: transfer every historical row belonging to the
+                // normalized shop. Never create/delete/adjust a ledger amount.
+                if (normalizeShopKey(t.shop) === shopKey) {
                     t.booker = targetBooker.toUpperCase();
                     t.editedBy = currentUser ? currentUser.username : 'Admin';
                     t.editReason = reason;
                     t.lastEditedAt = now;
+                    changedCount++;
                 }
             });
             saveTransactionsToCloud();
@@ -3670,7 +3679,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             renderShops();
             populateShopDropdowns();
             populateEntryBookersDropdown();
-            alert('Shop transferred successfully.');
+            alert(`Shop transferred successfully. ${changedCount} existing ledger entries were moved to ${targetBooker.toUpperCase()}. No balance adjustment was created.`);
         }
 
         function saveEditShopDetails() {
@@ -3748,7 +3757,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
 
             const now = new Date().toLocaleString('en-GB');
             transactions.forEach(t => {
-                if (cleanStr(t.shop) === cleanStr(oldShop)) {
+                if (normalizeShopKey(t.shop) === oldShopKey) {
                     t.shop = newShop;
                     // IMPORTANT: Renaming a shop must never change the Booker
                     // stored on its historical ledger entries. Use the separate
