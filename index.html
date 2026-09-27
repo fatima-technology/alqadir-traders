@@ -2843,21 +2843,20 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         let pendingCSVImport = null;
 
         function getConfiguredBookerNames() {
-            // CSV Booker validation must check ONLY users who actually have the
-            // dedicated Booker login role. Other internal/route labels such as
-            // COMPANY, STAFF, OFFICE, ISSUE and OUTSTATION are valid data labels
-            // but are NOT Booker login accounts and must not trigger validation.
-            const set = new Set();
-            (Array.isArray(USERS_DATABASE) ? USERS_DATABASE : []).forEach(u => {
-                if (!u) return;
-                const role = String(u.role || '').trim().toLowerCase();
-                if (role !== 'booker') return;
-                const b = normalizeBookerMatchName(u.bookerName);
-                const username = normalizeBookerMatchName(u.username);
-                if (b && b !== 'ALL' && b !== 'UNDEFINED' && b !== 'UNKNOWN') set.add(b);
-                else if (username && username !== 'ADMIN') set.add(username);
-            });
-            return Array.from(set).filter(Boolean).sort((a,b) => a.localeCompare(b));
+            // IMPORTANT: CSV Booker validation is ONLY for the 8 actual Booker
+            // login accounts. These are the only names that must be checked.
+            // Internal/non-login labels such as COMPANY, ISSUE, OFFICE,
+            // OUTSTATION and STAFF must NEVER pause a CSV upload.
+            return [
+                'ARSALAN',
+                'INAAM',
+                'KASHIF',
+                'NADEEM',
+                'RIZWAN',
+                'TALHA',
+                'WAQAS',
+                'ZEESHAN'
+            ];
         }
 
         function normalizeBookerMatchName(value) {
