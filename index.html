@@ -1489,7 +1489,7 @@
             const route=getShopBookerAndUsers(shopKey); if(!route.recipients.length)return false;
             const setting=reminderSettings[notificationKey(shopKey)]||getShopReminderDefaults();
             const now=new Date(); const stamp=Date.now();
-            const title='🔔 Old Balance Recovery Reminder';
+            const title='🔔 Outstanding Balance Recovery Reminder';
             const body=`${shopName} — Rs. ${Math.round(state.balance).toLocaleString()} balance baqi hai. Kindly is amount ko clear/recover karein.`;
             const baseId=`${notificationKey(shopKey)}_${localDateKey(now)}_${stamp}`;
             const writes={};
@@ -3985,7 +3985,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                     }
                     return sum;
                 }, 0);
-                if (!confirm(`Duplicate shop detected.\n\n${oldShop} will be merged into ${newShop}.\nThe existing balance of both shops will be kept/preserved; no old balance will be marked as paid and no automatic recovery/credit adjustment will be created.\n\nContinue?`)) return;
+                if (!confirm(`Duplicate shop detected.\n\n${oldShop} will be merged into ${newShop}.\nThe existing balance of both shops will be kept/preserved; no outstanding balance will be marked as paid and no automatic recovery/credit adjustment will be created.\n\nContinue?`)) return;
 
                 const now = new Date().toLocaleString('en-GB');
                 transactions.forEach(t => {
