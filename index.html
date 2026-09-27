@@ -3046,7 +3046,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                             editedBy: currentUser ? currentUser.username : 'Admin'
                         });
 
-                        if (!knownBookers.includes(booker)) {
+                        const legacyNonBookerValues = new Set(['STAFF','COMPANY','OUTSTATION','OFFICE']);
+                        if (!knownBookers.includes(booker) && !legacyNonBookerValues.has(booker)) {
                             invalidMap.push(importedIndex);
                             invalidBookerRows.push({
                                 rowNumber: r + 1,
