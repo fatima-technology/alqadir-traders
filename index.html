@@ -3620,6 +3620,11 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             }
             document.getElementById('modalShopBalanceInput').value = Number(balance || 0);
             document.getElementById('modalShopEditReason').value = '';
+            // Remember which Shop+Booker row opened the editor. The Shops table
+            // can contain the same shop under multiple bookers; a normal Save
+            // should move only the selected booker's entries, while the explicit
+            // Transfer button can still move the whole shop.
+            modal.dataset.originalBooker = bookerName || '';
             modal.style.display = 'flex';
         }
 
@@ -3683,71 +3688,58 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         }
 
         function saveEditShopDetails() {
+            const modal = document.getElementById('editShopModal');
             const oldShop = document.getElementById('modalOldShopName').value.trim();
             const newShop = document.getElementById('modalShopNameInput').value.trim();
             const newBooker = document.getElementById('modalShopBookerSelect').value.trim();
+            const originalBooker = ((modal && modal.dataset.originalBooker) || '').trim();
             const newBalanceRaw = document.getElementById('modalShopBalanceInput').value.trim();
             const reason = document.getElementById('modalShopEditReason').value.trim();
             const newBalance = parseFloat(newBalanceRaw);
             if (!oldShop || !newShop || !newBooker) { alert('Please fill Shop Name and Booker.'); return; }
             if (newBalanceRaw === '' || Number.isNaN(newBalance)) { alert('Please enter Actual Amount / Net Balance.'); return; }
 
-            const shopTx = getShopTransactions(oldShop);
-            if (!shopTx.length) { alert('Shop record not found.'); return; }
-
-            let currentBalance = 0;
-            shopTx.forEach(t => currentBalance += (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0));
             const oldShopKey = normalizeShopKey(oldShop);
             const newShopKey = normalizeShopKey(newShop);
             const nameChanged = oldShopKey !== newShopKey;
-            const bookerChanged = cleanStr(shopTx[0].booker) !== cleanStr(newBooker);
 
-            // Duplicate-shop merge: compare NORMALIZED names (case/extra spaces
-            // included), and NEVER create a balance-adjustment/recovery entry during
-            // a merge. The existing ledger rows from both shop records must remain
-            // exactly as credit/recovery records; the merged balance is simply their
-            // combined net balance.
+            // The Shops Directory is grouped by Shop + Booker. Therefore a normal
+            // Save from one row must work on THAT row's historical transactions,
+            // not every transaction of the shop. This is what lets:
+            //   ASM / ZEESHAN + ASM / WAQAS
+            // become one ASM / ZEESHAN account when WAQAS is changed to ZEESHAN,
+            // without creating a fake payment/adjustment.
+            const sourceBookerKey = cleanStr(originalBooker);
+            const selectedTx = transactions.filter(t =>
+                normalizeShopKey(t.shop) === oldShopKey &&
+                cleanStr(t.booker) === sourceBookerKey
+            );
+
+            // Fallback for legacy/modal calls where the original Booker was not
+            // stored: use the current selected Booker, but still never treat the
+            // whole shop as the selected row for a normal Save.
+            const effectiveSourceBookerKey = sourceBookerKey || cleanStr(newBooker);
+            const rowTx = sourceBookerKey ? selectedTx : transactions.filter(t =>
+                normalizeShopKey(t.shop) === oldShopKey &&
+                cleanStr(t.booker) === effectiveSourceBookerKey
+            );
+
+            if (!rowTx.length) { alert('Selected shop/booker record not found.'); return; }
+
+            let currentBalance = 0;
+            rowTx.forEach(t => currentBalance += (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0));
+
+            const bookerChanged = cleanStr(originalBooker) !== cleanStr(newBooker);
+            const balanceChanged = Math.abs(currentBalance - newBalance) > 0.000001;
+
+            // Duplicate-shop merge is a NAME operation. Preserve every historical
+            // Booker and every credit/recovery amount. If the user also changes
+            // Booker in this Save, apply that Booker change only to the selected
+            // Shop+Booker row after the rename.
             const duplicateTargetExists = nameChanged && transactions.some(t =>
                 normalizeShopKey(t.shop) === newShopKey &&
                 normalizeShopKey(t.shop) !== oldShopKey
             );
-            if (duplicateTargetExists) {
-                const targetBalanceBeforeMerge = transactions.reduce((sum, t) => {
-                    if (normalizeShopKey(t.shop) === normalizeShopKey(newShop) && cleanStr(t.shop) !== cleanStr(oldShop)) {
-                        return sum + (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0);
-                    }
-                    return sum;
-                }, 0);
-                if (!confirm(`Duplicate shop detected.\n\n${oldShop} will be merged into ${newShop}.\nThe existing balance of both shops will be kept/preserved; no old balance will be marked as paid and no automatic recovery/credit adjustment will be created.\n\nContinue?`)) return;
-
-                const now = new Date().toLocaleString('en-GB');
-                transactions.forEach(t => {
-                    if (normalizeShopKey(t.shop) === oldShopKey) {
-                        t.shop = newShop;
-                        // Shop rename/merge must NOT rewrite historical Booker data.
-                        // Booker changes are handled only by the explicit transfer flow.
-                        t.editedBy = currentUser ? currentUser.username : 'Admin';
-                        if (reason) t.editReason = reason;
-                        t.lastEditedAt = now;
-                    }
-                });
-
-                // IMPORTANT: do not calculate difference against the modal's
-                // Actual Amount here and do not push any SHOP BALANCE ADJUSTMENT.
-                // A duplicate merge is a name/record merge only. All old credit and
-                // recovery amounts stay untouched, so nothing is auto-paid.
-                saveTransactionsToCloud();
-                closeEditShopModal();
-                renderShops();
-                populateShopDropdowns();
-                populateEntryBookersDropdown();
-                populateAssignedShopDropdown();
-                const mergedBalance = targetBalanceBeforeMerge + currentBalance;
-                alert(`Duplicate shop merged successfully.\n\nCombined pending balance: Rs. ${mergedBalance.toLocaleString()}`);
-                return;
-            }
-
-            const balanceChanged = Math.abs(currentBalance - newBalance) > 0.000001;
 
             if ((balanceChanged || nameChanged || bookerChanged) && !reason) {
                 alert('Please enter Why Edit / Reason.');
@@ -3756,23 +3748,41 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             if (!confirm('Save these shop changes?')) return;
 
             const now = new Date().toLocaleString('en-GB');
-            transactions.forEach(t => {
-                if (normalizeShopKey(t.shop) === oldShopKey) {
-                    t.shop = newShop;
-                    // IMPORTANT: Renaming a shop must never change the Booker
-                    // stored on its historical ledger entries. Use the separate
-                    // "Transfer / Change Booker" action when the Booker should change.
+
+            // 1) Rename: rename ALL historical rows of this shop, but NEVER
+            // rewrite their Bookers. This keeps the shop identity consistent.
+            if (nameChanged) {
+                transactions.forEach(t => {
+                    if (normalizeShopKey(t.shop) === oldShopKey) {
+                        t.shop = newShop;
+                        t.editedBy = currentUser ? currentUser.username : 'Admin';
+                        if (reason) t.editReason = reason;
+                        t.lastEditedAt = now;
+                    }
+                });
+            }
+
+            // 2) Normal Booker change: move ONLY the selected Shop+Booker rows.
+            // If the target Booker already has rows for this shop, those rows stay
+            // untouched and the moved rows naturally combine with them in the
+            // Shops Directory. Nothing is deleted and no payment is generated.
+            if (bookerChanged) {
+                rowTx.forEach(t => {
+                    t.booker = newBooker.toUpperCase();
+                    if (!nameChanged) t.shop = oldShop;
                     t.editedBy = currentUser ? currentUser.username : 'Admin';
                     if (reason) t.editReason = reason;
                     t.lastEditedAt = now;
-                }
-            });
+                });
+            }
 
+            // 3) Only an intentional change to Actual Amount creates a balance
+            // adjustment. A Booker change alone MUST NEVER create one.
             if (balanceChanged) {
                 const difference = newBalance - currentBalance;
                 const adjustment = {
                     date: normalizeDate(`${new Date().getDate()}-${new Date().getMonth()+1}-${new Date().getFullYear()}`),
-                    booker: (nameChanged ? (shopTx[0].booker || newBooker) : newBooker).toUpperCase(),
+                    booker: (bookerChanged ? newBooker : (originalBooker || newBooker)).toUpperCase(),
                     shop: newShop,
                     ref: 'SHOP BALANCE ADJUSTMENT',
                     credit: difference > 0 ? difference : 0,
@@ -3790,7 +3800,14 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             populateShopDropdowns();
             populateEntryBookersDropdown();
             populateAssignedShopDropdown();
-            alert('Shop changes saved successfully.');
+
+            if (bookerChanged && !balanceChanged) {
+                alert(`Booker changed successfully. ${rowTx.length} existing ${rowTx.length === 1 ? 'entry was' : 'entries were'} moved from ${originalBooker.toUpperCase()} to ${newBooker.toUpperCase()}. Existing ${newBooker.toUpperCase()} entries were preserved and combined in the shop summary. No balance adjustment was created.`);
+            } else if (nameChanged && !balanceChanged) {
+                alert('Shop name changed successfully. Historical Booker assignments and amounts were preserved.');
+            } else {
+                alert('Shop changes saved successfully.');
+            }
         }
 
         /* PHOTO / PDF LEDGER IMPORT */
