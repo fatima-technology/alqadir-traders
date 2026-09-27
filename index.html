@@ -2461,9 +2461,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         /* RENDER SHOP LEDGER */
         function renderLedger() {
             const shopQuery = cleanStr(document.getElementById('searchShopInput').value);
-            const fromDate = document.getElementById('ledgerFromDate')?.value || '';
             const selectedDate = document.getElementById('ledgerToDate')?.value || '';
-            setReportAsOfDate("Shop Ledger", selectedDate || fromDate);
+            setReportAsOfDate("Shop Ledger", selectedDate);
             const tbody = document.getElementById('ledgerTable');
             tbody.innerHTML = '';
 
@@ -2476,17 +2475,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
 
             let userTx = getFilteredTransactionsForUser();
             let shopTx = userTx.filter(t => normalizeShopKey(t.shop) === normalizeShopKey(shopQuery));
-            // Apply BOTH date limits. Date inputs are YYYY-MM-DD while ledger transaction
-            // dates are stored/displayed as DD-MM-YYYY, so compare using the existing
-            // parseFormattedDate helper. This prevents older records (e.g. July) from
-            // appearing when the user selects an August From Date.
-            if (fromDate) {
-                const from = new Date(fromDate + 'T00:00:00');
-                shopTx = shopTx.filter(t => parseFormattedDate(t.date) >= from);
-            }
             if (selectedDate) {
-                const to = new Date(selectedDate + 'T23:59:59');
-                shopTx = shopTx.filter(t => parseFormattedDate(t.date) <= to);
+                shopTx = shopTx.filter(t => transactionDateOnOrBefore(t, selectedDate));
             }
 
             // Shop Ledger must preserve every original Daily Entry transaction as a separate row.
@@ -3046,8 +3036,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                             editedBy: currentUser ? currentUser.username : 'Admin'
                         });
 
-                        const legacyNonBookerValues = new Set(['STAFF','COMPANY','OUTSTATION','OFFICE']);
-                        if (!knownBookers.includes(booker) && !legacyNonBookerValues.has(booker)) {
+                        if (!knownBookers.includes(booker)) {
                             invalidMap.push(importedIndex);
                             invalidBookerRows.push({
                                 rowNumber: r + 1,
@@ -3726,7 +3715,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 transactions.forEach(t => {
                     if (normalizeShopKey(t.shop) === oldShopKey) {
                         t.shop = newShop;
-                        t.booker = newBooker.toUpperCase();
+                        // Shop rename/merge must NOT rewrite historical Booker data.
+                        // Booker changes are handled only by the explicit transfer flow.
                         t.editedBy = currentUser ? currentUser.username : 'Admin';
                         if (reason) t.editReason = reason;
                         t.lastEditedAt = now;
@@ -3760,7 +3750,9 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             transactions.forEach(t => {
                 if (cleanStr(t.shop) === cleanStr(oldShop)) {
                     t.shop = newShop;
-                    t.booker = newBooker.toUpperCase();
+                    // IMPORTANT: Renaming a shop must never change the Booker
+                    // stored on its historical ledger entries. Use the separate
+                    // "Transfer / Change Booker" action when the Booker should change.
                     t.editedBy = currentUser ? currentUser.username : 'Admin';
                     if (reason) t.editReason = reason;
                     t.lastEditedAt = now;
@@ -3771,7 +3763,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 const difference = newBalance - currentBalance;
                 const adjustment = {
                     date: normalizeDate(`${new Date().getDate()}-${new Date().getMonth()+1}-${new Date().getFullYear()}`),
-                    booker: newBooker.toUpperCase(),
+                    booker: (nameChanged ? (shopTx[0].booker || newBooker) : newBooker).toUpperCase(),
                     shop: newShop,
                     ref: 'SHOP BALANCE ADJUSTMENT',
                     credit: difference > 0 ? difference : 0,
