@@ -3040,14 +3040,24 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                             editedBy: currentUser ? currentUser.username : 'Admin'
                         });
 
+                        // Validate ONLY the 8 actual Booker login names.
+                        // Other internal/non-login labels (COMPANY, ISSUE, OFFICE,
+                        // OUTSTATION, STAFF, etc.) are valid ledger labels and must
+                        // never pause an import. A name is flagged only when it is
+                        // clearly a typo/near-match of one of the 8 Booker logins.
                         if (!knownBookers.includes(booker)) {
-                            invalidMap.push(importedIndex);
-                            invalidBookerRows.push({
-                                rowNumber: r + 1,
-                                booker: bookerRaw,
-                                importedIndex,
-                                suggestions: suggestBookerNames(booker, knownBookers)
-                            });
+                            const suggestions = suggestBookerNames(booker, knownBookers);
+                            const nearest = suggestions.length ? bookerNameDistance(booker, suggestions[0]) : Infinity;
+                            const looksLikeBookerTypo = nearest <= Math.max(2, Math.floor(booker.length * 0.34));
+                            if (looksLikeBookerTypo) {
+                                invalidMap.push(importedIndex);
+                                invalidBookerRows.push({
+                                    rowNumber: r + 1,
+                                    booker: bookerRaw,
+                                    importedIndex,
+                                    suggestions: suggestions
+                                });
+                            }
                         }
                     }
 
