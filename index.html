@@ -257,7 +257,18 @@
         /* USER BAR */
         .user-info-bar { position:relative; z-index:10000; overflow:visible !important; display:flex; justify-content:space-between; align-items:center; background:var(--soft-bg); padding:6px 9px; border-radius:8px; margin-bottom:10px; flex-wrap:nowrap; gap:8px; border:1px solid rgba(255,255,255,0.45); backdrop-filter:blur(8px); min-height:38px; }
         .compact-system-status { font-size:11px; font-weight:700; color:#28a745; display:flex; align-items:center; gap:4px; }
-        .profile-menu-wrap { position:relative; margin-left:auto; z-index:10010; }
+        .profile-menu-wrap { position:relative; z-index:10010; }
+        .notification-wrap { position:relative; margin-left:auto; z-index:10015; }
+        .notification-bell-btn { position:relative; width:34px; height:30px; border:none; border-radius:16px; background:#343a40; color:#fff; cursor:pointer; font-size:16px; line-height:30px; padding:0; }
+        .notification-bell-btn:hover { background:#20252a; }
+        .notification-count { position:absolute; top:-5px; right:-5px; min-width:17px; height:17px; padding:0 4px; border-radius:10px; background:#dc3545; color:#fff; font-size:10px; line-height:17px; font-weight:800; border:2px solid #fff; display:none; }
+        .notification-panel { display:none; position:absolute; right:0; top:calc(100% + 7px); width:310px; max-width:calc(100vw - 24px); background:#fff; color:#222; border:1px solid #ddd; border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.25); padding:10px; z-index:10030; }
+        .notification-panel.open { display:block; }
+        .notification-panel-title { font-weight:800; font-size:13px; padding:4px 5px 8px; border-bottom:1px solid #eee; }
+        .notification-list { max-height:300px; overflow:auto; }
+        .notification-item { padding:8px 6px; border-bottom:1px solid #eee; font-size:12px; line-height:1.35; }
+        .notification-item:last-child { border-bottom:none; }
+        .notification-empty { padding:14px 6px; color:#777; text-align:center; font-size:12px; }
         .profile-menu-btn { background:#343a40; color:#fff; border:none; border-radius:18px; padding:6px 11px; cursor:pointer; font-size:12px; font-weight:700; line-height:1; white-space:nowrap; }
         .profile-menu-btn:hover { background:#20252a; }
         .profile-menu-dropdown { display:none; position:absolute; right:0; top:calc(100% + 6px); width:260px; background:#fff; color:#222; border:1px solid #ddd; border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.25); padding:9px; z-index:10020; }
@@ -377,6 +388,8 @@
             .container { width: 100%; max-width: none; box-sizing: border-box; padding: 8px; border-radius: 0; background: var(--card-bg); }
             .user-info-bar { padding:5px 6px; gap:5px; min-height:34px; margin-bottom:6px; }
             .compact-system-status { font-size:9px; }
+            .notification-panel { width:min(310px, calc(100vw - 24px)); right:0; }
+            .notification-bell-btn { width:32px; height:29px; line-height:29px; font-size:15px; }
             .profile-menu-btn { padding:6px 9px; font-size:10px; }
             .profile-menu-dropdown { width:min(245px, calc(100vw - 24px)); right:0; }
             .brand-header-custom { flex-direction:row; text-align:initial; align-items:center; padding:7px 8px; gap:4px; margin-bottom:6px; flex-wrap:nowrap; }
@@ -538,6 +551,13 @@
         <div class="user-info-bar no-print compact-profile-bar">
             <div class="compact-system-status">
                 <span class="status-dot"></span><span>System Connected</span>
+            </div>
+            <div class="notification-wrap">
+                <button class="notification-bell-btn" id="notificationBellBtn" type="button" onclick="toggleNotificationPanel(event)" aria-label="Open notifications" title="Notifications">🔔<span class="notification-count" id="notificationCount">0</span></button>
+                <div class="notification-panel" id="notificationPanel">
+                    <div class="notification-panel-title">🔔 Previous Outstanding Credit</div>
+                    <div class="notification-list" id="notificationList"><div class="notification-empty">No pending previous credit.</div></div>
+                </div>
             </div>
             <div class="profile-menu-wrap">
                 <button class="profile-menu-btn" id="profileMenuBtn" type="button" onclick="toggleProfileMenu()" aria-label="Open profile menu">
@@ -1218,6 +1238,15 @@
             const menu = document.getElementById('profileMenuDropdown');
             if (menu) menu.classList.remove('open');
         }
+        function toggleNotificationPanel(e) {
+            if (e) e.stopPropagation();
+            const panel = document.getElementById('notificationPanel');
+            if (panel) panel.classList.toggle('open');
+        }
+        function closeNotificationPanel() {
+            const panel = document.getElementById('notificationPanel');
+            if (panel) panel.classList.remove('open');
+        }
         function syncProfileLabel() {
             const label = document.getElementById('profileUserLabel');
             const name = document.getElementById('loggedUsername');
@@ -1225,8 +1254,59 @@
         }
         document.addEventListener('click', function(e) {
             const wrap = document.querySelector('.profile-menu-wrap');
+            const nwrap = document.querySelector('.notification-wrap');
             if (wrap && !wrap.contains(e.target)) closeProfileMenu();
+            if (nwrap && !nwrap.contains(e.target)) closeNotificationPanel();
         });
+
+        function getPreviousCreditNotifications() {
+            if (!currentUser || !Array.isArray(transactions)) return [];
+            const bookerFilter = cleanStr(currentUser.bookerName || '');
+            const isAdmin = currentUser.role === 'admin';
+            const allowedShops = Array.isArray(currentUser.allowedShops) ? currentUser.allowedShops.map(cleanStr).filter(Boolean) : [];
+            const totals = Object.create(null);
+            const names = Object.create(null);
+            for (const t of transactions) {
+                const shop = cleanStr(t.shop || '');
+                if (!shop) continue;
+                const tb = cleanStr(t.booker || '');
+                if (!isAdmin && bookerFilter && tb !== bookerFilter) continue;
+                if (!isAdmin && allowedShops.length && !allowedShops.includes(shop)) continue;
+                if (!isAdmin && !bookerFilter && currentUser.role !== 'shop') continue;
+                const credit = Number(t.credit) || 0;
+                const recovery = Number(t.recovery) || 0;
+                totals[shop] = (totals[shop] || 0) + credit - recovery;
+                names[shop] = t.shop;
+            }
+            return Object.keys(totals).filter(k => totals[k] > 0.0001).map(k => ({ shop:names[k] || k, balance:totals[k] })).sort((a,b) => b.balance-a.balance);
+        }
+
+        function renderPreviousCreditNotifications() {
+            const list = document.getElementById('notificationList');
+            const badge = document.getElementById('notificationCount');
+            if (!list || !badge) return [];
+            const items = getPreviousCreditNotifications();
+            badge.textContent = String(items.length);
+            badge.style.display = items.length ? 'block' : 'none';
+            if (!items.length) {
+                list.innerHTML = '<div class="notification-empty">No pending previous credit.</div>';
+                return items;
+            }
+            list.innerHTML = items.slice(0, 100).map((x, i) => `<div class="notification-item"><strong>${i+1}. ${String(x.shop).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]))}</strong><br><span>Previous outstanding: <b>Rs. ${Number(x.balance).toLocaleString()}</b></span></div>`).join('');
+            return items;
+        }
+
+        function notifyPreviousCreditsOnLogin() {
+            const items = renderPreviousCreditNotifications();
+            if (!currentUser || !items.length) return;
+            const key = 'alqadir_prev_credit_notified_' + cleanStr(currentUser.username);
+            const signature = items.slice(0, 100).map(x => cleanStr(x.shop) + ':' + Math.round(x.balance*100)/100).join('|');
+            const previous = sessionStorage.getItem(key);
+            if (previous === signature) return;
+            sessionStorage.setItem(key, signature);
+            const first = items.slice(0,3).map(x => `${x.shop}: Rs. ${Number(x.balance).toLocaleString()}`).join(' | ');
+            showSystemNotification('Previous Credit Reminder', `${items.length} shop(s) have outstanding previous credit. ${first}`);
+        }
 
         /* NOTIFICATIONS */
         function checkNotificationStatus() {
@@ -1254,7 +1334,7 @@
             }
         }
 
-        document.addEventListener("DOMContentLoaded", () => { checkNotificationStatus(); syncProfileLabel(); });
+        document.addEventListener("DOMContentLoaded", () => { checkNotificationStatus(); syncProfileLabel(); renderPreviousCreditNotifications(); });
 
         /* TAB THEMES */
         const TAB_THEMES = {
@@ -1863,8 +1943,10 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             try { await saveUsersToCloud(); } catch (e) { console.warn('Login user status save:', e); }
             applyUserPermissions();
             startLivePresence();
+            renderPreviousCreditNotifications();
             recordUserActivity('Login', syncOk ? 'User logged in after Firebase sync' : 'User logged in using local safety data');
             showSystemNotification('Login Successful', `Welcome back, ${currentUser.username.toUpperCase()}! 🚀`);
+            notifyPreviousCreditsOnLogin();
             await waitMs(180);
             hideLoginSyncLoader();
             return { ok:true };
@@ -2843,20 +2925,16 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         let pendingCSVImport = null;
 
         function getConfiguredBookerNames() {
-            // IMPORTANT: CSV Booker validation is ONLY for the 8 actual Booker
-            // login accounts. These are the only names that must be checked.
-            // Internal/non-login labels such as COMPANY, ISSUE, OFFICE,
-            // OUTSTATION and STAFF must NEVER pause a CSV upload.
-            return [
-                'ARSALAN',
-                'INAAM',
-                'KASHIF',
-                'NADEEM',
-                'RIZWAN',
-                'TALHA',
-                'WAQAS',
-                'ZEESHAN'
-            ];
+            const set = new Set();
+            (Array.isArray(USERS_DATABASE) ? USERS_DATABASE : []).forEach(u => {
+                if (!u) return;
+                const role = String(u.role || '').trim().toLowerCase();
+                const b = String(u.bookerName || '').trim().replace(/\s+/g, ' ').toUpperCase();
+                const username = String(u.username || '').trim().replace(/\s+/g, ' ').toUpperCase();
+                if (role === 'booker' && username && username !== 'ADMIN') set.add(username);
+                if (b && b !== 'ALL' && b !== 'UNDEFINED' && b !== 'UNKNOWN') set.add(b);
+            });
+            return Array.from(set).filter(Boolean).sort((a,b) => a.localeCompare(b));
         }
 
         function normalizeBookerMatchName(value) {
@@ -3040,24 +3118,14 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                             editedBy: currentUser ? currentUser.username : 'Admin'
                         });
 
-                        // Validate ONLY the 8 actual Booker login names.
-                        // Other internal/non-login labels (COMPANY, ISSUE, OFFICE,
-                        // OUTSTATION, STAFF, etc.) are valid ledger labels and must
-                        // never pause an import. A name is flagged only when it is
-                        // clearly a typo/near-match of one of the 8 Booker logins.
                         if (!knownBookers.includes(booker)) {
-                            const suggestions = suggestBookerNames(booker, knownBookers);
-                            const nearest = suggestions.length ? bookerNameDistance(booker, suggestions[0]) : Infinity;
-                            const looksLikeBookerTypo = nearest <= Math.max(2, Math.floor(booker.length * 0.34));
-                            if (looksLikeBookerTypo) {
-                                invalidMap.push(importedIndex);
-                                invalidBookerRows.push({
-                                    rowNumber: r + 1,
-                                    booker: bookerRaw,
-                                    importedIndex,
-                                    suggestions: suggestions
-                                });
-                            }
+                            invalidMap.push(importedIndex);
+                            invalidBookerRows.push({
+                                rowNumber: r + 1,
+                                booker: bookerRaw,
+                                importedIndex,
+                                suggestions: suggestBookerNames(booker, knownBookers)
+                            });
                         }
                     }
 
@@ -3609,10 +3677,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         /* DATA ENTRY & MODALS */
         /* SHOP EDIT / TRANSFER / DELETE */
         function getShopTransactions(shopName) {
-            // Always resolve a shop by its normalized key so case, spacing,
-            // hyphen/format differences do not leave historical rows behind.
-            const key = normalizeShopKey(shopName);
-            return transactions.filter(t => normalizeShopKey(t.shop) === key);
+            const key = cleanStr(shopName);
+            return transactions.filter(t => cleanStr(t.shop) === key);
         }
 
         function openEditShopModal(shopName, bookerName, balance) {
@@ -3634,11 +3700,6 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             }
             document.getElementById('modalShopBalanceInput').value = Number(balance || 0);
             document.getElementById('modalShopEditReason').value = '';
-            // Remember which Shop+Booker row opened the editor. The Shops table
-            // can contain the same shop under multiple bookers; a normal Save
-            // should move only the selected booker's entries, while the explicit
-            // Transfer button can still move the whole shop.
-            modal.dataset.originalBooker = bookerName || '';
             modal.style.display = 'flex';
         }
 
@@ -3674,23 +3735,16 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             if (!oldShop || !targetBooker) { alert('Please select a target Booker.'); return; }
             const shopTx = getShopTransactions(oldShop);
             if (!shopTx.length) { alert('Shop record not found.'); return; }
-            const targetBookerKey = cleanStr(targetBooker);
-            const allAlreadyTarget = shopTx.every(t => cleanStr(t.booker) === targetBookerKey);
-            if (allAlreadyTarget) { alert('This shop is already assigned to this Booker.'); return; }
+            if (cleanStr(shopTx[0].booker) === cleanStr(targetBooker)) { alert('This shop is already assigned to this Booker.'); return; }
             if (!reason) { alert('Please enter the reason for transfer.'); return; }
-            if (!confirm(`Transfer ALL ${shopTx.length} entries of "${oldShop}" to Booker "${targetBooker}"?`)) return;
+            if (!confirm(`Transfer all entries of "${oldShop}" to Booker "${targetBooker}"?`)) return;
             const now = new Date().toLocaleString('en-GB');
-            const shopKey = normalizeShopKey(oldShop);
-            let changedCount = 0;
             transactions.forEach(t => {
-                // IMPORTANT: transfer every historical row belonging to the
-                // normalized shop. Never create/delete/adjust a ledger amount.
-                if (normalizeShopKey(t.shop) === shopKey) {
+                if (cleanStr(t.shop) === cleanStr(oldShop)) {
                     t.booker = targetBooker.toUpperCase();
                     t.editedBy = currentUser ? currentUser.username : 'Admin';
                     t.editReason = reason;
                     t.lastEditedAt = now;
-                    changedCount++;
                 }
             });
             saveTransactionsToCloud();
@@ -3698,62 +3752,74 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             renderShops();
             populateShopDropdowns();
             populateEntryBookersDropdown();
-            alert(`Shop transferred successfully. ${changedCount} existing ledger entries were moved to ${targetBooker.toUpperCase()}. No balance adjustment was created.`);
+            alert('Shop transferred successfully.');
         }
 
         function saveEditShopDetails() {
-            const modal = document.getElementById('editShopModal');
             const oldShop = document.getElementById('modalOldShopName').value.trim();
             const newShop = document.getElementById('modalShopNameInput').value.trim();
             const newBooker = document.getElementById('modalShopBookerSelect').value.trim();
-            const originalBooker = ((modal && modal.dataset.originalBooker) || '').trim();
             const newBalanceRaw = document.getElementById('modalShopBalanceInput').value.trim();
             const reason = document.getElementById('modalShopEditReason').value.trim();
             const newBalance = parseFloat(newBalanceRaw);
             if (!oldShop || !newShop || !newBooker) { alert('Please fill Shop Name and Booker.'); return; }
             if (newBalanceRaw === '' || Number.isNaN(newBalance)) { alert('Please enter Actual Amount / Net Balance.'); return; }
 
+            const shopTx = getShopTransactions(oldShop);
+            if (!shopTx.length) { alert('Shop record not found.'); return; }
+
+            let currentBalance = 0;
+            shopTx.forEach(t => currentBalance += (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0));
             const oldShopKey = normalizeShopKey(oldShop);
             const newShopKey = normalizeShopKey(newShop);
             const nameChanged = oldShopKey !== newShopKey;
+            const bookerChanged = cleanStr(shopTx[0].booker) !== cleanStr(newBooker);
 
-            // The Shops Directory is grouped by Shop + Booker. Therefore a normal
-            // Save from one row must work on THAT row's historical transactions,
-            // not every transaction of the shop. This is what lets:
-            //   ASM / ZEESHAN + ASM / WAQAS
-            // become one ASM / ZEESHAN account when WAQAS is changed to ZEESHAN,
-            // without creating a fake payment/adjustment.
-            const sourceBookerKey = cleanStr(originalBooker);
-            const selectedTx = transactions.filter(t =>
-                normalizeShopKey(t.shop) === oldShopKey &&
-                cleanStr(t.booker) === sourceBookerKey
-            );
-
-            // Fallback for legacy/modal calls where the original Booker was not
-            // stored: use the current selected Booker, but still never treat the
-            // whole shop as the selected row for a normal Save.
-            const effectiveSourceBookerKey = sourceBookerKey || cleanStr(newBooker);
-            const rowTx = sourceBookerKey ? selectedTx : transactions.filter(t =>
-                normalizeShopKey(t.shop) === oldShopKey &&
-                cleanStr(t.booker) === effectiveSourceBookerKey
-            );
-
-            if (!rowTx.length) { alert('Selected shop/booker record not found.'); return; }
-
-            let currentBalance = 0;
-            rowTx.forEach(t => currentBalance += (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0));
-
-            const bookerChanged = cleanStr(originalBooker) !== cleanStr(newBooker);
-            const balanceChanged = Math.abs(currentBalance - newBalance) > 0.000001;
-
-            // Duplicate-shop merge is a NAME operation. Preserve every historical
-            // Booker and every credit/recovery amount. If the user also changes
-            // Booker in this Save, apply that Booker change only to the selected
-            // Shop+Booker row after the rename.
+            // Duplicate-shop merge: compare NORMALIZED names (case/extra spaces
+            // included), and NEVER create a balance-adjustment/recovery entry during
+            // a merge. The existing ledger rows from both shop records must remain
+            // exactly as credit/recovery records; the merged balance is simply their
+            // combined net balance.
             const duplicateTargetExists = nameChanged && transactions.some(t =>
                 normalizeShopKey(t.shop) === newShopKey &&
                 normalizeShopKey(t.shop) !== oldShopKey
             );
+            if (duplicateTargetExists) {
+                const targetBalanceBeforeMerge = transactions.reduce((sum, t) => {
+                    if (normalizeShopKey(t.shop) === normalizeShopKey(newShop) && cleanStr(t.shop) !== cleanStr(oldShop)) {
+                        return sum + (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0);
+                    }
+                    return sum;
+                }, 0);
+                if (!confirm(`Duplicate shop detected.\n\n${oldShop} will be merged into ${newShop}.\nThe existing balance of both shops will be kept/preserved; no old balance will be marked as paid and no automatic recovery/credit adjustment will be created.\n\nContinue?`)) return;
+
+                const now = new Date().toLocaleString('en-GB');
+                transactions.forEach(t => {
+                    if (normalizeShopKey(t.shop) === oldShopKey) {
+                        t.shop = newShop;
+                        t.booker = newBooker.toUpperCase();
+                        t.editedBy = currentUser ? currentUser.username : 'Admin';
+                        if (reason) t.editReason = reason;
+                        t.lastEditedAt = now;
+                    }
+                });
+
+                // IMPORTANT: do not calculate difference against the modal's
+                // Actual Amount here and do not push any SHOP BALANCE ADJUSTMENT.
+                // A duplicate merge is a name/record merge only. All old credit and
+                // recovery amounts stay untouched, so nothing is auto-paid.
+                saveTransactionsToCloud();
+                closeEditShopModal();
+                renderShops();
+                populateShopDropdowns();
+                populateEntryBookersDropdown();
+                populateAssignedShopDropdown();
+                const mergedBalance = targetBalanceBeforeMerge + currentBalance;
+                alert(`Duplicate shop merged successfully.\n\nCombined pending balance: Rs. ${mergedBalance.toLocaleString()}`);
+                return;
+            }
+
+            const balanceChanged = Math.abs(currentBalance - newBalance) > 0.000001;
 
             if ((balanceChanged || nameChanged || bookerChanged) && !reason) {
                 alert('Please enter Why Edit / Reason.');
@@ -3762,41 +3828,21 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             if (!confirm('Save these shop changes?')) return;
 
             const now = new Date().toLocaleString('en-GB');
-
-            // 1) Rename: rename ALL historical rows of this shop, but NEVER
-            // rewrite their Bookers. This keeps the shop identity consistent.
-            if (nameChanged) {
-                transactions.forEach(t => {
-                    if (normalizeShopKey(t.shop) === oldShopKey) {
-                        t.shop = newShop;
-                        t.editedBy = currentUser ? currentUser.username : 'Admin';
-                        if (reason) t.editReason = reason;
-                        t.lastEditedAt = now;
-                    }
-                });
-            }
-
-            // 2) Normal Booker change: move ONLY the selected Shop+Booker rows.
-            // If the target Booker already has rows for this shop, those rows stay
-            // untouched and the moved rows naturally combine with them in the
-            // Shops Directory. Nothing is deleted and no payment is generated.
-            if (bookerChanged) {
-                rowTx.forEach(t => {
+            transactions.forEach(t => {
+                if (cleanStr(t.shop) === cleanStr(oldShop)) {
+                    t.shop = newShop;
                     t.booker = newBooker.toUpperCase();
-                    if (!nameChanged) t.shop = oldShop;
                     t.editedBy = currentUser ? currentUser.username : 'Admin';
                     if (reason) t.editReason = reason;
                     t.lastEditedAt = now;
-                });
-            }
+                }
+            });
 
-            // 3) Only an intentional change to Actual Amount creates a balance
-            // adjustment. A Booker change alone MUST NEVER create one.
             if (balanceChanged) {
                 const difference = newBalance - currentBalance;
                 const adjustment = {
                     date: normalizeDate(`${new Date().getDate()}-${new Date().getMonth()+1}-${new Date().getFullYear()}`),
-                    booker: (bookerChanged ? newBooker : (originalBooker || newBooker)).toUpperCase(),
+                    booker: newBooker.toUpperCase(),
                     shop: newShop,
                     ref: 'SHOP BALANCE ADJUSTMENT',
                     credit: difference > 0 ? difference : 0,
@@ -3814,14 +3860,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             populateShopDropdowns();
             populateEntryBookersDropdown();
             populateAssignedShopDropdown();
-
-            if (bookerChanged && !balanceChanged) {
-                alert(`Booker changed successfully. ${rowTx.length} existing ${rowTx.length === 1 ? 'entry was' : 'entries were'} moved from ${originalBooker.toUpperCase()} to ${newBooker.toUpperCase()}. Existing ${newBooker.toUpperCase()} entries were preserved and combined in the shop summary. No balance adjustment was created.`);
-            } else if (nameChanged && !balanceChanged) {
-                alert('Shop name changed successfully. Historical Booker assignments and amounts were preserved.');
-            } else {
-                alert('Shop changes saved successfully.');
-            }
+            alert('Shop changes saved successfully.');
         }
 
         /* PHOTO / PDF LEDGER IMPORT */
