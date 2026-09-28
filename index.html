@@ -2931,8 +2931,10 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 const role = String(u.role || '').trim().toLowerCase();
                 const b = String(u.bookerName || '').trim().replace(/\s+/g, ' ').toUpperCase();
                 const username = String(u.username || '').trim().replace(/\s+/g, ' ').toUpperCase();
-                if (role === 'booker' && username && username !== 'ADMIN') set.add(username);
-                if (b && b !== 'ALL' && b !== 'UNDEFINED' && b !== 'UNKNOWN') set.add(b);
+                // IMPORTANT: CSV validation must check ONLY Booker accounts that
+                // actually have the Booker role/login. Do not treat Admin, Company,
+                // Staff, Office or other usernames as valid Booker names.
+                if (role === 'booker' && b && b !== 'ALL' && b !== 'UNDEFINED' && b !== 'UNKNOWN') set.add(b);
             });
             return Array.from(set).filter(Boolean).sort((a,b) => a.localeCompare(b));
         }
