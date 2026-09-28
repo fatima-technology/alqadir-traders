@@ -2963,18 +2963,62 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         function suggestBookerNames(input, knownNames) {
             const q = normalizeBookerMatchName(input);
             if (!q) return [];
-            const scored = knownNames.map(name => {
+            const qWords = q.split(' ').filter(Boolean);
+
+            // IMPORTANT: Only flag an unknown CSV value when it genuinely looks
+            // like a spelling/short-name variation of an EXISTING BOOKER login.
+            // Generic labels such as COMPANY, STAFF, OFFICE must never be treated
+            // as Booker errors merely because they are not in the Booker list.
+            function wordDistance(a, b) {
+                a = String(a || ''); b = String(b || '');
+                if (!a || !b) return Math.max(a.length, b.length);
+                if (a === b) return 0;
+                if (a.startsWith(b) || b.startsWith(a)) return 0;
+                if (Math.abs(a.length - b.length) > 1) return 99;
+                const prev = Array.from({length: b.length + 1}, (_, i) => i);
+                for (let i = 1; i <= a.length; i++) {
+                    let rowMin = i;
+                    const cur = [i];
+                    for (let j = 1; j <= b.length; j++) {
+                        cur[j] = Math.min(
+                            cur[j - 1] + 1,
+                            prev[j] + 1,
+                            prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+                        );
+                        rowMin = Math.min(rowMin, cur[j]);
+                    }
+                    if (rowMin > 1) return 99;
+                    for (let j = 0; j < cur.length; j++) prev[j] = cur[j];
+                }
+                return prev[b.length];
+            }
+
+            return knownNames.map(name => {
                 const n = normalizeBookerMatchName(name);
-                let score = bookerNameDistance(q, n);
-                if (n.startsWith(q) || q.startsWith(n)) score = Math.max(0, score - 3);
-                const qWords = q.split(' ').filter(Boolean), nWords = n.split(' ').filter(Boolean);
-                if (qWords.length && qWords.every(w => nWords.some(nw => nw === w || nw.startsWith(w)))) score = Math.max(0, score - 2);
+                const nWords = n.split(' ').filter(Boolean);
+                if (!nWords.length) return null;
+
+                // Every word typed in the file must correspond to an existing
+                // Booker word. This catches: ZEESHAN -> ZEESHAN AHMAD,
+                // ZEESHAN AHMD -> ZEESHAN AHMAD, TALHA -> TALHA SOHAIL, etc.
+                // COMPANY/STAFF/OFFICE have no such relationship and therefore
+                // return no suggestion and are imported normally.
+                const matched = qWords.every(qw => nWords.some(nw => wordDistance(qw, nw) <= 1));
+                if (!matched) return null;
+
+                // Require at least one meaningful relationship to avoid broad
+                // unrelated-name matches.
+                let score = 0;
+                qWords.forEach(qw => {
+                    const best = Math.min(...nWords.map(nw => wordDistance(qw, nw)));
+                    score += best;
+                });
+                score += Math.max(0, nWords.length - qWords.length) * 0.25;
                 return { name, score };
-            }).sort((a,b) => a.score - b.score || a.name.localeCompare(b.name));
-            // IMPORTANT: only treat an unknown CSV name as a Booker typo when it
-            // is actually close to an existing Booker login. Unrelated labels such
-            // as COMPANY, STAFF, OFFICE must pass through without an error dialog.
-            return scored.filter(x => x.score <= 2).slice(0, 3).map(x => x.name);
+            }).filter(Boolean)
+              .sort((a,b) => a.score - b.score || a.name.localeCompare(b.name))
+              .slice(0, 3)
+              .map(x => x.name);
         }
 
         function htmlEscapeBooker(value) {
