@@ -250,6 +250,44 @@
             background: linear-gradient(135deg, #ff2a3a 0%, #c4101a 100%);
             transform: translateY(-2px); box-shadow: 0 8px 20px rgba(228,30,45,0.6);
         }
+        .login-error-message {
+            display:none;
+            margin-top:10px;
+            padding:9px 11px;
+            border:1px solid rgba(255,90,90,.45);
+            border-left:4px solid #e41e2d;
+            border-radius:7px;
+            background:rgba(228,30,45,.10);
+            color:#ffb5bb;
+            font-size:12px;
+            font-weight:700;
+            line-height:1.5;
+            text-align:left;
+        }
+        .login-input-error { border-color:#e41e2d !important; box-shadow:0 0 0 3px rgba(228,30,45,.12) !important; }
+        .scroll-top-btn {
+            position:fixed;
+            right:18px;
+            bottom:18px;
+            z-index:10040;
+            width:42px;
+            height:42px;
+            border:none;
+            border-radius:50%;
+            background:linear-gradient(135deg,#e41e2d,#b00e17);
+            color:#fff;
+            font-size:19px;
+            font-weight:900;
+            cursor:pointer;
+            box-shadow:0 7px 20px rgba(0,0,0,.35);
+            display:none;
+            align-items:center;
+            justify-content:center;
+            transition:opacity .2s ease, transform .2s ease;
+        }
+        .scroll-top-btn:hover { transform:translateY(-2px); }
+        .scroll-top-btn.show { display:flex; }
+        @media print { .scroll-top-btn { display:none !important; } }
 
         .dev-footer-credits { margin-top: 20px; font-size: 11px; color: rgba(255,255,255,0.7); border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; }
         .dev-footer-credits strong { color: #ffffff; font-weight: 700; }
@@ -526,6 +564,7 @@
                 <span class="eye-icon" id="togglePasswordBtn">👁️</span>
             </div>
             <button class="btn-login" onclick="attemptLogin()">Sign In To Ledger</button>
+            <div id="loginErrorMessage" class="login-error-message" role="alert"></div>
             <div class="dev-footer-credits">
                 Developed & Designed by <strong>ADNAN</strong> | Lead Software Developer
             </div>
@@ -543,6 +582,9 @@
             <div class="login-sync-sub">Please wait — system data will be ready before login completes.</div>
         </div>
     </div>
+
+    <!-- REPORT SCROLL-TO-TOP -->
+    <button id="scrollTopBtn" class="scroll-top-btn no-print" type="button" onclick="scrollReportsToTop()" aria-label="Scroll to top" title="Go to top">⬆</button>
 
     <!-- MAIN CONTAINER -->
     <div class="container">
@@ -1832,15 +1874,85 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             this.textContent = isPass ? '🙈' : '👁️';
         });
 
-        /* LOGIN: fixed sync window so Firebase data is refreshed before the dashboard appears. */
-        const LOGIN_SYNC_MS = 3600;
+        /* LOGIN: fresh Firebase sync + readable daily rotating Urdu quote. */
+        const LOGIN_SYNC_MS = 4500;
+        const LOGIN_SYNC_QUOTE_STORAGE = 'al_qadir_login_quotes_daily_v1';
         const LOGIN_SYNC_QUOTES = [
             'محنت کبھی ضائع نہیں جاتی۔',
             'صبر کامیابی کی پہلی سیڑھی ہے۔',
             'اچھا کام ہمیشہ اچھا نتیجہ لاتا ہے۔',
             'آج کی محنت، کل کی آسانی ہے۔',
-            'نیت صاف ہو تو راستے آسان ہو جاتے ہیں۔'
+            'نیت صاف ہو تو راستے آسان ہو جاتے ہیں۔',
+            'وقت کی قدر کامیابی کی بنیاد ہے۔',
+            'چھوٹی کوشش بھی بڑے نتیجے کی شروعات ہوتی ہے۔',
+            'سچائی انسان کی سب سے بڑی طاقت ہے۔',
+            'مسلسل کوشش کامیابی کا راستہ بناتی ہے۔',
+            'اللہ پر بھروسہ اور اپنی کوشش ساتھ رکھیں۔',
+            'اچھا اخلاق انسان کی اصل پہچان ہے۔',
+            'علم وہ دولت ہے جو بانٹنے سے بڑھتی ہے۔',
+            'آج کا اچھا فیصلہ کل آسانی پیدا کرتا ہے۔',
+            'نظم و ضبط کامیابی کو مضبوط بناتا ہے۔',
+            'امید کا دامن کبھی ہاتھ سے نہ چھوڑیں۔',
+            'نیک نیتی سے کیا گیا کام دل کو سکون دیتا ہے۔',
+            'کامیابی جلدی سے نہیں، مستقل مزاجی سے ملتی ہے۔',
+            'مشکل وقت بھی گزر جاتا ہے، حوصلہ قائم رکھیں۔',
+            'اپنا کام ذمہ داری سے کرنا بہترین عادت ہے۔',
+            'جو وقت کی حفاظت کرتا ہے، وقت اس کی حفاظت کرتا ہے۔',
+            'شکر نعمتوں میں اضافہ اور دل میں سکون لاتا ہے۔',
+            'اچھا ارادہ اور درست عمل مل کر راستہ بناتے ہیں۔',
+            'ہر دن سیکھنے اور بہتر ہونے کا نیا موقع ہے۔',
+            'کامیابی کے لیے رفتار سے زیادہ سمت اہم ہے۔',
+            'دل مضبوط ہو تو مشکل راستے بھی آسان لگتے ہیں۔',
+            'غلطی سے سیکھنا بھی ترقی کا حصہ ہے۔',
+            'اخلاص کے ساتھ کیا گیا کام اپنا اثر ضرور دکھاتا ہے۔',
+            'خاموش محنت اکثر سب سے خوبصورت نتیجہ دیتی ہے۔',
+            'اپنے مقصد پر توجہ رکھیں، شور خود پیچھے رہ جائے گا۔',
+            'اچھا کام آج کریں، کل کا انتظار نہ کریں۔'
         ];
+
+        function getTodayKey() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function getDailyLoginQuoteIndex() {
+            const today = getTodayKey();
+            let state = { date: today, used: [] };
+            try {
+                const saved = JSON.parse(localStorage.getItem(LOGIN_SYNC_QUOTE_STORAGE) || 'null');
+                if (saved && saved.date === today && Array.isArray(saved.used)) state.used = saved.used.filter(i => Number.isInteger(i) && i >= 0 && i < LOGIN_SYNC_QUOTES.length);
+            } catch(e) {}
+
+            let available = LOGIN_SYNC_QUOTES.map((_, i) => i).filter(i => !state.used.includes(i));
+            // If every quote has been used today, keep the no-repeat rule by using a
+            // larger pool above; only reset as a last-resort after all 30 are consumed.
+            if (!available.length) {
+                state = { date: today, used: [] };
+                available = LOGIN_SYNC_QUOTES.map((_, i) => i);
+            }
+            const index = available[Math.floor(Math.random() * available.length)];
+            state.used.push(index);
+            try { localStorage.setItem(LOGIN_SYNC_QUOTE_STORAGE, JSON.stringify(state)); } catch(e) {}
+            return index;
+        }
+
+        function setLoginError(message, field) {
+            const box = document.getElementById('loginErrorMessage');
+            const userEl = document.getElementById('loginUser');
+            const passEl = document.getElementById('loginPass');
+            if (box) { box.textContent = message; box.style.display = 'block'; }
+            if (userEl) userEl.classList.toggle('login-input-error', field === 'username' || field === 'both');
+            if (passEl) passEl.classList.toggle('login-input-error', field === 'password' || field === 'both');
+        }
+
+        function clearLoginError() {
+            const box = document.getElementById('loginErrorMessage');
+            const userEl = document.getElementById('loginUser');
+            const passEl = document.getElementById('loginPass');
+            if (box) { box.textContent = ''; box.style.display = 'none'; }
+            if (userEl) userEl.classList.remove('login-input-error');
+            if (passEl) passEl.classList.remove('login-input-error');
+        }
 
         function setLoginSyncUI(progress, status, quoteIndex) {
             const bar = document.getElementById('loginSyncProgressBar');
@@ -1854,7 +1966,9 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         function showLoginSyncLoader() {
             const overlay = document.getElementById('loginSyncOverlay');
             if (overlay) overlay.classList.add('show');
-            setLoginSyncUI(5, 'Firebase server data verify ho raha hai...', Math.floor(Math.random() * LOGIN_SYNC_QUOTES.length));
+            const quoteIndex = getDailyLoginQuoteIndex();
+            setLoginSyncUI(5, 'Firebase server data verify ho raha hai...', quoteIndex);
+            return quoteIndex;
         }
 
         function hideLoginSyncLoader() {
@@ -1900,34 +2014,38 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         }
 
         async function performLoginSync(candidateUsername, candidatePassword) {
-            showLoginSyncLoader();
+            const quoteIndex = showLoginSyncLoader();
             const started = Date.now();
-            const quoteTimer = setInterval(() => {
+            const progressTimer = setInterval(() => {
                 const elapsed = Date.now() - started;
                 const progress = Math.min(92, 8 + (elapsed / LOGIN_SYNC_MS) * 80);
-                setLoginSyncUI(progress, elapsed < 1700 ? 'Firebase data sync ho raha hai...' : 'Ledger, users aur permissions verify ho rahe hain...', Math.floor(elapsed / 850) % LOGIN_SYNC_QUOTES.length);
-            }, 200);
+                setLoginSyncUI(progress, elapsed < 2200 ? 'Firebase data sync ho raha hai...' : 'Ledger, users aur permissions verify ho rahe hain...', quoteIndex);
+            }, 250);
 
             let syncOk = false;
             try {
-                // Keep the loader visible for the requested fixed window while the fresh reads happen in parallel.
                 await Promise.all([refreshLatestFirebaseDataForLogin(), waitMs(LOGIN_SYNC_MS)]);
                 syncOk = true;
             } catch (e) {
                 console.error('Login Firebase sync failed:', e);
-                // Local safety mirrors remain available; do not block login indefinitely.
-                setLoginSyncUI(92, 'Firebase temporarily unavailable — local safety data verify ki ja rahi hai...', 0);
+                setLoginSyncUI(92, 'Firebase temporarily unavailable — local safety data verify ki ja rahi hai...', quoteIndex);
                 await waitMs(Math.max(0, LOGIN_SYNC_MS - (Date.now() - started)));
             } finally {
-                clearInterval(quoteTimer);
+                clearInterval(progressTimer);
             }
 
-            const freshUser = USERS_DATABASE.find(u => cleanStr(u.username) === cleanStr(candidateUsername) && u.password === candidatePassword);
-            if (!freshUser) {
+            const normalizedUsername = cleanStr(candidateUsername);
+            const matchingUsername = USERS_DATABASE.find(u => cleanStr(u.username) === normalizedUsername);
+            if (!matchingUsername) {
                 hideLoginSyncLoader();
-                return { ok:false, reason:'invalid' };
+                return { ok:false, reason:'username' };
+            }
+            if (matchingUsername.password !== candidatePassword) {
+                hideLoginSyncLoader();
+                return { ok:false, reason:'password' };
             }
 
+            const freshUser = matchingUsername;
             const userIdx = USERS_DATABASE.findIndex(u => u === freshUser);
             const nowStr = new Date().toLocaleString('en-US', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true });
             if (userIdx !== -1) {
@@ -1939,7 +2057,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             }
 
             sessionStorage.setItem('pos_current_user', JSON.stringify(currentUser));
-            setLoginSyncUI(100, syncOk ? 'Sync complete — system ready.' : 'System ready from verified local safety data.', 3);
+            setLoginSyncUI(100, syncOk ? 'Sync complete — system ready.' : 'System ready from verified local safety data.', quoteIndex);
             try { await saveUsersToCloud(); } catch (e) { console.warn('Login user status save:', e); }
             applyUserPermissions();
             startLivePresence();
@@ -1952,20 +2070,79 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             return { ok:true };
         }
 
+        /* FAST LOGIN CREDENTIAL CHECK — IMPORTANT: no loading screen for wrong credentials. */
+        async function validateCredentialsBeforeLoader(username, password) {
+            const normalizedUsername = cleanStr(username);
+
+            // First use already-loaded users for an immediate local check.
+            let users = Array.isArray(USERS_DATABASE) ? USERS_DATABASE : [];
+            let user = users.find(u => cleanStr(u.username) === normalizedUsername);
+            if (user && String(user.password ?? '') === String(password)) {
+                return { ok:true, user };
+            }
+            if (user && String(user.password ?? '') !== String(password)) {
+                return { ok:false, reason:'password' };
+            }
+
+            // If the local list does not contain the username, make a small Firebase
+            // users-only check WITHOUT opening the sync/loading overlay.
+            try {
+                const snap = await db.ref('pos_users_db').once('value');
+                const val = snap.val();
+                if (val) {
+                    const freshUsers = Array.isArray(val) ? val : Object.values(val);
+                    USERS_DATABASE = freshUsers;
+                    safeLocalSet(LOCAL_USERS_KEY, USERS_DATABASE);
+                    user = freshUsers.find(u => cleanStr(u.username) === normalizedUsername);
+                    if (!user) return { ok:false, reason:'username' };
+                    if (String(user.password ?? '') !== String(password)) return { ok:false, reason:'password' };
+                    return { ok:true, user };
+                }
+            } catch (e) {
+                console.warn('Fast credential check Firebase unavailable:', e);
+            }
+
+            // No server answer: if a local username exists, report password; otherwise
+            // report username. Crucially, the sync loader is still NOT shown here.
+            if (user) return { ok:false, reason:'password' };
+            return { ok:false, reason:'username' };
+        }
+
         /* LOGIN */
         async function attemptLogin() {
+            clearLoginError();
             const uInput = cleanStr(document.getElementById('loginUser').value);
             const pInput = document.getElementById('loginPass').value.trim();
-            if (!uInput || !pInput) { alert('Username aur Password enter karein.'); return; }
+            if (!uInput && !pInput) { setLoginError('Username aur Password dono enter karein.', 'both'); return; }
+            if (!uInput) { setLoginError('Username ghalat/khali hai — pehle Username enter karein.', 'username'); return; }
+            if (!pInput) { setLoginError('Password ghalat/khali hai — pehle Password enter karein.', 'password'); return; }
 
             const loginBtn = document.querySelector('.btn-login');
             if (loginBtn) { loginBtn.disabled = true; loginBtn.style.opacity = '0.65'; }
             try {
-                const result = await performLoginSync(uInput, pInput);
-                if (!result.ok) {
-                    alert('Invalid Username or Password!');
+                // IMPORTANT: validate BEFORE showing the Firebase sync loader.
+                // Wrong username/password will be rejected immediately on the login page.
+                const precheck = await validateCredentialsBeforeLoader(uInput, pInput);
+                if (!precheck.ok) {
+                    if (precheck.reason === 'username') {
+                        setLoginError('Username ghalat hai. Ye Username system mein maujood nahi hai.', 'username');
+                    } else {
+                        setLoginError('Password ghalat hai. Password dobara check karein.', 'password');
+                    }
                     return;
                 }
+
+                // Only valid credentials are allowed to enter the loading/sync stage.
+                const result = await performLoginSync(uInput, pInput);
+                if (!result.ok) {
+                    if (result.reason === 'username') {
+                        setLoginError('Username ghalat hai. Ye Username system mein maujood nahi hai.', 'username');
+                    } else {
+                        setLoginError('Password ghalat hai. Password dobara check karein.', 'password');
+                    }
+                    return;
+                }
+                clearLoginError();
             } finally {
                 if (loginBtn) { loginBtn.disabled = false; loginBtn.style.opacity = ''; }
             }
@@ -2125,7 +2302,12 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             const role = currentUser.role;
             const userBooker = String(currentUser.bookerName || '').trim().toUpperCase();
             const allowedShops = new Set((currentUser.allowedShops || []).map(s => normalizeShopKey(s)));
-            const assignedShopKey = role === 'shop' ? normalizeShopKey(userBooker) : '';
+            // New records use assignedShopName. Old records used bookerName to store
+            // the shop name, so keep the fallback for existing Firebase users.
+            const assignedShopName = role === 'shop'
+                ? String(currentUser.assignedShopName || currentUser.bookerName || '').trim()
+                : '';
+            const assignedShopKey = role === 'shop' ? normalizeShopKey(assignedShopName) : '';
 
             // Build role filters ONCE, not once per transaction. This is important when
             // the ledger contains thousands of rows and keeps mobile/dashboard rendering fast.
@@ -2201,8 +2383,12 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 const role = (u.role || '').toString().trim().toLowerCase();
                 const bName = (u.bookerName || '').toString().trim().toUpperCase();
                 const username = (u.username || '').toString().trim().toUpperCase();
-                if (bName && bName !== 'ALL' && bName !== 'UNDEFINED' && bName !== 'UNKNOWN') bookersSet.add(bName);
-                // If a booker account has no separate bookerName, its username is its route name.
+                // IMPORTANT: Shop Ledger users have a shop name, not a Booker name.
+                // Never add their assigned shop to any Booker selector.
+                if (role === 'booker' && bName && bName !== 'ALL' && bName !== 'UNDEFINED' && bName !== 'UNKNOWN') {
+                    bookersSet.add(bName);
+                }
+                // If a real Booker account has no separate bookerName, its username is its route name.
                 if (role === 'booker' && username && username !== 'ADMIN') bookersSet.add(username);
             });
 
@@ -2297,8 +2483,37 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
 
             let bookerFilter = bookerSelect?.value || 'ALL';
 
+            // Reset UI locks when changing accounts without a full page reload.
+            const bookerField = bookerSelect?.closest('.ledger-filter-field');
+            const searchEl = document.getElementById('searchShopInput');
+            if (!currentUser || currentUser.role !== 'shop') {
+                if (bookerField) bookerField.style.display = '';
+                if (bookerSelect) bookerSelect.disabled = false;
+                if (searchEl) searchEl.readOnly = false;
+                if (dropdown) dropdown.disabled = false;
+            }
+
             // A logged-in Booker can only browse ledgers for their own assigned shops.
-            if (currentUser && currentUser.role === 'booker') {
+            if (currentUser && currentUser.role === 'shop') {
+                // Single Shop Access: lock both Booker and Shop selectors to the
+                // one assigned shop. Other shops/bookers are not exposed.
+                const assignedShop = (currentUser.assignedShopName || currentUser.bookerName || '').toString().trim();
+                if (bookerSelect) {
+                    bookerSelect.innerHTML = '<option value="__SINGLE_SHOP__">🔒 Single Shop Access</option>';
+                    bookerSelect.value = '__SINGLE_SHOP__';
+                    bookerSelect.disabled = true;
+                    const bookerField = bookerSelect.closest('.ledger-filter-field');
+                    if (bookerField) bookerField.style.display = 'none';
+                }
+                dropdown.innerHTML = assignedShop
+                    ? `<option value="${assignedShop.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}">${assignedShop}</option>`
+                    : '<option value="">-- No Shop Assigned --</option>';
+                dropdown.value = assignedShop;
+                dropdown.disabled = true;
+                const searchEl = document.getElementById('searchShopInput');
+                if (searchEl) { searchEl.value = assignedShop; searchEl.readOnly = true; }
+                return;
+            } else if (currentUser && currentUser.role === 'booker') {
                 const ownBooker = (currentUser.bookerName || '').toString().trim().toUpperCase();
                 if (bookerSelect) {
                     bookerSelect.innerHTML = ownBooker
@@ -2542,7 +2757,15 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
 
         /* RENDER SHOP LEDGER */
         function renderLedger() {
-            const shopQuery = cleanStr(document.getElementById('searchShopInput').value);
+            let shopQuery = cleanStr(document.getElementById('searchShopInput').value);
+            // Single-Shop users can never change the ledger target. Force the
+            // assigned shop even if the browser restores an old search value.
+            if (currentUser && currentUser.role === 'shop') {
+                const assigned = cleanStr(currentUser.assignedShopName || currentUser.bookerName || '');
+                shopQuery = assigned;
+                const searchEl = document.getElementById('searchShopInput');
+                if (searchEl) { searchEl.value = assigned; searchEl.readOnly = true; }
+            }
             const selectedDate = document.getElementById('ledgerToDate')?.value || '';
             setReportAsOfDate("Shop Ledger", selectedDate);
             const tbody = document.getElementById('ledgerTable');
@@ -3449,7 +3672,13 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             const bs=new Set((selectedBookers||[]).map(x=>x.toString().trim().toUpperCase()).filter(Boolean));
             const bookers=new Set();
             transactions.forEach(t=>{if(t.booker) bookers.add(t.booker.toString().trim().toUpperCase());});
-            USERS_DATABASE.forEach(u=>{if(u && u.bookerName && u.bookerName!=='ALL') bookers.add(u.bookerName.toString().trim().toUpperCase());});
+            // Only real Booker accounts belong in the Booker selector. A Shop Ledger
+            // account may store a shop name for backwards compatibility, but that
+            // shop must NEVER become a Booker.
+            USERS_DATABASE.forEach(u=>{
+                if (!u || u.role !== 'booker') return;
+                if (u.bookerName && u.bookerName !== 'ALL') bookers.add(u.bookerName.toString().trim().toUpperCase());
+            });
             const bookerList=Array.from(bookers).filter(Boolean).sort();
             b.innerHTML=bookerList.map(x=>`<label class="checkbox-label"><input type="checkbox" class="custom-booker-cb" value="${x}" ${bs.has(x)?'checked':''} onchange="refreshCustomHideBookers()"> ${x}</label>`).join('');
 
@@ -3644,7 +3873,10 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                 username: u,
                 password: p,
                 role: role,
-                bookerName: bName || 'ALL',
+                // Shop Ledger users must NOT have their shop stored as bookerName.
+                // That was the source of the shop appearing in Booker lists.
+                bookerName: role === 'shop' ? 'ALL' : (bName || 'ALL'),
+                assignedShopName: role === 'shop' ? bName : '',
                 allowedShops: role === 'booker' ? allowedShops : [],
                 allowedDashBookers: role === 'dashboard_only' ? allowedDashBookers : [],
                 hiddenDashboardShops: role === 'dashboard_only' ? hiddenDashboardShops : [],
@@ -3684,7 +3916,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
                         <td class="text-left"><strong>${u.username}</strong></td>
                         <td class="text-left">${u.password}</td>
                         <td class="text-center"><span style="background:#007bff; color:white; padding:2px 6px; border-radius:4px; font-size:11px;">${u.role.toUpperCase()}</span></td>
-                        <td class="text-left">${u.bookerName || '-'} ${(u.allowedShops && u.allowedShops.length > 0) ? `(${u.allowedShops.length} shops)` : ''}</td>
+                        <td class="text-left">${u.role === 'shop' ? (u.assignedShopName || u.bookerName || '-') : (u.bookerName || '-')} ${(u.allowedShops && u.allowedShops.length > 0) ? `(${u.allowedShops.length} shops)` : ''}</td>
                         <td class="text-center">${st.online ? '<span style="color:#28a745; font-weight:bold; white-space:nowrap;">🟢 ONLINE</span>' : '<span style="color:#dc3545; font-weight:bold; white-space:nowrap;">🔴 OFFLINE</span>'}</td>
                         <td class="text-left" style="font-size:11px;">${activity}</td>
                         <td class="no-print text-center">
@@ -3704,8 +3936,9 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             document.getElementById('newPassword').value = u.password || '';
             document.getElementById('newUserRole').value = u.role || 'data_entry';
             document.getElementById('newBookerName').value = u.bookerName || '';
-            populateAssignedShopDropdown(u.bookerName || '');
-            document.getElementById('newShopName').value = u.bookerName || '';
+            const existingAssignedShop = u.assignedShopName || (u.role === 'shop' ? u.bookerName : '');
+            populateAssignedShopDropdown(existingAssignedShop || '');
+            document.getElementById('newShopName').value = existingAssignedShop || '';
             document.getElementById('editUserIndex').dataset.hiddenShops = (u.hiddenDashboardShops || []).join('|');
             toggleUserRoleFields();
 
@@ -4289,6 +4522,20 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             });
             list.innerHTML = Array.from(shopsSet).map(s => `<option value="${s}">`).join('');
         }
+
+        /* REPORT SCROLL-TO-TOP */
+        function scrollReportsToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateScrollTopButton() {
+            const btn = document.getElementById('scrollTopBtn');
+            if (!btn) return;
+            btn.classList.toggle('show', window.scrollY > 280);
+        }
+
+        window.addEventListener('scroll', updateScrollTopButton, { passive: true });
+        document.addEventListener('DOMContentLoaded', updateScrollTopButton);
 
         /* BACKUP & RESTORE */
         function downloadBackup() {
