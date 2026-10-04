@@ -619,6 +619,7 @@
         }
      
         .mobile-drawer-bar,.app-drawer,.app-drawer-shade{display:none}
+        .app-drawer [hidden]{display:none!important}
         .mobile-dashboard-trigger{border:0;border-radius:10px;padding:10px 13px;background:linear-gradient(135deg,#0d7b50,#16a765);color:#fff;font-weight:700;font-size:14px;box-shadow:0 3px 9px rgba(0,0,0,.18)}
         @media(max-width:700px){
           .tabs.no-print{display:none!important}
@@ -2764,11 +2765,25 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
             document.querySelectorAll('.admin-only-content').forEach(el => el.style.display = '');
             document.querySelectorAll('.booker-export-hide').forEach(el => el.style.display = '');
 
-            const role = currentUser.role;
+            const role = String(currentUser.role || '').toLowerCase();
 
-            if (role !== 'admin') {
-                document.querySelectorAll('.admin-only, .admin-only-content').forEach(el => el.style.display = 'none');
-            }
+            // Apply permissions explicitly to the mobile APK navigation drawer as well
+            // as the desktop tabs. The hidden attribute plus !important CSS prevents
+            // mobile drawer layout rules from accidentally making restricted items visible.
+            const isAdmin = role === 'admin';
+            document.querySelectorAll('.app-drawer .admin-only').forEach(el => {
+                el.hidden = !isAdmin;
+                el.style.setProperty('display', isAdmin ? '' : 'none', 'important');
+            });
+            document.querySelectorAll('.admin-only, .admin-only-content').forEach(el => {
+                if (!isAdmin) {
+                    el.hidden = true;
+                    el.style.setProperty('display', 'none', 'important');
+                } else {
+                    el.hidden = false;
+                    el.style.removeProperty('display');
+                }
+            });
 
             if (role === 'data_entry') {
                 // Data Entry Operator sees ONLY Daily Entry.
@@ -5421,6 +5436,8 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
         window.drawerGo = function(tabId) {
           const ids={dashboard:'tabDashBtn',entry:'tabEntryBtn',ledger:'tabLedgerBtn',bookerLedger:'tabBookerBtn',users:'tabUsersBtn',backup:'tabBackupBtn',companyProfile:'tabCompanyProfileBtn',personalRecovery:'tabPersonalRecoveryBtn'};
           const btn=document.getElementById(ids[tabId]);
+          const role=String(currentUser?.role||'').toLowerCase();
+          if(['shops','users','backup','companyProfile','entry'].includes(tabId) && role!=='admin') { toggleAppDrawer(false); return; }
           if(tabId==='shops') { const shopBtn=document.getElementById('tabShopsBtn'); if(shopBtn && getComputedStyle(shopBtn).display==='none'){toggleAppDrawer(false);return;} }
           if(tabId==='personalRecovery') {
             if(!currentUser || !['admin','booker'].includes(String(currentUser.role||'').toLowerCase())) {
