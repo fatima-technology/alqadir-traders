@@ -810,6 +810,24 @@
   .table-responsive th, .table-responsive td { padding:7px 6px!important; }
 }
 
+
+/* Mobile readability and adaptive form controls */
+@media (max-width: 900px) {
+  body { padding: 10px !important; font-size: 16px !important; }
+  input, select, textarea, button { font-size: 16px !important; font-weight: 700 !important; }
+  label, th, td, .form-label, .filter-box, .drawer-user strong { font-weight: 700 !important; }
+  input, select, textarea { min-height: 44px; }
+  .mobile-dashboard-trigger { min-width: 42px; width:42px; padding:9px !important; }
+  .mobile-drawer-bar { gap:8px; }
+  .app-drawer button { font-weight:700 !important; font-size:16px !important; }
+  .table-responsive { max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .filter-box, .form-row, .form-group, .input-group { max-width:100%; }
+  .filter-box input, .filter-box select, .form-row input, .form-row select { min-width:0; max-width:100%; }
+}
+.drawer-avatar.photo-picker { position:relative; overflow:hidden; cursor:pointer; flex:0 0 44px; }
+.drawer-avatar.photo-picker input { display:none; }
+.drawer-avatar.photo-picker img { position:absolute; inset:0; }
+@media (max-width: 380px) { body {padding:7px!important;} .app-drawer {width:min(88vw,340px)!important;} }
 </style>
 
 <style id="mobile-shop-name-column-fix">
@@ -1076,14 +1094,14 @@
 
         <!-- Mobile navigation drawer; desktop keeps the existing tab navigation. -->
         <div class="mobile-drawer-bar no-print">
-          <button type="button" class="mobile-dashboard-trigger" aria-label="Go to Dashboard" onclick="goToDashboard()">📊 Dashboard</button>
+          <button type="button" class="mobile-dashboard-trigger" aria-label="Go to Dashboard" onclick="goToDashboard()">📊</button>
           <button type="button" class="mobile-menu-trigger" aria-label="Open navigation menu" onclick="toggleAppDrawer(true)">☰ Menu</button>
           <span class="mobile-menu-caption">Al Qadir Traders</span>
         </div>
         <div id="appDrawerShade" class="app-drawer-shade" onclick="toggleAppDrawer(false)"></div>
         <aside id="appDrawer" class="app-drawer no-print" aria-label="Main navigation">
           <div class="app-drawer-head"><div class="drawer-brand"><strong>AL QADIR TRADERS</strong><small>MARKET CREDIT LEDGER SYSTEM</small><small>AUTHORIZED DISTRIBUTOR</small></div><button type="button" onclick="toggleAppDrawer(false)" aria-label="Close menu">×</button></div>
-          <div class="drawer-user"><span class="drawer-avatar">👤</span><div><strong id="drawerUserName">Booker</strong><small id="drawerUserId">Booker Account</small></div><span class="drawer-online">● Online</span></div>
+          <div class="drawer-user"><label class="drawer-avatar photo-picker" title="Add profile photo"><img id="drawerProfilePhoto" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%;"><span id="drawerAvatarEmoji">👤</span><input id="drawerPhotoInput" type="file" accept="image/*" hidden onchange="saveDrawerProfilePhoto(this)"></label><div><strong id="drawerUserName">Booker</strong><small id="drawerUserId">Booker Account</small></div><span class="drawer-online">● Online</span></div>
           <button type="button" class="drawer-active" onclick="drawerGo('dashboard')">🏠 <span>Dashboard</span></button>
           <button type="button" class="booker-tab" onclick="drawerGo('bookerLedger')">♙ <span>Booker Detail</span><b>›</b></button>
           <button type="button" class="ledger-tab" onclick="drawerGo('ledger')">▤ <span>Shop Ledger</span><b>›</b></button>
@@ -1780,25 +1798,42 @@
             else if (e.key === 'ArrowUp') { e.preventDefault(); window.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'auto' }); }
         });
 
-        /* DAY / NIGHT THEME TOGGLE */
-        function toggleDayNightTheme() {
-            const body = document.body;
-            if (body.classList.contains('night-theme')) {
-                body.classList.remove('night-theme');
-                body.classList.add('day-theme');
-                localStorage.setItem('alqadir_theme', 'day');
-            } else {
-                body.classList.remove('day-theme');
-                body.classList.add('night-theme');
-                localStorage.setItem('alqadir_theme', 'night');
-            }
+        /* AUTOMATIC DAY / NIGHT: local device time; night starts at 17:00 */
+        function applyAutomaticTheme() {
+            const hour = new Date().getHours();
+            const theme = (hour >= 17 || hour < 5) ? 'night' : 'day';
+            document.body.classList.toggle('night-theme', theme === 'night');
+            document.body.classList.toggle('day-theme', theme === 'day');
+            try { localStorage.setItem('alqadir_theme', theme); } catch (_) {}
         }
+        function toggleDayNightTheme() { applyAutomaticTheme(); }
+        applyAutomaticTheme();
+        setInterval(applyAutomaticTheme, 60000);
+        document.addEventListener('visibilitychange', function(){ if (!document.hidden) applyAutomaticTheme(); });
 
-        // Load saved theme preference
-        const savedTheme = localStorage.getItem('alqadir_theme');
-        if (savedTheme === 'day') {
-            document.body.classList.remove('night-theme');
-            document.body.classList.add('day-theme');
+        /* Booker profile photo is stored only on this device/browser. */
+        function saveDrawerProfilePhoto(input) {
+            const file = input && input.files && input.files[0];
+            if (!file) return;
+            if (!file.type || !file.type.startsWith('image/')) { alert('Please choose an image file.'); return; }
+            if (file.size > 2 * 1024 * 1024) { alert('Photo must be 2 MB or smaller.'); input.value=''; return; }
+            const reader = new FileReader();
+            reader.onload = function(){
+                const username = String((window.currentUser && (currentUser.username || currentUser.bookerName)) || document.getElementById('loggedUsername')?.textContent || 'user').trim().toLowerCase();
+                const key = 'alqadir_profile_photo_' + username.replace(/[^a-z0-9_-]/g,'_');
+                try { localStorage.setItem(key, reader.result); showDrawerProfilePhoto(reader.result); }
+                catch(e) { alert('Photo could not be saved on this device.'); }
+            };
+            reader.readAsDataURL(file);
+        }
+        function showDrawerProfilePhoto(src) {
+            const img=document.getElementById('drawerProfilePhoto'), emoji=document.getElementById('drawerAvatarEmoji');
+            if(img && emoji){img.src=src;img.style.display='block';emoji.style.display='none';}
+        }
+        function loadDrawerProfilePhoto(){
+            const name=String((window.currentUser && (currentUser.username || currentUser.bookerName)) || document.getElementById('loggedUsername')?.textContent || '').trim().toLowerCase();
+            if(!name) return;
+            try { const src=localStorage.getItem('alqadir_profile_photo_'+name.replace(/[^a-z0-9_-]/g,'_')); if(src) showDrawerProfilePhoto(src); } catch(_){}
         }
 
         /* COMPACT PROFILE MENU */
@@ -5425,7 +5460,7 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
           const drawer=document.getElementById('appDrawer'), shade=document.getElementById('appDrawerShade');
           if(!drawer||!shade)return;
           const show=!!open; drawer.classList.toggle('open',show); shade.classList.toggle('open',show);
-          if(show){const n=document.getElementById('drawerUserName'),id=document.getElementById('drawerUserId'),logged=document.getElementById('loggedUsername'),role=document.getElementById('userRoleBadge');if(n&&logged&&logged.textContent.trim()&&logged.textContent.trim()!=='-')n.textContent=logged.textContent.trim();if(id&&role&&role.textContent.trim())id.textContent=role.textContent.trim();}
+          if(show){loadDrawerProfilePhoto();const n=document.getElementById('drawerUserName'),id=document.getElementById('drawerUserId'),logged=document.getElementById('loggedUsername'),role=document.getElementById('userRoleBadge');if(n&&logged&&logged.textContent.trim()&&logged.textContent.trim()!=='-')n.textContent=logged.textContent.trim();if(id&&role&&role.textContent.trim())id.textContent=role.textContent.trim();}
         };
         window.goToDashboard = function() {
           const btn=document.getElementById('tabDashBtn');
