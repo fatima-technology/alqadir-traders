@@ -1087,7 +1087,7 @@
           <button type="button" class="booker-tab" onclick="drawerGo('bookerLedger')">♙ <span>Booker Detail</span><b>›</b></button>
           <button type="button" class="ledger-tab" onclick="drawerGo('ledger')">▤ <span>Shop Ledger</span><b>›</b></button>
           <button type="button" class="admin-only" onclick="drawerGo('entry')">📝 <span>Daily Entry</span><b>›</b></button>
-          <button type="button" class="shops-tab" onclick="drawerGo('shops')">🏪 <span>My Shops</span><b>›</b></button>
+          <button type="button" class="shops-tab admin-only" onclick="drawerGo('shops')">🏪 <span>My Shops</span><b>›</b></button>
           <button type="button" class="drawer-personal-recovery" onclick="drawerGo('personalRecovery')">💵 <span>Personal Recovery</span><b>›</b></button>
           <div class="drawer-separator"></div>
           <button type="button" class="admin-only" onclick="drawerGo('users')">⚙️ <span>User Management</span><b>›</b></button>
@@ -1104,7 +1104,7 @@
             <button class="tab-btn admin-only data-entry-tab" id="tabEntryBtn" onclick="openTab('entry', this)">📝 Daily Entry</button>
             <button class="tab-btn ledger-tab" id="tabLedgerBtn" onclick="openTab('ledger', this)">🔍 Shop Ledger</button>
             <button class="tab-btn booker-tab" id="tabBookerBtn" onclick="openTab('bookerLedger', this)">👔 Booker Detail</button>
-            <button class="tab-btn shops-tab" id="tabShopsBtn" onclick="openTab('shops', this)">🏪 Shops List</button>
+            <button class="tab-btn shops-tab admin-only" id="tabShopsBtn" onclick="openTab('shops', this)">🏪 Shops List</button>
             <button class="tab-btn admin-only users-tab" id="tabUsersBtn" onclick="openTab('users', this)">⚙️ User Management & Activity</button>
             <button class="tab-btn admin-only backup-tab" id="tabBackupBtn" onclick="openTab('backup', this)">💾 Backup & Restore</button>
             <button class="tab-btn admin-only" id="tabCompanyProfileBtn" onclick="openTab('companyProfile', this)">🏢 Company Profile</button>
