@@ -5010,17 +5010,15 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 
                         if (!knownBookers.includes(booker)) {
                             const suggestions = suggestBookerNames(booker, knownBookers);
-                            // Only pause the upload for a probable spelling mistake.
-                            // Names/labels that are not close to any configured Booker
-                            // are intentionally left untouched and imported as-is.
-                            if (suggestions.length) {
-                                invalidMap.push(importedIndex);
-                                invalidBookerRows.push({
-                                    rowNumber: r + 1,
-                                    booker: bookerRaw,
-                                    importedIndex,
-                                    suggestions
-                                });
+                            // Automatic Booker matching: if the uploaded file contains a
+                            // clear spelling/short-name variation of an existing Booker,
+                            // silently use the configured Booker name and continue the
+                            // upload. Do not stop the user's bulk upload with a modal.
+                            if (suggestions.length === 1) {
+                                imported[importedIndex].booker = String(suggestions[0]).toUpperCase();
+                            } else if (suggestions.length > 1) {
+                                // Prefer the best suggestion returned by the scorer.
+                                imported[importedIndex].booker = String(suggestions[0]).toUpperCase();
                             }
                         }
                     }
