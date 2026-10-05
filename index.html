@@ -2654,6 +2654,42 @@ body.night-theme .print-date-bar{display:flex !important;}
             return st.lastSeen ? `Last seen: ${formatPresenceTime(st.lastSeen)}` : (fallback || '-');
         }
 
+        /* PERSISTENT BOOKER SESSION + MOBILE BACK GUARD
+           Keep the logged-in user alive across mobile/browser back/reload. Only the
+           explicit Logout action clears this session. */
+        const PERSISTENT_SESSION_KEY = 'alqadir_current_user_v2';
+        let appBackGuardStarted = false;
+        function persistCurrentUserSession(user) {
+            try {
+                const raw = user ? JSON.stringify(user) : '';
+                if (raw) {
+                    localStorage.setItem(PERSISTENT_SESSION_KEY, raw);
+                    sessionStorage.setItem('pos_current_user', raw);
+                } else {
+                    localStorage.removeItem(PERSISTENT_SESSION_KEY);
+                    sessionStorage.removeItem('pos_current_user');
+                }
+            } catch (e) { console.warn('Session persistence:', e); }
+        }
+        function restorePersistentUserSession() {
+            try {
+                const raw = localStorage.getItem(PERSISTENT_SESSION_KEY) || sessionStorage.getItem('pos_current_user');
+                return raw ? JSON.parse(raw) : null;
+            } catch (e) { return null; }
+        }
+        function startAppBackGuard() {
+            if (appBackGuardStarted) return;
+            appBackGuardStarted = true;
+            try {
+                history.replaceState({ alqadirApp: true }, document.title, window.location.href);
+                history.pushState({ alqadirApp: true }, document.title, window.location.href);
+            } catch (e) {}
+            window.addEventListener('popstate', function () {
+                if (!currentUser) return;
+                try { history.pushState({ alqadirApp: true }, document.title, window.location.href); } catch (e) {}
+            });
+        }
+
         // Restore the last session from the local safety copy FIRST. This runs synchronously
         // before Firebase requests, so refresh does not wait 1-2 seconds for user data.
         try {
@@ -2663,12 +2699,12 @@ body.night-theme .print-date-bar{display:flex !important;}
             })();
             if (Array.isArray(localUsers) && localUsers.length) USERS_DATABASE = localUsers;
 
-            const savedSessionUser = JSON.parse(sessionStorage.getItem('pos_current_user') || 'null');
+            const savedSessionUser = restorePersistentUserSession();
             if (savedSessionUser && savedSessionUser.username) {
                 const localValidUser = USERS_DATABASE.find(u => cleanStr(u.username) === cleanStr(savedSessionUser.username));
                 currentUser = localValidUser || savedSessionUser;
                 if (currentUser && currentUser.username) {
-                    sessionStorage.setItem('pos_current_user', JSON.stringify(currentUser));
+                    persistCurrentUserSession(currentUser);
                 }
             }
         } catch (e) {
@@ -2679,6 +2715,7 @@ body.night-theme .print-date-bar{display:flex !important;}
         // Firebase continues loading in the background and refreshes the data when ready.
         if (currentUser) {
             document.getElementById('loginOverlay').style.display = 'none';
+            startAppBackGuard();
             setTimeout(() => { try { applyUserPermissions(); } catch (e) { console.warn('Initial permission apply:', e); } }, 0);
         } else {
             document.getElementById('loginOverlay').style.display = 'flex';
@@ -2973,11 +3010,12 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 const valid = USERS_DATABASE.find(u => cleanStr(u.username) === cleanStr(currentUser.username));
                 if (valid) {
                     currentUser = valid;
-                    sessionStorage.setItem('pos_current_user', JSON.stringify(currentUser));
+                    persistCurrentUserSession(currentUser);
+                    startAppBackGuard();
                     applyUserPermissions();
                 } else {
                     currentUser = null;
-                    sessionStorage.removeItem('pos_current_user');
+                    persistCurrentUserSession(null);
                     document.getElementById('loginOverlay').style.display = 'flex';
                 }
             }
@@ -2997,6 +3035,21 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 const filterElem = document.getElementById('bookerBalanceFilter');
                 if (filterElem) filterElem.value = systemBookerFilterSetting;
                 refreshCurrentTab();
+            }
+        });
+
+        function forceZeroBalanceFilterDefaults() {
+            // User-requested default: every balance list opens with zero-balance shops hidden.
+            // This does not remove the other filter choices; it only makes HIDE_ZERO the
+            // automatic starting state after login/refresh.
+            ['bookerBalanceFilter', 'shopsBalanceFilter'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && !el.dataset.userChanged) el.value = 'HIDE_ZERO';
+            });
+        }
+        document.addEventListener('change', function (e) {
+            if (e.target && (e.target.id === 'bookerBalanceFilter' || e.target.id === 'shopsBalanceFilter')) {
+                e.target.dataset.userChanged = '1';
             }
         });
 
@@ -3283,9 +3336,11 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 currentUser = freshUser;
             }
 
-            sessionStorage.setItem('pos_current_user', JSON.stringify(currentUser));
+            persistCurrentUserSession(currentUser);
+            startAppBackGuard();
             setLoginSyncUI(100, syncOk ? 'Sync complete — system ready.' : 'System ready from verified local safety data.', quoteIndex);
             try { await saveUsersToCloud(); } catch (e) { console.warn('Login user status save:', e); }
+            forceZeroBalanceFilterDefaults();
             applyUserPermissions();
             startLivePresence();
             renderPreviousCreditNotifications();
@@ -3389,7 +3444,11 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 try { db.ref('pos_user_presence/' + presenceKey(currentUser.username) + '/' + presenceSessionId).set({ online:false, lastSeen:firebase.database.ServerValue.TIMESTAMP, username:currentUser.username }); } catch(e) {}
             }
             presenceStarted = false;
-            sessionStorage.removeItem('pos_current_user');
+            persistCurrentUserSession(null);
+            ['bookerBalanceFilter','shopsBalanceFilter'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { delete el.dataset.userChanged; el.value = 'HIDE_ZERO'; }
+            });
             currentUser = null;
             document.getElementById('loginOverlay').style.display = 'flex';
         }
@@ -3972,6 +4031,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 
         /* RENDER DASHBOARD */
         function renderDashboard() {
+            forceZeroBalanceFilterDefaults();
             renderDailyQuranAyat();
             const tbody = document.getElementById('dashBookerTable');
             if (!tbody) return;
@@ -4022,6 +4082,8 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             Object.keys(bookerData).sort().forEach(bName => {
                 const data = bookerData[bName];
                 const netBal = data.totalCredit - data.totalRecovery;
+                // Zero-balance bookers are hidden automatically from dashboard lists.
+                if (Math.abs(netBal) < 0.000001) return;
                 let creditShops = 0;
                 Object.values(data.shopBalances).forEach(bal => { if (bal > 0) creditShops++; });
 
@@ -4077,6 +4139,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 
         /* RENDER BOOKER DETAIL */
         function renderBookerDetail() {
+            forceZeroBalanceFilterDefaults();
             const select = document.getElementById('selectBooker');
             let selectedBooker = select.value;
 
@@ -4252,6 +4315,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 
         /* RENDER SHOPS DIRECTORY */
         function renderShops() {
+            forceZeroBalanceFilterDefaults();
             const selectedDate = document.getElementById('shopsToDate')?.value || '';
             setReportAsOfDate("Shops Directory", selectedDate);
             const tbody = document.getElementById('shopsTable');
