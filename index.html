@@ -1552,6 +1552,35 @@ body.night-theme .print-date-bar{display:flex !important;}
 }
 </style>
 
+
+<style id="mobile-zoom-drag-and-auto-rotate-fix">
+/* MOBILE/LAPTOP: Zoom control is a true movable floating widget. */
+.report-zoom-controls{
+  position:fixed !important;
+  left:auto;
+  top:auto;
+  right:58px !important;
+  bottom:76px !important;
+  z-index:2147483000 !important;
+  touch-action:none !important;
+  user-select:none !important;
+  -webkit-user-select:none !important;
+}
+.report-zoom-toggle{
+  touch-action:none !important;
+  cursor:grab !important;
+  -webkit-tap-highlight-color:transparent !important;
+}
+.report-zoom-toggle.is-dragging{cursor:grabbing !important;transform:none !important;}
+.report-zoom-controls.zoom-positioned{right:auto !important;bottom:auto !important;}
+.report-zoom-controls.panel-below{flex-direction:column-reverse !important;}
+.report-zoom-panel #autoRotateBtn{font-size:14px !important;line-height:1 !important;}
+@media(max-width:700px){
+  .report-zoom-controls{right:52px !important;bottom:68px !important;}
+  .report-zoom-controls.zoom-positioned{right:auto !important;bottom:auto !important;}
+}
+</style>
+
 </head>
 
 <body>
@@ -1562,6 +1591,7 @@ body.night-theme .print-date-bar{display:flex !important;}
             <span id="reportZoomLevel" class="zoom-level">100%</span>
             <button type="button" onclick="resetReportZoom()" title="Reset zoom">100</button>
             <button type="button" onclick="changeReportZoom(-0.1)" title="Zoom out">−</button>
+            <button type="button" id="autoRotateBtn" onclick="enableAutoRotate()" title="Enable Auto Rotate" aria-label="Enable Auto Rotate">↻</button>
         </div>
         <button type="button" class="report-zoom-toggle" onclick="toggleReportZoomPanel()" aria-expanded="false" title="Open zoom controls" aria-label="Open zoom controls">🔍</button>
     </div>
@@ -2914,6 +2944,97 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
   ${summaryHtml}
   ${cleanTable.outerHTML.replace('<table','<table class="report-table"')}
 </div>
+
+
+<script id="mobile-zoom-drag-and-auto-rotate-js">
+(function(){
+  const POS_KEY='alqadir_report_zoom_position_v2';
+  let suppressZoomClick=false;
+  function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+  function placeZoom(x,y,save){
+    const box=document.getElementById('reportZoomControls');
+    if(!box)return;
+    const w=box.offsetWidth||38, h=box.offsetHeight||38;
+    const maxX=Math.max(4,window.innerWidth-w-4), maxY=Math.max(4,window.innerHeight-h-4);
+    x=clamp(x,4,maxX); y=clamp(y,4,maxY);
+    box.classList.add('zoom-positioned');
+    box.style.left=x+'px'; box.style.top=y+'px'; box.style.right='auto'; box.style.bottom='auto';
+    box.classList.toggle('panel-below', y < 145);
+    if(save) try{localStorage.setItem(POS_KEY,JSON.stringify({x:x,y:y}));}catch(e){}
+  }
+  function restoreZoomPosition(){
+    const box=document.getElementById('reportZoomControls'); if(!box)return;
+    let p=null; try{p=JSON.parse(localStorage.getItem(POS_KEY)||'null');}catch(e){}
+    if(p && Number.isFinite(p.x) && Number.isFinite(p.y)){
+      requestAnimationFrame(()=>placeZoom(p.x,p.y,false));
+    }
+  }
+  function makeZoomDraggable(){
+    const box=document.getElementById('reportZoomControls');
+    const handle=box && box.querySelector('.report-zoom-toggle');
+    if(!box||!handle||handle.dataset.dragReady)return;
+    handle.dataset.dragReady='1';
+    let dragging=false,startX=0,startY=0,startLeft=0,startTop=0,moved=false;
+    handle.addEventListener('pointerdown',function(e){
+      if(e.pointerType==='mouse' && e.button!==0)return;
+      const r=box.getBoundingClientRect();
+      startX=e.clientX; startY=e.clientY; startLeft=r.left; startTop=r.top; moved=false; dragging=true;
+      handle.classList.add('is-dragging');
+      try{handle.setPointerCapture(e.pointerId);}catch(_){ }
+      e.preventDefault();
+    },{passive:false});
+    handle.addEventListener('pointermove',function(e){
+      if(!dragging)return;
+      const dx=e.clientX-startX, dy=e.clientY-startY;
+      if(Math.abs(dx)>5 || Math.abs(dy)>5)moved=true;
+      placeZoom(startLeft+dx,startTop+dy,true);
+      e.preventDefault();
+    },{passive:false});
+    const end=function(e){
+      if(!dragging)return;
+      dragging=false; handle.classList.remove('is-dragging');
+      if(moved){suppressZoomClick=true;setTimeout(()=>suppressZoomClick=false,120);}
+      try{handle.releasePointerCapture(e.pointerId);}catch(_){ }
+    };
+    handle.addEventListener('pointerup',end); handle.addEventListener('pointercancel',end);
+    handle.addEventListener('click',function(e){
+      if(suppressZoomClick){e.preventDefault();e.stopImmediatePropagation();suppressZoomClick=false;}
+    },true);
+  }
+  window.enableAutoRotate=function(){
+    try{
+      if(screen.orientation && typeof screen.orientation.unlock==='function') screen.orientation.unlock();
+      document.documentElement.style.setProperty('--alqadir-auto-rotate','1');
+      const b=document.getElementById('autoRotateBtn');
+      if(b){b.textContent='↻✓';b.title='Auto Rotate Enabled';}
+      localStorage.setItem('alqadir_auto_rotate','1');
+    }catch(e){
+      alert('Auto Rotate browser/WebView ki permission par depend karta hai. Phone ka Auto-Rotate bhi ON rakhein.');
+    }
+  };
+  function initAutoRotate(){
+    try{
+      if(screen.orientation && typeof screen.orientation.unlock==='function') screen.orientation.unlock();
+      const b=document.getElementById('autoRotateBtn');
+      if(b && localStorage.getItem('alqadir_auto_rotate')==='1'){b.textContent='↻✓';b.title='Auto Rotate Enabled';}
+    }catch(e){}
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    makeZoomDraggable(); restoreZoomPosition(); initAutoRotate();
+    setTimeout(()=>{makeZoomDraggable();restoreZoomPosition();},300);
+  });
+  window.addEventListener('resize',function(){
+    const box=document.getElementById('reportZoomControls'); if(!box)return;
+    if(box.classList.contains('zoom-positioned')){
+      const r=box.getBoundingClientRect(); placeZoom(r.left,r.top,true);
+    }
+  });
+  window.addEventListener('orientationchange',function(){setTimeout(function(){
+    const box=document.getElementById('reportZoomControls'); if(!box)return;
+    if(box.classList.contains('zoom-positioned')){const r=box.getBoundingClientRect();placeZoom(r.left,r.top,true);}
+  },250);});
+})();
+</script>
 
 </body></html>`;
 
