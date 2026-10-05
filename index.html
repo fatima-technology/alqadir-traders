@@ -568,6 +568,93 @@
             #transMainTable td:last-child button { width:auto !important; min-width:48px; white-space:nowrap !important; }
         }
 
+        /* PRINT FIT: reports use A4 landscape so wide ledger columns stay on one page. */
+        @page { size: A4 landscape; margin: 6mm; }
+        @media print {
+            html, body { width: 100% !important; min-width: 0 !important; }
+            .container { width: 100% !important; max-width: 100% !important; overflow: visible !important; }
+            .tab-content.active { width: 100% !important; max-width: 100% !important; overflow: visible !important; }
+            .table-responsive { width: 100% !important; max-width: 100% !important; overflow: visible !important; }
+            table { width: 100% !important; min-width: 0 !important; max-width: 100% !important; table-layout: fixed !important; }
+            th, td { font-size: 8pt !important; line-height: 1.15 !important; padding: 4px 5px !important; white-space: normal !important; overflow-wrap: anywhere !important; word-break: normal !important; }
+            th { font-size: 8.2pt !important; }
+            .summary-card { width: 100% !important; gap: 5px !important; }
+            .card { min-width: 0 !important; padding: 5px 7px !important; }
+            .card h3 { font-size: 7.5pt !important; }
+            .card p { font-size: 10pt !important; }
+            .report-zoom-controls { display:none !important; }
+        }
+
+        /* Compact report zoom: a small "Zoom" tab opens a vertical tower above it. */
+        .report-zoom-controls {
+            position: fixed;
+            right: 14px;
+            bottom: 18px;
+            z-index: 10045;
+            display: none;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+        .report-zoom-controls.show { display:flex; }
+        .report-zoom-toggle {
+            width: 58px;
+            height: 32px;
+            border: 1px solid rgba(255,255,255,.22);
+            border-radius: 9px;
+            background: rgba(35,40,47,.96);
+            color:#fff;
+            font-size:11px;
+            font-weight:800;
+            cursor:pointer;
+            box-shadow:0 5px 14px rgba(0,0,0,.25);
+            padding:0;
+            line-height:32px;
+            text-align:center;
+        }
+        .report-zoom-toggle:active { transform:scale(.97); }
+        .report-zoom-panel {
+            display:none;
+            flex-direction:column;
+            align-items:center;
+            gap:4px;
+            padding:5px;
+            border-radius:11px;
+            background:rgba(25,30,36,.97);
+            border:1px solid rgba(255,255,255,.18);
+            box-shadow:0 8px 24px rgba(0,0,0,.30);
+            backdrop-filter:blur(8px);
+        }
+        .report-zoom-controls.open .report-zoom-panel { display:flex; }
+        .report-zoom-panel button {
+            width:34px;
+            height:31px;
+            border:0;
+            border-radius:7px;
+            background:#343b44;
+            color:#fff;
+            font-size:17px;
+            font-weight:800;
+            cursor:pointer;
+            line-height:1;
+            padding:0;
+        }
+        .report-zoom-panel button:hover, .report-zoom-panel button:active { background:#b93d49; }
+        .report-zoom-panel .zoom-level {
+            min-width:34px;
+            color:#fff;
+            font-size:10px;
+            font-weight:800;
+            text-align:center;
+            line-height:25px;
+        }
+        body.night-theme .report-zoom-panel, body.night-theme .report-zoom-toggle { background:rgba(20,24,29,.97); border-color:#46505b; }
+        @media(max-width:700px){
+            .report-zoom-controls { right:9px; bottom:58px; }
+            .report-zoom-toggle { width:54px; height:30px; line-height:30px; font-size:10px; }
+            .report-zoom-panel button { width:32px; height:30px; }
+        }
+        .tab-content.report-zoom-active { transform-origin: top left; }
         @page { size: A4 portrait; margin: 0.25in; }
         @media print {
             .tabs, form, button, .no-print, .btn-edit, .btn-delete, .filter-box, .backup-box, .user-info-bar, .cola-global-bg-animation, #productAdShowcase, .modal-overlay { display: none !important; }
@@ -1007,9 +1094,477 @@ body.night-theme .daily-ayat-card { background:#24272d !important; color:#f1f2f4
 /* Shop login still displays the ledger rows; only controls are restricted. */
 body.shop-login-view #ledger .table-responsive { position:relative !important; left:auto !important; top:auto !important; width:100% !important; height:auto !important; max-height:none !important; overflow-x:auto !important; overflow-y:visible !important; }
 </style>
+
+<style id="final-night-theme-6pm">
+/* FINAL SOFT NIGHT MODE
+   Automatic schedule: 6:00 PM -> 5:00 AM.
+   All UI controls, cards and tables use a coordinated dark palette.
+   Print remains light/normal through the existing print rules. */
+body.night-theme{
+  --night-bg:#171a1f;
+  --night-surface:#20242a;
+  --night-surface-2:#272c33;
+  --night-input:#2d333b;
+  --night-border:#424a55;
+  --night-text:#f4f6f8;
+  --night-muted:#b8c0ca;
+  --night-red:#ef6672;
+  --night-red-dark:#b93d49;
+  background:#171a1f !important;
+  background-image:linear-gradient(135deg,#14171b 0%,#1b1f25 55%,#241b1e 100%) !important;
+  color:var(--night-text) !important;
+}
+body.night-theme .container{
+  background:rgba(31,35,41,.96) !important;
+  border-color:#3c434d !important;
+  box-shadow:0 12px 35px rgba(0,0,0,.42) !important;
+}
+body.night-theme .user-info-bar,
+body.night-theme .mobile-drawer-bar{
+  background:#20242a !important;
+  border-color:#3f4751 !important;
+  color:var(--night-text) !important;
+}
+body.night-theme .compact-system-status{color:#6ee7a0 !important}
+body.night-theme .notification-bell-btn,
+body.night-theme .profile-menu-btn{
+  background:#2c3239 !important;color:#fff !important;border-color:#48515c !important;
+}
+body.night-theme .notification-panel,
+body.night-theme .profile-menu-dropdown{
+  background:#22272e !important;color:#f4f6f8 !important;border-color:#46505b !important;
+}
+body.night-theme .notification-panel-title,
+body.night-theme .notification-item,
+body.night-theme .profile-menu-user{border-color:#3c444e !important}
+body.night-theme .notification-empty,
+body.night-theme .profile-user-text,
+body.night-theme .profile-live-status{color:#b8c0ca !important}
+
+body.night-theme .brand-header-custom{
+  background:linear-gradient(135deg,#252a30 0%,#20242a 100%) !important;
+  border-color:#b93d49 !important;
+  box-shadow:0 5px 18px rgba(0,0,0,.28) !important;
+}
+body.night-theme .brand-header-custom::before{color:rgba(239,102,114,.08) !important}
+body.night-theme .brand-title-en,
+body.night-theme .brand-title-ur{color:#f6f7f9 !important}
+body.night-theme .brand-sub-en{color:#ef6672 !important}
+body.night-theme .brand-desc-en,
+body.night-theme .coca-cola-sub{color:#b8c0ca !important}
+
+body.night-theme .print-date-bar{
+  background:#252a31 !important;color:#f4f6f8 !important;
+  border-color:#444c57 !important;
+}
+body.night-theme .tabs{border-color:#424a55 !important}
+body.night-theme .tab-btn{
+  background:#2b3037 !important;color:#e8ebef !important;
+  box-shadow:none !important;border:1px solid #3e4650 !important;
+}
+body.night-theme .tab-btn:hover{background:#353b43 !important;color:#fff !important}
+body.night-theme .tab-btn.active{
+  background:#b93d49 !important;color:#fff !important;border-color:#d65763 !important;
+}
+
+body.night-theme form,
+body.night-theme .filter-box,
+body.night-theme .backup-box,
+body.night-theme .shop-permission-box{
+  background:#252a31 !important;
+  color:#f4f6f8 !important;
+  border-color:#424a55 !important;
+}
+body.night-theme label,
+body.night-theme .checkbox-label{color:#edf0f3 !important}
+body.night-theme input,
+body.night-theme select,
+body.night-theme textarea{
+  background:#2d333b !important;
+  color:#fff !important;
+  border:1px solid #555f6b !important;
+  box-shadow:none !important;
+}
+body.night-theme input::placeholder,
+body.night-theme textarea::placeholder{color:#aeb7c2 !important}
+body.night-theme option{background:#2d333b !important;color:#fff !important}
+body.night-theme .live-balance-box{
+  background:#243b4d !important;color:#8fc8ff !important;border-color:#3184c6 !important
+}
+
+body.night-theme #dashboard .filter-box{
+  background:linear-gradient(145deg,#252a31,#20242a) !important;
+  border-color:#4b3a3e !important;
+  box-shadow:0 6px 18px rgba(0,0,0,.25) !important;
+}
+body.night-theme #dashboard .summary-card > .card{
+  background:linear-gradient(145deg,#292e35,#22262c) !important;
+  border-color:#444c56 !important;
+  box-shadow:0 7px 18px rgba(0,0,0,.25) !important;
+}
+body.night-theme #dashboard .summary-card > .card h3,
+body.night-theme .card h3{color:#c7ced7 !important}
+body.night-theme #dashboard .summary-card > .card p,
+body.night-theme .card p{color:#f4f6f8 !important}
+body.night-theme #dashboard .summary-card > .card:after{background:rgba(239,102,114,.08) !important}
+
+body.night-theme .table-responsive{
+  background:#20242a !important;
+  box-shadow:0 5px 16px rgba(0,0,0,.24) !important;
+}
+body.night-theme table,
+body.night-theme table tbody,
+body.night-theme table thead,
+body.night-theme table tfoot,
+body.night-theme table tr,
+body.night-theme table td{
+  background:#22272e !important;
+  color:#edf0f3 !important;
+  border-color:#454e59 !important;
+}
+body.night-theme table tr:nth-child(even),
+body.night-theme table tr:nth-child(odd){
+  background:#252a31 !important;
+}
+body.night-theme table th{
+  background:#343b44 !important;color:#fff !important;border-color:#505965 !important;
+}
+body.night-theme table td strong,
+body.night-theme table td b{color:#fff !important}
+body.night-theme .bal-positive{color:#ff707c !important}
+body.night-theme .bal-negative{color:#62d39b !important}
+body.night-theme .bal-zero{color:#c5ccd5 !important}
+
+body.night-theme .modal-overlay{background:rgba(0,0,0,.72) !important}
+body.night-theme .modal-card{
+  background:#242930 !important;color:#f4f6f8 !important;border-color:#4a525d !important;
+}
+body.night-theme .modal-card h3{color:#ef6672 !important;border-color:#444c56 !important}
+
+body.night-theme .daily-ayat-card{
+  background:linear-gradient(135deg,#202b35,#20262d) !important;
+  border-color:#3d657d !important;color:#f1f4f7 !important;
+}
+body.night-theme .daily-ayat-heading,
+body.night-theme .daily-ayat-reference{color:#75bce8 !important}
+body.night-theme .daily-ayat-arabic,
+body.night-theme .daily-ayat-translation{color:#f1f4f7 !important}
+
+body.night-theme .app-drawer{
+  background:#20242a !important;color:#f4f6f8 !important;
+  box-shadow:12px 0 35px rgba(0,0,0,.45) !important;
+}
+body.night-theme .app-drawer-head{border-color:#414952 !important}
+body.night-theme .app-drawer-head strong,
+body.night-theme .drawer-brand strong,
+body.night-theme .drawer-user strong{color:#f4f6f8 !important}
+body.night-theme .drawer-brand small:last-child,
+body.night-theme .drawer-user small{color:#aeb7c2 !important}
+body.night-theme .drawer-user{border-color:#3e4650 !important}
+body.night-theme .app-drawer>button:not(.app-drawer-head button){
+  background:#2b3037 !important;color:#f4f6f8 !important;border:1px solid #3f4853 !important;
+}
+body.night-theme .app-drawer>button:active{background:#b93d49 !important}
+
+body.night-theme #personalRecovery section{
+  background:linear-gradient(180deg,#252a31,#20242a) !important;
+  border-color:#414a55 !important;color:#f4f6f8 !important;
+}
+body.night-theme #personalRecovery input,
+body.night-theme #personalRecovery select{
+  background:#2d333b !important;color:#fff !important;border-color:#555f6b !important;
+}
+body.night-theme #prDenoms>label,
+body.night-theme .pr-shop-card,
+body.night-theme .pr-shop-metric{
+  background:#2b3037 !important;color:#edf0f3 !important;border-color:#414a55 !important;
+}
+body.night-theme .pr-shop-card h4,
+body.night-theme .pr-shop-metric b{color:#f4f6f8 !important}
+body.night-theme .pr-shop-metric small,
+body.night-theme .pr-shop-note{color:#b7c0ca !important}
+body.night-theme .pr-history-table th{background:#343b44 !important;color:#fff !important}
+body.night-theme .pr-history-table td{background:#252a31 !important;color:#e8ebef !important;border-color:#454e59 !important}
+body.night-theme .pr-history-table button{background:#303640 !important;color:#eaf2ff !important;border-color:#505b68 !important}
+
+/* Common inline white surfaces used throughout the dashboard */
+body.night-theme [style*="background:#fff"],
+body.night-theme [style*="background: #fff"],
+body.night-theme [style*="background:white"],
+body.night-theme [style*="background: white"]{
+  background:#2b3037 !important;color:#edf0f3 !important;
+}
+body.night-theme [style*="color:#111"],
+body.night-theme [style*="color: #111"],
+body.night-theme [style*="color:#222"],
+body.night-theme [style*="color: #222"]{color:#edf0f3 !important}
+
+@media print{
+  body.night-theme{background:#fff !important;color:#000 !important}
+  body.night-theme .container{background:transparent !important;color:#000 !important}
+  body.night-theme table td{background:#fff !important;color:#000 !important}
+}
+</style>
+
+
+<style id="night-layout-lock-header">
+/* Night mode must change COLORS only — the report/header area keeps its exact layout position. */
+body.night-theme .brand-header-custom,
+body.night-theme .print-date-bar{
+  position:relative !important;
+  transform:none !important;
+  order:initial !important;
+  float:none !important;
+  box-sizing:border-box !important;
+}
+body.night-theme .brand-header-custom{
+  width:100% !important;
+  margin-top:0 !important;
+  margin-left:0 !important;
+  margin-right:0 !important;
+  margin-bottom:15px !important;
+  padding:15px 20px !important;
+  min-height:0 !important;
+}
+body.night-theme .print-date-bar{
+  width:100% !important;
+  margin-top:0 !important;
+  margin-left:0 !important;
+  margin-right:0 !important;
+  margin-bottom:15px !important;
+  padding:8px 12px !important;
+}
+/* Keep the header's three brand areas in the same desktop arrangement. */
+body.night-theme .brand-left,
+body.night-theme .brand-center,
+body.night-theme .brand-right{
+  position:relative !important;
+  z-index:2 !important;
+}
+/* Night mode is not allowed to hide or relocate the report/date strip. */
+body.night-theme .print-date-bar{display:flex !important;}
+@media (max-width:768px){
+  body.night-theme .brand-header-custom{
+    padding:7px 8px !important;
+    margin-bottom:6px !important;
+    min-height:70px !important;
+  }
+  body.night-theme .print-date-bar{
+    display:grid !important;
+    grid-template-columns:1fr 1fr 1fr !important;
+    gap:4px !important;
+    padding:4px 6px !important;
+    margin-bottom:6px !important;
+  }
+}
+</style>
+
+
+<style id="final-compact-floating-controls-and-ayat">
+/* Compact floating controls: keep them separate and unobtrusive. */
+.report-zoom-controls{
+  right:72px !important;
+  bottom:18px !important;
+  gap:5px !important;
+}
+.report-zoom-toggle{
+  width:36px !important;
+  height:36px !important;
+  min-width:36px !important;
+  border-radius:50% !important;
+  font-size:15px !important;
+  line-height:36px !important;
+  padding:0 !important;
+}
+.report-zoom-panel{
+  padding:4px !important;
+  gap:3px !important;
+  border-radius:9px !important;
+}
+.report-zoom-panel button{
+  width:30px !important;
+  height:28px !important;
+  min-width:30px !important;
+  border-radius:6px !important;
+  font-size:15px !important;
+}
+.report-zoom-panel .zoom-level{
+  min-width:30px !important;
+  line-height:22px !important;
+  font-size:9px !important;
+}
+/* Keep the scroll-to-top button independent from zoom. */
+.scroll-top-btn{
+  right:18px !important;
+  bottom:18px !important;
+  width:38px !important;
+  height:38px !important;
+  font-size:17px !important;
+}
+@media(max-width:700px){
+  .report-zoom-controls{right:58px !important; bottom:16px !important;}
+  .report-zoom-toggle{width:32px !important;height:32px !important;min-width:32px !important;line-height:32px !important;font-size:13px !important;}
+  .report-zoom-panel button{width:28px !important;height:27px !important;min-width:28px !important;font-size:14px !important;}
+  .scroll-top-btn{right:10px !important;bottom:16px !important;width:34px !important;height:34px !important;font-size:15px !important;}
+}
+/* Smaller Quran card: preserve content but reduce vertical footprint substantially. */
+.daily-ayat-card{
+  margin:0 0 9px !important;
+  padding:8px 12px 9px !important;
+  border-width:1px !important;
+  border-right-width:4px !important;
+  border-radius:9px !important;
+}
+.daily-ayat-heading{
+  font-size:9px !important;
+  line-height:1.35 !important;
+  margin-bottom:3px !important;
+}
+.daily-ayat-arabic{
+  font-size:14px !important;
+  line-height:1.45 !important;
+  margin:1px 0 3px !important;
+}
+.daily-ayat-translation{
+  font-size:10px !important;
+  line-height:1.45 !important;
+}
+.daily-ayat-reference{
+  font-size:8.5px !important;
+  line-height:1.3 !important;
+  margin-top:2px !important;
+}
+@media(max-width:768px){
+  .daily-ayat-card{padding:5px 6px 6px !important;margin:0 0 6px !important;border-right-width:3px !important;}
+  .daily-ayat-heading{font-size:7.5px !important;line-height:1.3 !important;margin-bottom:2px !important;}
+  .daily-ayat-arabic{font-size:12px !important;line-height:1.35 !important;margin:0 0 2px !important;}
+  .daily-ayat-translation{font-size:8.5px !important;line-height:1.35 !important;}
+  .daily-ayat-reference{font-size:7.5px !important;line-height:1.2 !important;margin-top:1px !important;}
+}
+@media(max-width:420px){
+  .daily-ayat-card{padding:4px 5px 5px !important;}
+  .daily-ayat-heading{font-size:7px !important;}
+  .daily-ayat-arabic{font-size:11px !important;line-height:1.3 !important;}
+  .daily-ayat-translation{font-size:8px !important;line-height:1.3 !important;}
+  .daily-ayat-reference{font-size:7px !important;}
+}
+</style>
+
+
+
+<style id="final-mobile-layout-fix">
+/* FINAL MOBILE / RESPONSIVE LAYOUT FIX
+   Keep report tables fitted by default. The existing zoom tower can enlarge them. */
+@media screen and (max-width: 768px){
+  html, body { width:100% !important; max-width:100% !important; overflow-x:hidden !important; }
+  body { padding:3px !important; }
+  .container { width:100% !important; max-width:100% !important; margin:0 !important; padding:5px !important; border-radius:9px !important; box-sizing:border-box !important; }
+
+  /* Compact login-after-login header */
+  .compact-profile-bar {
+    min-height:30px !important; height:30px !important;
+    padding:1px 4px !important; margin:0 0 4px !important;
+    gap:3px !important; box-sizing:border-box !important;
+  }
+  .compact-profile-bar .compact-system-status { font-size:0 !important; gap:0 !important; }
+  .compact-profile-bar .compact-system-status .status-dot { width:6px !important; height:6px !important; margin:0 !important; }
+  .notification-bell-btn { width:25px !important; height:25px !important; min-width:25px !important; font-size:12px !important; padding:0 !important; }
+  .profile-menu-btn { height:25px !important; min-height:25px !important; padding:0 6px !important; font-size:9px !important; }
+  .notification-count { font-size:7px !important; min-width:13px !important; height:13px !important; line-height:13px !important; }
+
+  .brand-header-custom {
+    min-height:48px !important; padding:5px 7px !important; margin:0 0 4px !important;
+    gap:3px !important; border-radius:6px !important; border-bottom-width:2px !important;
+    box-sizing:border-box !important;
+  }
+  .brand-title-en { font-size:13px !important; line-height:1 !important; }
+  .brand-sub-en { font-size:6px !important; letter-spacing:.45px !important; margin-top:1px !important; }
+  .brand-desc-en { font-size:5.5px !important; letter-spacing:.35px !important; margin-top:1px !important; }
+  .arabic-logo-symbol { font-size:11px !important; margin-bottom:-2px !important; }
+  .brand-title-ur { font-size:16px !important; line-height:1 !important; }
+  .coca-cola-logo-img { height:21px !important; max-width:62px !important; }
+  .coca-cola-sub { font-size:5px !important; margin-top:0 !important; }
+
+  .print-date-bar {
+    font-size:7px !important; margin:0 0 4px !important; padding:3px 4px !important;
+    gap:2px !important; line-height:1.1 !important; box-sizing:border-box !important;
+  }
+  .print-date-bar > div { font-size:7px !important; white-space:nowrap !important; }
+  .daily-ayat-card { margin:4px 0 5px !important; padding:4px 5px !important; }
+
+  /* True fit-to-screen: cancel old 600/940px min-width rules. */
+  .table-responsive,
+  .table-responsive > table {
+    width:100% !important; max-width:100% !important; min-width:0 !important;
+    box-sizing:border-box !important;
+  }
+  .table-responsive {
+    overflow-x:hidden !important; overflow-y:visible !important;
+    margin-top:4px !important; padding:0 !important;
+  }
+  table,
+  #transMainTable,
+  .table-responsive table {
+    width:100% !important; min-width:0 !important; max-width:100% !important;
+    table-layout:fixed !important; border-collapse:collapse !important;
+  }
+  table[style*="min-width"], table[style*="width"] {
+    min-width:0 !important; max-width:100% !important; width:100% !important;
+  }
+  th, td {
+    min-width:0 !important; max-width:none !important;
+    box-sizing:border-box !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+    padding:4px 3px !important;
+    font-size:8px !important;
+    line-height:1.15 !important;
+  }
+  th { font-size:7.5px !important; font-weight:800 !important; }
+
+  /* Main daily-entry table: narrow utility columns, wider description/shop columns. */
+  #transMainTable th:nth-child(1),#transMainTable td:nth-child(1){width:4% !important;}
+  #transMainTable th:nth-child(2),#transMainTable td:nth-child(2){width:7% !important;}
+  #transMainTable th:nth-child(3),#transMainTable td:nth-child(3){width:10% !important;}
+  #transMainTable th:nth-child(4),#transMainTable td:nth-child(4){width:10% !important;}
+  #transMainTable th:nth-child(5),#transMainTable td:nth-child(5){width:18% !important;}
+  #transMainTable th:nth-child(6),#transMainTable td:nth-child(6){width:13% !important;}
+  #transMainTable th:nth-child(7),#transMainTable td:nth-child(7){width:10% !important;}
+  #transMainTable th:nth-child(8),#transMainTable td:nth-child(8){width:10% !important;}
+  #transMainTable th:nth-child(9),#transMainTable td:nth-child(9){width:9% !important;}
+  #transMainTable th:nth-child(10),#transMainTable td:nth-child(10){width:9% !important;}
+}
+
+@media screen and (max-width: 420px){
+  .container { padding:4px !important; }
+  .brand-header-custom { min-height:44px !important; padding:4px 6px !important; }
+  .brand-title-en { font-size:12px !important; }
+  .brand-sub-en { font-size:5.5px !important; }
+  .brand-desc-en { font-size:5px !important; }
+  .brand-title-ur { font-size:14px !important; }
+  .arabic-logo-symbol { font-size:10px !important; }
+  .coca-cola-logo-img { height:18px !important; max-width:55px !important; }
+  .print-date-bar > div { font-size:6.5px !important; }
+  th,td { font-size:7.2px !important; padding:3px 2px !important; }
+  th { font-size:6.8px !important; }
+  .daily-ayat-card { padding:3px 4px !important; }
+}
+</style>
+
 </head>
 
-<body class="night-theme">
+<body>
+
+    <div id="reportZoomControls" class="report-zoom-controls no-print" aria-label="Report zoom controls">
+        <div class="report-zoom-panel" id="reportZoomPanel">
+            <button type="button" onclick="changeReportZoom(0.1)" title="Zoom in">+</button>
+            <span id="reportZoomLevel" class="zoom-level">100%</span>
+            <button type="button" onclick="resetReportZoom()" title="Reset zoom">100</button>
+            <button type="button" onclick="changeReportZoom(-0.1)" title="Zoom out">−</button>
+        </div>
+        <button type="button" class="report-zoom-toggle" onclick="toggleReportZoomPanel()" aria-expanded="false" title="Open zoom controls" aria-label="Open zoom controls">🔍</button>
+    </div>
 
     <!-- BACKGROUND BUBBLES -->
     <div class="cola-global-bg-animation">
@@ -1090,7 +1645,6 @@ body.shop-login-view #ledger .table-responsive { position:relative !important; l
                     </div>
                     <div class="profile-live-status"><span class="status-dot"></span> System Connected</div>
                     <div class="profile-menu-actions">
-                        <button class="btn-theme-toggle" id="btnThemeToggle" onclick="toggleDayNightTheme(); closeProfileMenu();">🌞 Day/Night</button>
                         <button class="btn-notify" id="btnEnableNotifications" onclick="requestNotificationPermission()">🔔 Enable Notifications</button>
                         <button class="btn-logout" onclick="logout()">Logout</button>
                     </div>
@@ -1836,18 +2390,16 @@ body.shop-login-view #ledger .table-responsive { position:relative !important; l
             else if (e.key === 'ArrowUp') { e.preventDefault(); window.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'auto' }); }
         });
 
-        /* AUTOMATIC DAY / NIGHT: local device time; night starts at 17:00 */
+        /* NIGHT MODE REMOVED — application always uses the normal/light theme. */
         function applyAutomaticTheme() {
-            const hour = new Date().getHours();
-            const theme = (hour >= 17 || hour < 5) ? 'night' : 'day';
-            document.body.classList.toggle('night-theme', theme === 'night');
-            document.body.classList.toggle('day-theme', theme === 'day');
-            try { localStorage.setItem('alqadir_theme', theme); } catch (_) {}
+            document.body.classList.remove('night-theme');
+            document.documentElement.classList.remove('night-theme');
+            document.body.classList.add('day-theme');
+            try { localStorage.setItem('alqadir_theme', 'day'); } catch (_) {}
         }
         function toggleDayNightTheme() { applyAutomaticTheme(); }
         applyAutomaticTheme();
-        setInterval(applyAutomaticTheme, 60000);
-        document.addEventListener('visibilitychange', function(){ if (!document.hidden) applyAutomaticTheme(); });
+        document.addEventListener('DOMContentLoaded', function(){ setReportZoomControlVisibility(); applyReportZoom(); });
 
         /* Booker profile photo is stored only on this device/browser. */
         function saveDrawerProfilePhoto(input) {
@@ -2278,6 +2830,40 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
 }
 </style>
 
+
+<style id="night-original-header-layout-lock">
+/* Night Mode: keep the original header/report-bar shape and position. Only colors change. */
+body.night-theme .brand-header-custom{
+  display:flex !important; justify-content:space-between !important; align-items:center !important;
+  padding:15px 20px !important; margin-bottom:15px !important;
+  border-bottom:4px solid #d1121d !important; border-radius:10px !important;
+  flex-wrap:wrap !important; gap:10px !important; position:relative !important;
+  background:linear-gradient(135deg,#24272d 0%,#292d34 100%) !important;
+  backdrop-filter:blur(8px) !important;
+  min-height:0 !important; height:auto !important;
+}
+body.night-theme .brand-header-custom::before{
+  top:50% !important; left:50% !important; transform:translate(-50%,-50%) rotate(-5deg) !important;
+  font-size:80px !important; color:rgba(230,91,104,.07) !important;
+}
+body.night-theme .brand-title-en{color:#f5f6f8 !important;}
+body.night-theme .brand-sub-en{color:#e65b68 !important;}
+body.night-theme .brand-desc-en{color:#c4c8ce !important;}
+body.night-theme .print-date-bar{
+  display:flex !important; justify-content:space-between !important; align-items:center !important;
+  font-size:12px !important; font-weight:bold !important; margin-bottom:15px !important;
+  padding:8px 12px !important; border-radius:5px !important;
+  flex-wrap:wrap !important; gap:5px !important;
+  background:#252a31 !important; color:#f4f6f8 !important;
+  border:1px solid #444c57 !important; backdrop-filter:blur(8px) !important;
+}
+body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
+@media(max-width:768px){
+  body.night-theme .brand-header-custom{padding:7px 8px !important; margin-bottom:6px !important; gap:4px !important; flex-wrap:nowrap !important;}
+  body.night-theme .brand-header-custom::before{font-size:46px !important;}
+  body.night-theme .print-date-bar{font-size:8px !important; padding:4px 6px !important; margin-bottom:6px !important; display:grid !important; grid-template-columns:1fr 1fr 1fr !important; gap:4px !important;}
+}
+</style>
 </head><body>
 <div class="report">
   <div class="header">
@@ -2940,7 +3526,67 @@ table.report-table tr:nth-child(even) td{background:#f5f5f5;}
 
             switchBackgroundTheme(tabId);
             refreshCurrentTab();
+            setReportZoomControlVisibility();
+            applyReportZoom();
         }
+
+        /* REPORT ZOOM: each report can be enlarged/reduced without changing browser zoom. */
+        const REPORT_ZOOM_TABS = new Set(['dashboard','entry','ledger','bookerLedger','shops','personalRecovery']);
+        let reportZoom = 1;
+        function applyReportZoom() {
+            const active = document.querySelector('.tab-content.active');
+            document.querySelectorAll('.tab-content.report-zoom-active').forEach(el => el.classList.remove('report-zoom-active'));
+            if (active && REPORT_ZOOM_TABS.has(active.id)) {
+                active.classList.add('report-zoom-active');
+                active.style.zoom = String(reportZoom);
+            }
+            const level = document.getElementById('reportZoomLevel');
+            if (level) level.textContent = Math.round(reportZoom * 100) + '%';
+        }
+        function setReportZoomControlVisibility() {
+            const active = document.querySelector('.tab-content.active');
+            const box = document.getElementById('reportZoomControls');
+            if (!box) return;
+            const visible = !!active && REPORT_ZOOM_TABS.has(active.id);
+            box.classList.toggle('show', visible);
+            if (!visible) {
+                box.classList.remove('open');
+                const toggle = box.querySelector('.report-zoom-toggle');
+                if (toggle) toggle.setAttribute('aria-expanded','false');
+            }
+        }
+        function toggleReportZoomPanel() {
+            const box = document.getElementById('reportZoomControls');
+            if (!box) return;
+            const open = box.classList.toggle('open');
+            const toggle = box.querySelector('.report-zoom-toggle');
+            if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        document.addEventListener('pointerdown', function(e) {
+            const box = document.getElementById('reportZoomControls');
+            if (!box || !box.classList.contains('open')) return;
+            if (!box.contains(e.target)) {
+                box.classList.remove('open');
+                const toggle = box.querySelector('.report-zoom-toggle');
+                if (toggle) toggle.setAttribute('aria-expanded','false');
+            }
+        });
+        function changeReportZoom(delta) {
+            reportZoom = Math.max(0.7, Math.min(1.6, Math.round((reportZoom + delta) * 10) / 10));
+            applyReportZoom();
+        }
+        function resetReportZoom() {
+            reportZoom = 1;
+            applyReportZoom();
+        }
+        document.addEventListener('keydown', function(e) {
+            if (!e.ctrlKey) return;
+            const active = document.querySelector('.tab-content.active');
+            if (!active || !REPORT_ZOOM_TABS.has(active.id)) return;
+            if (e.key === '+' || e.key === '=') { e.preventDefault(); changeReportZoom(0.1); }
+            else if (e.key === '-' || e.key === '_') { e.preventDefault(); changeReportZoom(-0.1); }
+            else if (e.key === '0') { e.preventDefault(); resetReportZoom(); }
+        });
 
         function refreshCurrentTab() {
             const activeTab = document.querySelector('.tab-content.active');
