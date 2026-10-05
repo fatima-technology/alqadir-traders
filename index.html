@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="screen-orientation" content="auto">
+    <meta name="orientation" content="any">
     <title>🟢 Al Qadir Traders - Market Credit Ledger System</title>
 
     <link id="dynamicFavicon"
@@ -1552,6 +1554,59 @@ body.night-theme .print-date-bar{display:flex !important;}
 }
 </style>
 
+
+<style id="final-draggable-zoom-and-auto-rotate">
+/* FINAL: draggable zoom button — old fixed right/bottom positioning is fully overridden */
+#reportZoomControls.report-zoom-controls{
+  position:fixed !important;
+  right:auto !important;
+  bottom:auto !important;
+  left:auto;
+  top:auto;
+  margin:0 !important;
+  touch-action:none !important;
+  user-select:none !important;
+  -webkit-user-select:none !important;
+  cursor:grab !important;
+}
+#reportZoomControls.report-zoom-controls.zoom-dragging{
+  cursor:grabbing !important;
+  opacity:.92;
+}
+#reportZoomControls .report-zoom-toggle{
+  touch-action:none !important;
+  -webkit-user-select:none !important;
+  user-select:none !important;
+}
+#reportZoomControls .report-zoom-panel{
+  touch-action:auto !important;
+}
+#reportZoomControls .zoom-rotate-btn{
+  width:34px !important;
+  height:31px !important;
+  border:0 !important;
+  border-radius:7px !important;
+  background:#1686b8 !important;
+  color:#fff !important;
+  font-size:17px !important;
+  font-weight:900 !important;
+  cursor:pointer !important;
+}
+@media(max-width:700px){
+  #reportZoomControls.report-zoom-controls{
+    right:auto !important;
+    bottom:auto !important;
+  }
+  #reportZoomControls .zoom-rotate-btn{
+    width:32px !important;
+    height:29px !important;
+  }
+}
+@media print{
+  #reportZoomControls{display:none !important;}
+}
+</style>
+
 </head>
 
 <body>
@@ -1562,6 +1617,7 @@ body.night-theme .print-date-bar{display:flex !important;}
             <span id="reportZoomLevel" class="zoom-level">100%</span>
             <button type="button" onclick="resetReportZoom()" title="Reset zoom">100</button>
             <button type="button" onclick="changeReportZoom(-0.1)" title="Zoom out">−</button>
+            <button type="button" id="reportRotateBtn" class="zoom-rotate-btn" title="Enable phone auto-rotate" aria-label="Enable phone auto-rotate">↻</button>
         </div>
         <button type="button" class="report-zoom-toggle" onclick="toggleReportZoomPanel()" aria-expanded="false" title="Open zoom controls" aria-label="Open zoom controls">🔍</button>
     </div>
@@ -2914,6 +2970,9 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
   ${summaryHtml}
   ${cleanTable.outerHTML.replace('<table','<table class="report-table"')}
 </div>
+
+
+
 
 </body></html>`;
 
@@ -6235,6 +6294,137 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
           } else if(btn && getComputedStyle(btn).display==='none'){toggleAppDrawer(false);return;}
           openTab(tabId,btn); toggleAppDrawer(false);
         };
+</script>
+<script id="final-draggable-zoom-and-auto-rotate-js">
+(function(){
+  function initFinalZoomAndRotation(){
+    const box=document.getElementById('reportZoomControls');
+    if(!box) return;
+
+    /* Remove the old inline click handler from the zoom icon. */
+    const toggle=box.querySelector('.report-zoom-toggle');
+    if(toggle){
+      toggle.removeAttribute('onclick');
+      toggle.setAttribute('draggable','false');
+    }
+
+    /* Restore saved position, otherwise use a safe mobile position. */
+    const KEY='alqadir_report_zoom_position_v3';
+    let saved=null;
+    try{ saved=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){}
+    function clampPosition(){
+      const r=box.getBoundingClientRect();
+      const margin=8;
+      let left=Number.isFinite(saved?.left) ? saved.left : (window.innerWidth-r.width-12);
+      let top=Number.isFinite(saved?.top) ? saved.top : (window.innerHeight-r.height-72);
+      left=Math.max(margin,Math.min(left,Math.max(margin,window.innerWidth-r.width-margin)));
+      top=Math.max(margin,Math.min(top,Math.max(margin,window.innerHeight-r.height-margin)));
+      box.style.left=Math.round(left)+'px';
+      box.style.top=Math.round(top)+'px';
+      box.style.right='auto';
+      box.style.bottom='auto';
+      saved={left,top};
+    }
+    function savePosition(){
+      try{ localStorage.setItem(KEY,JSON.stringify(saved)); }catch(e){}
+    }
+
+    /* Disable every previous drag implementation if this file is updated later. */
+    let dragging=false, moved=false, sx=0, sy=0, sl=0, st=0;
+    function startDrag(e){
+      if(!toggle) return;
+      if(e.pointerType==='mouse' && e.button!==0) return;
+      const r=box.getBoundingClientRect();
+      sx=e.clientX; sy=e.clientY; sl=r.left; st=r.top;
+      dragging=true; moved=false;
+      box.classList.add('zoom-dragging');
+      try{toggle.setPointerCapture(e.pointerId);}catch(err){}
+      e.preventDefault();
+    }
+    function moveDrag(e){
+      if(!dragging) return;
+      const dx=e.clientX-sx, dy=e.clientY-sy;
+      if(Math.abs(dx)>4 || Math.abs(dy)>4) moved=true;
+      const r=box.getBoundingClientRect();
+      const margin=8;
+      const left=Math.max(margin,Math.min(sl+dx,window.innerWidth-r.width-margin));
+      const top=Math.max(margin,Math.min(st+dy,window.innerHeight-r.height-margin));
+      box.style.left=Math.round(left)+'px';
+      box.style.top=Math.round(top)+'px';
+      box.style.right='auto'; box.style.bottom='auto';
+      saved={left,top};
+      e.preventDefault();
+    }
+    function endDrag(e){
+      if(!dragging) return;
+      dragging=false;
+      box.classList.remove('zoom-dragging');
+      try{toggle.releasePointerCapture(e.pointerId);}catch(err){}
+      if(moved) savePosition();
+      /* Prevent the click generated after a drag from opening the panel. */
+      if(moved){
+        e.preventDefault();
+        e.stopPropagation();
+        toggle.dataset.skipNextClick='1';
+        setTimeout(()=>delete toggle.dataset.skipNextClick,80);
+      }
+    }
+    if(toggle && !toggle.dataset.finalDragBound){
+      toggle.dataset.finalDragBound='1';
+      toggle.addEventListener('pointerdown',startDrag,{passive:false});
+      toggle.addEventListener('pointermove',moveDrag,{passive:false});
+      toggle.addEventListener('pointerup',endDrag,{passive:false});
+      toggle.addEventListener('pointercancel',endDrag,{passive:false});
+      toggle.addEventListener('click',function(e){
+        if(toggle.dataset.skipNextClick==='1'){
+          e.preventDefault(); e.stopPropagation(); delete toggle.dataset.skipNextClick; return;
+        }
+        if(typeof window.toggleReportZoomPanel==='function') window.toggleReportZoomPanel();
+      },true);
+    }
+
+    /* Position is recalculated after orientation/resize so it can never get stuck off-screen. */
+    clampPosition();
+    window.addEventListener('resize',clampPosition,{passive:true});
+    window.addEventListener('orientationchange',function(){
+      setTimeout(function(){
+        clampPosition();
+        if(typeof window.applyReportZoom==='function') window.applyReportZoom();
+      },120);
+    },{passive:true});
+
+    /* In-app Auto Rotate control. Browser/WebView cannot grant Android manifest
+       orientation permission, but this unlocks the web orientation when supported. */
+    const rotateBtn=document.getElementById('reportRotateBtn');
+    if(rotateBtn && !rotateBtn.dataset.bound){
+      rotateBtn.dataset.bound='1';
+      rotateBtn.addEventListener('click',async function(e){
+        e.preventDefault(); e.stopPropagation();
+        let ok=false;
+        try{
+          if(screen.orientation && typeof screen.orientation.unlock==='function'){
+            screen.orientation.unlock();
+            ok=true;
+          }
+        }catch(err){}
+        try{
+          if(screen.orientation && typeof screen.orientation.lock==='function' &&
+             document.fullscreenElement){
+            await screen.orientation.lock('any');
+            ok=true;
+          }
+        }catch(err){}
+        rotateBtn.textContent='↻';
+        rotateBtn.title=ok ? 'Auto Rotate enabled' : 'Auto Rotate: turn ON phone system rotation';
+        rotateBtn.style.background=ok ? '#28a745' : '#1686b8';
+        clampPosition();
+      });
+    }
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initFinalZoomAndRotation);
+  else initFinalZoomAndRotation();
+})();
 </script>
 </body>
 </html>
