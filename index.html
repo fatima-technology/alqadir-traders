@@ -1607,6 +1607,61 @@ body.night-theme .print-date-bar{display:flex !important;}
 }
 </style>
 
+
+<style id="mobile-shop-ledger-screen-fix">
+/* MOBILE ONLY — SHOP LEDGER TABLE. No other tables/layouts are changed. */
+@media screen and (max-width: 768px){
+  #ledger .table-responsive{
+    width:100% !important;
+    max-width:100% !important;
+    min-width:0 !important;
+    overflow-x:hidden !important;
+    overflow-y:visible !important;
+    display:block !important;
+  }
+  #ledger #ledgerMainTable{
+    display:table !important;
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    table-layout:fixed !important;
+    border-collapse:collapse !important;
+  }
+  #ledger #ledgerMainTable th,
+  #ledger #ledgerMainTable td{
+    min-width:0 !important;
+    max-width:none !important;
+    width:auto !important;
+    box-sizing:border-box !important;
+    white-space:normal !important;
+    overflow:hidden !important;
+    overflow-wrap:anywhere !important;
+    word-break:break-word !important;
+    text-overflow:clip !important;
+    padding:4px 2px !important;
+    font-size:8px !important;
+    line-height:1.2 !important;
+    vertical-align:middle !important;
+  }
+  #ledger #ledgerMainTable th{font-size:7.5px !important;}
+  #ledger #ledgerMainTable th:nth-child(1),#ledger #ledgerMainTable td:nth-child(1){width:7% !important;}
+  #ledger #ledgerMainTable th:nth-child(2),#ledger #ledgerMainTable td:nth-child(2){width:13% !important;}
+  #ledger #ledgerMainTable th:nth-child(3),#ledger #ledgerMainTable td:nth-child(3){width:15% !important;}
+  #ledger #ledgerMainTable th:nth-child(4),#ledger #ledgerMainTable td:nth-child(4){width:20% !important;}
+  #ledger #ledgerMainTable th:nth-child(5),#ledger #ledgerMainTable td:nth-child(5){width:14% !important;}
+  #ledger #ledgerMainTable th:nth-child(6),#ledger #ledgerMainTable td:nth-child(6){width:14% !important;}
+  #ledger #ledgerMainTable th:nth-child(7),#ledger #ledgerMainTable td:nth-child(7){width:17% !important;}
+}
+@media screen and (max-width: 420px){
+  #ledger #ledgerMainTable th,
+  #ledger #ledgerMainTable td{
+    padding:3px 2px !important;
+    font-size:7.2px !important;
+    line-height:1.15 !important;
+  }
+  #ledger #ledgerMainTable th{font-size:6.8px !important;}
+}
+</style>
 </head>
 
 <body>
