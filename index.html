@@ -1839,7 +1839,7 @@ body.night-theme .print-date-bar{display:flex !important;}
             <h2 style="margin:0 0 5px;color:#12345a;">💵 Personal Recovery Register</h2>
             <p style="margin:0 0 14px;color:#64748b;font-size:13px;">Private cash-count record. Entries here do not affect company credit, official recovery, balance, sales, or stock.</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
-              <label style="display:block;color:#263445;font-weight:600;">Date <input id="prDate" type="date" style="display:block;width:100%;padding:10px;margin-top:4px;"></label>
+              <label style="display:block;color:#263445;font-weight:600;">Date <input id="prDate" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" autocomplete="off" style="display:block;width:100%;padding:10px;margin-top:4px;"></label>
               <label style="display:block;color:#263445;font-weight:600;">Shop <select id="prShop" style="display:block;width:100%;padding:10px;margin-top:4px;"><option value="">Select shop</option></select></label>
               <label style="display:block;color:#263445;font-weight:600;">Expected recovery (Rs.) <input id="prExpected" type="number" min="0" step="1" placeholder="0" style="display:block;width:100%;padding:10px;margin-top:4px;"></label>
               <label style="display:block;color:#263445;font-weight:600;">Note <input id="prNote" type="text" maxlength="250" placeholder="Optional note" style="display:block;width:100%;padding:10px;margin-top:4px;"></label>
@@ -1855,8 +1855,8 @@ body.night-theme .print-date-bar{display:flex !important;}
             <p id="prStatus" aria-live="polite" style="font-size:13px;color:#475569;"></p>
             <h3 style="margin:16px 0 8px;color:#263445;">Personal recovery history</h3>
             <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0 10px;">
-              <label style="font-size:13px;font-weight:600;">From date <input id="prFilterFrom" type="date" onchange="renderPersonalRecoveryHistory()" style="display:block;padding:8px;margin-top:4px;"></label>
-              <label style="font-size:13px;font-weight:600;">To date <input id="prFilterTo" type="date" onchange="renderPersonalRecoveryHistory()" style="display:block;padding:8px;margin-top:4px;"></label>
+              <label style="font-size:13px;font-weight:600;">From date <input id="prFilterFrom" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" onchange="renderPersonalRecoveryHistory()" style="display:block;padding:8px;margin-top:4px;"></label>
+              <label style="font-size:13px;font-weight:600;">To date <input id="prFilterTo" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" onchange="renderPersonalRecoveryHistory()" style="display:block;padding:8px;margin-top:4px;"></label>
               <button type="button" class="btn-add" onclick="clearPersonalRecoveryFilter()" style="padding:8px 12px;background:#64748b;">Clear dates</button>
               <span style="font-size:13px;">Records: <b id="prTotalCount">0</b></span>
               <span style="font-size:13px;">Expected: <b id="prTotalExpected">Rs. 0</b></span>
@@ -2801,6 +2801,76 @@ body.night-theme .print-date-bar{display:flex !important;}
             });
         }
 
+        /* MOBILE BACKGROUND SESSION — 1 hour grace period, then automatic logout. */
+        const APP_BACKGROUND_KEY = 'alqadir_background_started_v1';
+        const APP_BACKGROUND_LIMIT_MS = 60 * 60 * 1000;
+        let appBackgroundGuardBound = false;
+
+        function markAppBackgroundStarted() {
+            if (!currentUser) return;
+            try { localStorage.setItem(APP_BACKGROUND_KEY, String(Date.now())); } catch (e) {}
+        }
+        function clearAppBackgroundStarted() {
+            try { localStorage.removeItem(APP_BACKGROUND_KEY); } catch (e) {}
+        }
+        function backgroundSessionExpired() {
+            try {
+                const started = Number(localStorage.getItem(APP_BACKGROUND_KEY) || 0);
+                return !!started && (Date.now() - started >= APP_BACKGROUND_LIMIT_MS);
+            } catch (e) { return false; }
+        }
+        function refreshCloudAfterMobileResume() {
+            if (!currentUser || typeof db === 'undefined') return;
+            try { db.goOnline(); } catch (e) {}
+            db.ref('pos_transactions').once('value').then(snapshot => {
+                const val=snapshot.val();
+                if(val){
+                    transactions=normalizeLoadedTransactions(val);
+                    safeLocalSet(LOCAL_TX_KEY,transactions);
+                    populateShopDropdowns();
+                    populateEntryBookersDropdown();
+                    if(currentUser) applyUserPermissions();
+                    if(document.getElementById('entry')?.classList.contains('active')) renderTransactions();
+                }
+            }).catch(e=>console.warn('Resume transaction sync failed:',e));
+            db.ref('pos_users_db').once('value').then(snapshot => {
+                const val=snapshot.val();
+                if(!val) return;
+                USERS_DATABASE=Array.isArray(val)?val:Object.values(val);
+                safeLocalSet(LOCAL_USERS_KEY,USERS_DATABASE);
+                const valid=USERS_DATABASE.find(u=>cleanStr(u.username)===cleanStr(currentUser.username));
+                if(!valid){ logout(); return; }
+                currentUser=valid;
+                persistCurrentUserSession(currentUser);
+                applyUserPermissions();
+            }).catch(e=>console.warn('Resume user sync failed:',e));
+            try {
+                if(typeof refreshPersonalRecovery==='function' && document.getElementById('personalRecovery')?.classList.contains('active')) refreshPersonalRecovery();
+            } catch(e) {}
+        }
+        function checkMobileBackgroundSession() {
+            if(!currentUser) return;
+            if(backgroundSessionExpired()){
+                clearAppBackgroundStarted();
+                logout();
+                return;
+            }
+            clearAppBackgroundStarted();
+            refreshCloudAfterMobileResume();
+        }
+        function bindMobileBackgroundSessionGuard() {
+            if(appBackgroundGuardBound) return;
+            appBackgroundGuardBound=true;
+            document.addEventListener('visibilitychange',()=>{
+                if(document.visibilityState==='hidden') markAppBackgroundStarted();
+                else if(document.visibilityState==='visible') checkMobileBackgroundSession();
+            });
+            window.addEventListener('pageshow',checkMobileBackgroundSession);
+            window.addEventListener('pagehide',markAppBackgroundStarted);
+            window.addEventListener('online',()=>{if(currentUser){try{db.goOnline();}catch(e){} refreshCloudAfterMobileResume();}});
+            checkMobileBackgroundSession();
+        }
+
         // Restore the last session from the local safety copy FIRST. This runs synchronously
         // before Firebase requests, so refresh does not wait 1-2 seconds for user data.
         try {
@@ -2831,6 +2901,8 @@ body.night-theme .print-date-bar{display:flex !important;}
         } else {
             document.getElementById('loginOverlay').style.display = 'flex';
         }
+
+        bindMobileBackgroundSessionGuard();
 
         if (currentUser) setTimeout(startLivePresence, 0);
 
@@ -3451,6 +3523,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             }
 
             persistCurrentUserSession(currentUser);
+            clearAppBackgroundStarted();
             startAppBackGuard();
             setLoginSyncUI(100, syncOk ? 'Sync complete — system ready.' : 'System ready from verified local safety data.', quoteIndex);
             try { await saveUsersToCloud(); } catch (e) { console.warn('Login user status save:', e); }
@@ -3558,6 +3631,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 try { db.ref('pos_user_presence/' + presenceKey(currentUser.username) + '/' + presenceSessionId).set({ online:false, lastSeen:firebase.database.ServerValue.TIMESTAMP, username:currentUser.username }); } catch(e) {}
             }
             presenceStarted = false;
+            clearAppBackgroundStarted();
             persistCurrentUserSession(null);
             ['bookerBalanceFilter','shopsBalanceFilter'].forEach(id => {
                 const el = document.getElementById(id);
@@ -6225,11 +6299,50 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
   function owner(){return !!currentUser&&currentUser.role==='admin';}
   function userPath(){return 'pos_personal_recovery/'+key(currentUser.username);}
   function setStatus(msg,bad){$('prStatus').textContent=msg;$('prStatus').style.color=bad?'#b42318':'#475569';}
+  function prDateToYmd(value){
+    const v=String(value||'').trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const m=v.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if(!m) return '';
+    const d=Number(m[1]), mo=Number(m[2]), y=Number(m[3]);
+    const dt=new Date(y,mo-1,d);
+    if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d) return '';
+    return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  function prDateDisplay(value){
+    const ymd=prDateToYmd(value);
+    if(!ymd) return String(value||'');
+    const [y,m,d]=ymd.split('-');
+    return `${d}-${m}-${y}`;
+  }
+  function prTodayDisplay(){
+    const d=new Date();
+    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+  }
+  function prAttachDateInput(el){
+    if(!el||el.dataset.prDateBound==='1') return;
+    el.dataset.prDateBound='1';
+    el.addEventListener('input',()=>{
+      const digits=el.value.replace(/\D/g,'').slice(0,8);
+      let out=digits;
+      if(digits.length>2) out=digits.slice(0,2)+'-'+digits.slice(2);
+      if(digits.length>4) out=digits.slice(0,2)+'-'+digits.slice(2,4)+'-'+digits.slice(4);
+      el.value=out;
+    });
+    el.addEventListener('blur',()=>{
+      if(!el.value.trim()) return;
+      const ymd=prDateToYmd(el.value);
+      if(!ymd) setStatus('Date DD-MM-YYYY format mein enter karein.',true);
+      else { el.value=prDateDisplay(ymd); if($('prStatus').textContent.includes('DD-MM-YYYY')) setStatus('',false); }
+    });
+  }
   function setup(){
     const box=$('prDenoms'); if(!box||box.dataset.ready)return; box.dataset.ready='1';
     box.innerHTML=DENOMS.map(d=>`<label style="padding:9px;border:1px solid #dbe4ee;border-radius:8px;background:#f8fafc;">Rs. ${d}<input type="number" min="0" step="1" value="0" data-denom="${d}" class="pr-qty" style="display:block;width:100%;padding:7px;margin-top:5px;"></label>`).join('');
     box.querySelectorAll('input').forEach(i=>i.addEventListener('input',calc));
-    $('prExpected').addEventListener('input',calc); $('prManualCounted')?.addEventListener('input',calc); $('prDate').value=new Date().toLocaleDateString('en-CA');
+    $('prExpected').addEventListener('input',calc); $('prManualCounted')?.addEventListener('input',calc);
+    $('prDate').value=prTodayDisplay();
+    prAttachDateInput($('prDate')); prAttachDateInput($('prFilterFrom')); prAttachDateInput($('prFilterTo'));
   }
   function calc(){const noteTotal=[...document.querySelectorAll('.pr-qty')].reduce((s,i)=>s+(Number(i.dataset.denom)||0)*(Math.max(0,parseInt(i.value)||0)),0);const manual=$('prManualCounted')?.value;const total=manual!==undefined&&manual!==''?Math.max(0,Number(manual)||0):noteTotal;const diff=total-(Number($('prExpected').value)||0);$('prCounted').textContent=money(total)+(manual!==undefined&&manual!==''?' (Manual)':'');$('prDifference').textContent=money(diff)+(diff>0?' (Excess)':diff<0?' (Short)':' (Matched)');$('prDifference').style.color=diff===0?'#16803c':'#b42318';return {total,diff,noteTotal,manualUsed:manual!==undefined&&manual!==''};}
   function fillShops(){
@@ -6273,31 +6386,31 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
   function renderHistory(){
     const body=$('prHistory');if(!body)return;const rows=[];
     Object.keys(prRecords||{}).forEach(uid=>{const group=prRecords[uid]||{};Object.keys(group).forEach(id=>{const r=group[id];if(r&&r.createdBy)rows.push({...r,_id:id,_uid:uid});});});
-    const from=$('prFilterFrom')?.value||'',to=$('prFilterTo')?.value||'';
-    const filtered=rows.filter(r=>(!from||String(r.date||'')>=from)&&(!to||String(r.date||'')<=to));
-    filtered.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.updatedAt||0)-Number(a.updatedAt||0));
+    const from=prDateToYmd($('prFilterFrom')?.value||''),to=prDateToYmd($('prFilterTo')?.value||'');
+    const filtered=rows.filter(r=>{const ymd=prDateToYmd(r.date);return !!ymd&&(!from||ymd>=from)&&(!to||ymd<=to);});
+    filtered.sort((a,b)=>prDateToYmd(b.date).localeCompare(prDateToYmd(a.date))||Number(b.updatedAt||0)-Number(a.updatedAt||0));
     const expected=filtered.reduce((sum,r)=>sum+(Number(r.expected)||0),0),totalCounted=filtered.reduce((sum,r)=>sum+counted(r),0),difference=totalCounted-expected;
     $('prTotalCount').textContent=String(filtered.length);$('prTotalExpected').textContent=money(expected);$('prTotalCounted').textContent=money(totalCounted);$('prTotalDifference').textContent=money(difference);
     const cashBody=$('prCashDetailsBody');const cashEdit=$('prCashDetailsEditControl');if(cashEdit)cashEdit.innerHTML='';if(cashBody){if(!filtered.length){cashBody.textContent='No cash details for selected dates.';}else{const denominationTotals=Object.fromEntries(DENOMS.map(d=>[d,0]));filtered.forEach(r=>DENOMS.forEach(d=>denominationTotals[d]+=Number(r.denominations?.[d])||0));const manualRows=filtered.filter(r=>r.manualCounted!==undefined&&r.manualCounted!==null&&r.manualCounted!=='');const manualTotal=manualRows.reduce((sum,r)=>sum+counted(r),0);cashBody.innerHTML=(DENOMS.filter(d=>denominationTotals[d]>0).map(d=>`<span style="display:inline-block;margin:3px 8px 3px 0;padding:6px 9px;border-radius:7px;background:#edf3fa;">Rs. ${d} × ${denominationTotals[d]} = <b>${money(d*denominationTotals[d])}</b></span>`).join('')||'No denomination entered')+(manualRows.length?`<div style="margin-top:8px;color:#475569;">Manual counted cash used on ${manualRows.length} record(s); counted total: <b>${money(manualTotal)}</b>. Manual totals replace note totals for those records.</div>`:'');if(cashEdit){const editable=filtered.filter(r=>key(currentUser.username)===r._uid);if(editable.length){cashEdit.innerHTML='<details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:700;color:#1d4ed8;">Edit cash details here</summary><div style="display:grid;gap:10px;margin-top:10px;">'+editable.map(r=>`<div style="padding:10px;border:1px solid #dbe4ee;border-radius:9px;background:#fff;"><div style="font-weight:700;margin-bottom:7px;">${String(r.date||'')} — ${String(r.shop||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))} | Counted: ${money(counted(r))}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:7px;">${DENOMS.map(d=>`<label style="font-size:11px;color:#475569;">Rs. ${d}<input type="number" min="0" step="1" id="prcash-${r._id}-${d}" value="${Math.max(0,Number(r.denominations?.[d])||0)}" style="display:block;width:100%;padding:6px;box-sizing:border-box;"></label>`).join('')}</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;"><span style="font-size:12px;color:#475569;">Notes total: <b id="prcash-total-${r._id}">${money(DENOMS.reduce((sum,d)=>sum+d*(Number(r.denominations?.[d])||0),0))}</b></span><button type="button" class="btn-add" style="padding:6px 10px;background:#2563eb;" onclick="saveCashDetailBreakdown('${r._id}')">Save this breakdown</button></div></div>`).join('')+'</div></details>';editable.forEach(r=>DENOMS.forEach(d=>{const input=$(`prcash-${r._id}-${d}`);input?.addEventListener('input',()=>{const sum=DENOMS.reduce((a,x)=>a+x*(Number($(`prcash-${r._id}-${x}`)?.value)||0),0);const out=$(`prcash-total-${r._id}`);if(out)out.textContent=money(sum);});}));}}}}
     if(!filtered.length){body.innerHTML='<tr><td colspan="7">No personal records for selected dates.</td></tr>';return;}
-    body.innerHTML=filtered.map(r=>{const own=key(currentUser.username)===r._uid,total=counted(r),diff=total-(Number(r.expected)||0);return `<tr style="border-top:1px solid #e2e8f0;"><td>${String(r.date||'')}</td><td>${String(r.shop||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}</td><td>${money(r.expected)}</td><td>${money(total)}</td><td>${money(diff)}</td><td><button type="button" onclick="viewPersonalRecovery('${r._id}')">View</button></td><td>${own?`<button type="button" onclick="editPersonalRecovery('${r._id}')">Edit</button> <button type="button" onclick="deletePersonalRecovery('${r._id}')">Delete</button>`:'View only'}</td></tr>`}).join('');
+    body.innerHTML=filtered.map(r=>{const own=key(currentUser.username)===r._uid,total=counted(r),diff=total-(Number(r.expected)||0);return `<tr style="border-top:1px solid #e2e8f0;"><td>${prDateDisplay(r.date)}</td><td>${String(r.shop||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]))}</td><td>${money(r.expected)}</td><td>${money(total)}</td><td>${money(diff)}</td><td><button type="button" onclick="viewPersonalRecovery('${r._id}')">View</button></td><td>${own?`<button type="button" onclick="editPersonalRecovery('${r._id}')">Edit</button> <button type="button" onclick="deletePersonalRecovery('${r._id}')">Delete</button>`:'View only'}</td></tr>`}).join('');
   }
   window.saveCashDetailBreakdown=async function(id){const record=prRecords?.[key(currentUser.username)]?.[id];if(!currentUser||currentUser.role!=='booker'||!record){alert('Record not found or access denied.');return;}const denominations={};DENOMS.forEach(d=>{const el=$(`prcash-${id}-${d}`);denominations[d]=Math.max(0,parseInt(el?.value)||0);});const total=DENOMS.reduce((sum,d)=>sum+d*denominations[d],0);const fixed=counted(record);if(total!==fixed){alert('Notes ka total '+money(total)+' hai, jabke counted cash '+money(fixed)+' hai. Barah-e-karam notes ki tadaad adjust karein taake dono total barabar hon.');return;}try{await db.ref(userPath()+'/'+id).update({denominations,manualCounted:null,counted:total,difference:total-(Number(record.expected)||0),updatedAt:firebase.database.ServerValue.TIMESTAMP});setStatus('Cash detail breakdown updated.');}catch(e){console.error(e);setStatus('Cash detail save failed. Firebase access check karein.',true);}};
-  window.editCashDetailRecord=function(){const rows=window.prCashEditRows||[];if(!rows.length)return alert('No editable recovery records in the selected date range.');const options=rows.map((r,i)=>`${i+1}. ${r.date} — ${r.shop}`).join('\n');const answer=prompt('Select the recovery record number to edit:\n'+options,'1');if(answer===null)return;const n=Number(answer);if(!Number.isInteger(n)||n<1||n>rows.length)return alert('Invalid record number.');editPersonalRecovery(rows[n-1]._id);const form=document.getElementById('prDate');if(form)form.scrollIntoView({behavior:'smooth',block:'center'});};
+  window.editCashDetailRecord=function(){const rows=window.prCashEditRows||[];if(!rows.length)return alert('No editable recovery records in the selected date range.');const options=rows.map((r,i)=>`${i+1}. ${prDateDisplay(r.date)} — ${r.shop}`).join('\n');const answer=prompt('Select the recovery record number to edit:\n'+options,'1');if(answer===null)return;const n=Number(answer);if(!Number.isInteger(n)||n<1||n>rows.length)return alert('Invalid record number.');editPersonalRecovery(rows[n-1]._id);const form=document.getElementById('prDate');if(form)form.scrollIntoView({behavior:'smooth',block:'center'});};
   window.renderPersonalRecoveryHistory=renderHistory;
   window.clearPersonalRecoveryFilter=function(){if($('prFilterFrom'))$('prFilterFrom').value='';if($('prFilterTo'))$('prFilterTo').value='';renderHistory();};
-  window.viewPersonalRecovery=function(id){const group=prRecords?.[key(currentUser.username)]||{};let r=group[id];if(!r&&owner()){for(const g of Object.values(prRecords||{})){if(g&&g[id]){r=g[id];break;}}}if(!r)return alert('Record not found or access denied.');const detail=DENOMS.map(d=>`Rs. ${d} x ${Number(r.denominations?.[d])||0}`).join('\n');alert(`Booker: ${r.booker||''}\nDate: ${r.date||''}\nTime: ${r.time||''}\nShop: ${r.shop||''}\nExpected: ${money(r.expected)}\nCounted: ${money(counted(r))}\nDifference: ${money(counted(r)-(Number(r.expected)||0))}\n\n${detail}\nNote: ${r.note||''}`);};
+  window.viewPersonalRecovery=function(id){const group=prRecords?.[key(currentUser.username)]||{};let r=group[id];if(!r&&owner()){for(const g of Object.values(prRecords||{})){if(g&&g[id]){r=g[id];break;}}}if(!r)return alert('Record not found or access denied.');const detail=DENOMS.map(d=>`Rs. ${d} x ${Number(r.denominations?.[d])||0}`).join('\n');alert(`Booker: ${r.booker||''}\nDate: ${prDateDisplay(r.date)}\nTime: ${r.time||''}\nShop: ${r.shop||''}\nExpected: ${money(r.expected)}\nCounted: ${money(counted(r))}\nDifference: ${money(counted(r)-(Number(r.expected)||0))}\n\n${detail}\nNote: ${r.note||''}`);};
   function purgeExpiredOwnRecords(){
     if(!currentUser||currentUser.role!=='booker')return;
     const now=new Date(),cutoff=new Date(now.getFullYear(),now.getMonth(),now.getDate());cutoff.setDate(cutoff.getDate()-29);
     const cutoffYmd=`${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
-    const group=prRecords?.[key(currentUser.username)]||{};const expired=Object.entries(group).filter(([,r])=>r&&r.date&&String(r.date)<cutoffYmd).map(([id])=>id);
+    const group=prRecords?.[key(currentUser.username)]||{};const expired=Object.entries(group).filter(([,r])=>r&&prDateToYmd(r.date)&&prDateToYmd(r.date)<cutoffYmd).map(([id])=>id);
     if(!expired.length)return Promise.resolve();
     const updates={};expired.forEach(id=>updates[id]=null);return db.ref(userPath()).update(updates).catch(err=>{console.warn('Personal recovery retention cleanup needs Firebase permission:',err);});
   }
-  window.resetPersonalRecoveryForm=function(){prEditKey=null;$('prDate').value=new Date().toLocaleDateString('en-CA');$('prShop').value='';$('prExpected').value='';$('prNote').value='';if($('prManualCounted'))$('prManualCounted').value='';document.querySelectorAll('.pr-qty').forEach(i=>i.value=0);$('prSaveBtn').textContent='Save personal record';calc();setStatus('');};
-  window.savePersonalRecovery=async function(){if(!currentUser||currentUser.role!=='booker'&&currentUser.role!=='admin')return setStatus('Access not permitted.',true);const {total,diff}=calc(),shop=$('prShop').value,date=$('prDate').value,expected=Number($('prExpected').value);if(!date||!shop||!Number.isFinite(expected)||expected<0)return setStatus('Date, shop and valid expected amount are required.',true);if(diff!==0&&!confirm('Counted cash does not match expected recovery. Save with the difference recorded?'))return;const denominations={};document.querySelectorAll('.pr-qty').forEach(i=>denominations[i.dataset.denom]=Math.max(0,parseInt(i.value)||0));const manual=$('prManualCounted')?.value;const record={date,shop,expected,denominations,manualCounted:manual!==undefined&&manual!==''?total:null,counted:total,difference:diff,note:$('prNote').value.trim(),booker:booker(),createdBy:currentUser.username,time:new Date().toLocaleTimeString(),updatedAt:firebase.database.ServerValue.TIMESTAMP};try{const ref=db.ref(userPath());if(prEditKey)await ref.child(prEditKey).update(record);else await ref.push(record);setStatus('Personal record saved to the separate Firebase path.');resetPersonalRecoveryForm();}catch(e){console.error(e);setStatus('Cloud save failed. Nothing was written to the official ledger; check Firebase access rules.',true);}};
-  window.editPersonalRecovery=function(id){const r=prRecords?.[key(currentUser.username)]?.[id];if(!r)return;prEditKey=id;$('prDate').value=r.date||'';$('prShop').value=r.shop||'';$('prExpected').value=r.expected||0;$('prNote').value=r.note||'';/* Keep the original counted-cash total fixed while the user corrects only denomination quantities. */$('prManualCounted').value=String(counted(r));document.querySelectorAll('.pr-qty').forEach(i=>i.value=r.denominations?.[i.dataset.denom]||0);$('prSaveBtn').textContent='Update personal record';calc();const manualLabel=document.querySelector('label[for=prManualCounted]');if(manualLabel)manualLabel.title='Original counted cash is held fixed while correcting note quantities.';}
+  window.resetPersonalRecoveryForm=function(){prEditKey=null;$('prDate').value=prTodayDisplay();$('prShop').value='';$('prExpected').value='';$('prNote').value='';if($('prManualCounted'))$('prManualCounted').value='';document.querySelectorAll('.pr-qty').forEach(i=>i.value=0);$('prSaveBtn').textContent='Save personal record';calc();setStatus('');};
+  window.savePersonalRecovery=async function(){if(!currentUser||currentUser.role!=='booker'&&currentUser.role!=='admin')return setStatus('Access not permitted.',true);const {total,diff}=calc(),shop=$('prShop').value,dateInput=$('prDate').value,expected=Number($('prExpected').value),dateYmd=prDateToYmd(dateInput);if(!dateYmd||!shop||!Number.isFinite(expected)||expected<0)return setStatus('Date DD-MM-YYYY, shop and valid expected amount are required.',true);const date=prDateDisplay(dateYmd);if(diff!==0&&!confirm('Counted cash does not match expected recovery. Save with the difference recorded?'))return;const denominations={};document.querySelectorAll('.pr-qty').forEach(i=>denominations[i.dataset.denom]=Math.max(0,parseInt(i.value)||0));const manual=$('prManualCounted')?.value;const record={date,shop,expected,denominations,manualCounted:manual!==undefined&&manual!==''?total:null,counted:total,difference:diff,note:$('prNote').value.trim(),booker:booker(),createdBy:currentUser.username,time:new Date().toLocaleTimeString(),updatedAt:firebase.database.ServerValue.TIMESTAMP};try{const ref=db.ref(userPath());if(prEditKey)await ref.child(prEditKey).update(record);else await ref.push(record);setStatus('Personal record saved to the separate Firebase path.');resetPersonalRecoveryForm();}catch(e){console.error(e);setStatus('Cloud save failed. Nothing was written to the official ledger; check Firebase access rules.',true);}};
+  window.editPersonalRecovery=function(id){const r=prRecords?.[key(currentUser.username)]?.[id];if(!r)return;prEditKey=id;$('prDate').value=prDateDisplay(r.date||'');$('prShop').value=r.shop||'';$('prExpected').value=r.expected||0;$('prNote').value=r.note||'';/* Keep the original counted-cash total fixed while the user corrects only denomination quantities. */$('prManualCounted').value=String(counted(r));document.querySelectorAll('.pr-qty').forEach(i=>i.value=r.denominations?.[i.dataset.denom]||0);$('prSaveBtn').textContent='Update personal record';calc();const manualLabel=document.querySelector('label[for=prManualCounted]');if(manualLabel)manualLabel.title='Original counted cash is held fixed while correcting note quantities.';}
   window.deletePersonalRecovery=async function(id){if(!confirm('Delete this personal recovery record?'))return;try{await db.ref(userPath()+'/'+id).remove();setStatus('Personal record deleted.');}catch(e){setStatus('Delete failed. Check Firebase access rules.',true);}};
   window.refreshPersonalRecovery=function(){
     if(!currentUser||!['admin','booker'].includes(String(currentUser.role||'').toLowerCase())){
