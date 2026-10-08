@@ -4451,6 +4451,28 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 shopTx = shopTx.filter(t => transactionDateOnOrBefore(t, selectedDate));
             }
 
+            // FROM DATE: entries before From Date are not shown as rows, but their
+            // net amount is carried forward as Opening Balance so the running
+            // balance stays correct.
+            const fromDate = document.getElementById('ledgerFromDate')?.value || '';
+            if (fromDate && selectedDate && fromDate > selectedDate) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">From Date, To Date se baad nahi ho sakti.</td></tr>';
+                document.getElementById('ledgerNetBalance').innerHTML = 'Rs. 0';
+                return;
+            }
+            let openingBal = 0;
+            if (fromDate) {
+                const txYmdOf = t => {
+                    const p = normalizeDate(t && t.date ? t.date : '').toString().split('-');
+                    return p.length === 3 ? `${p[2].padStart(4,'0')}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` : '';
+                };
+                shopTx.forEach(t => {
+                    const y = txYmdOf(t);
+                    if (y && y < fromDate) openingBal += (parseFloat(t.credit) || 0) - (parseFloat(t.recovery) || 0);
+                });
+                shopTx = shopTx.filter(t => { const y = txYmdOf(t); return y && y >= fromDate; });
+            }
+
             // Shop Ledger must preserve every original Daily Entry transaction as a separate row.
             // Never combine same-date credits or recoveries: each entry must remain traceable
             // with its own date, booker, reference, amount and running balance.
@@ -4471,8 +4493,21 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             }));
 
             let sno = 1;
-            let runningBal = 0;
+            let runningBal = openingBal;
             const rows = [];
+            if (fromDate) {
+                rows.push(`
+                    <tr>
+                        <td class="text-center">-</td>
+                        <td class="text-center">${selectedDateToLabel(fromDate)}</td>
+                        <td class="text-left">-</td>
+                        <td class="text-left"><strong>Opening Balance (B/F)</strong></td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">-</td>
+                        <td class="text-right">${formatBalance(openingBal)}</td>
+                    </tr>
+                `);
+            }
 
             ledgerRows.forEach(item => {
                 runningBal += (item.credit - item.recovery);
