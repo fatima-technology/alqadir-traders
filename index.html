@@ -3712,7 +3712,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 document.getElementById('tabLedgerBtn').style.display = '';
                 document.getElementById('tabBookerBtn').style.display = '';
                 document.querySelectorAll('.booker-export-hide').forEach(el => el.style.display = 'none');
-                openTab('dashboard', document.getElementById('tabDashBtn'));
+                keepCurrentTabOrOpen('dashboard', 'tabDashBtn');
                 return;
             }
 
@@ -3744,7 +3744,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 // Custom Access users may print the reports they are allowed to see.
                 // Excel remains unavailable; PDF remains available as before.
                 document.querySelectorAll('.booker-export-hide').forEach(el => el.style.display='inline-block');
-                if(showDash) openTab('dashboard', document.getElementById('tabDashBtn'));
+                if(showDash) keepCurrentTabOrOpen('dashboard', 'tabDashBtn');
                 else if(showBooker) openTab('bookerLedger', document.getElementById('tabBookerBtn'));
                 else if(showLedger) openTab('ledger', document.getElementById('tabLedgerBtn'));
                 return;
@@ -3755,12 +3755,32 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 ['tabEntryBtn','tabLedgerBtn','tabBookerBtn','tabShopsBtn','tabUsersBtn','tabBackupBtn'].forEach(id => {
                     const el = document.getElementById(id); if (el) el.style.display = 'none';
                 });
-                openTab('dashboard', document.getElementById('tabDashBtn'));
+                keepCurrentTabOrOpen('dashboard', 'tabDashBtn');
                 return;
             }
 
             // Admin only: full existing access.
-            openTab('dashboard', document.getElementById('tabDashBtn'));
+            keepCurrentTabOrOpen('dashboard', 'tabDashBtn');
+        }
+
+        /* Data sync/resume par user ko current tab se dashboard par mat bhejo —
+           agar current tab us user ke liye allowed hai to wahi tab rehne do. */
+        function keepCurrentTabOrOpen(defaultTabId, defaultBtnId) {
+            const TAB_BTN = { dashboard:'tabDashBtn', entry:'tabEntryBtn', ledger:'tabLedgerBtn', bookerLedger:'tabBookerBtn', shops:'tabShopsBtn', users:'tabUsersBtn', backup:'tabBackupBtn', companyProfile:'tabCompanyProfileBtn', personalRecovery:'tabPersonalRecoveryBtn' };
+            const active = document.querySelector('.tab-content.active');
+            const activeId = active ? active.id : '';
+            const role = String((currentUser && currentUser.role) || '').toLowerCase();
+            let allowed = false;
+            if (activeId && activeId !== defaultTabId && TAB_BTN[activeId]) {
+                if (activeId === 'personalRecovery') {
+                    allowed = role === 'admin' || role === 'booker';
+                } else {
+                    const b = document.getElementById(TAB_BTN[activeId]);
+                    allowed = !!b && !b.hidden && b.style.display !== 'none';
+                }
+            }
+            if (allowed) openTab(activeId, document.getElementById(TAB_BTN[activeId]));
+            else openTab(defaultTabId, document.getElementById(defaultBtnId));
         }
 
         function openTab(tabId, btnElem) {
@@ -4267,7 +4287,17 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             let sno = 1, grandNetBalance = 0, grandTotalShopsSet = new Set(), grandCreditShopsCount = 0;
             const rows = [];
 
-            Object.keys(bookerData).sort().forEach(bName => {
+            // Dashboard Booker Summary ki fixed tarteeb. Naam poora ya pehla lafz match hota hai
+            // (maslan "TALHA SOHAIL" -> TALHA). List se bahar wale bookers aakhir mein A-Z.
+            const DASH_BOOKER_ORDER = ['ARSALAN','INAAM','KASHIF','NADEEM','RIZWAN','TALHA','WAQAS','ZEESHAN','ISSUE','COMPANY','OUTSTATION','STAFF','OFFICE'];
+            const dashBookerRank = name => {
+                const n = String(name || '').trim().replace(/\s+/g, ' ').toUpperCase();
+                const first = n.split(' ')[0];
+                let i = DASH_BOOKER_ORDER.indexOf(n);
+                if (i < 0) i = DASH_BOOKER_ORDER.indexOf(first);
+                return i < 0 ? DASH_BOOKER_ORDER.length : i;
+            };
+            Object.keys(bookerData).sort((a, b) => (dashBookerRank(a) - dashBookerRank(b)) || a.localeCompare(b)).forEach(bName => {
                 const data = bookerData[bName];
                 const netBal = data.totalCredit - data.totalRecovery;
                 // Zero-balance bookers are hidden automatically from dashboard lists.
