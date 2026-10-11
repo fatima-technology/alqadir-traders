@@ -2806,14 +2806,26 @@ body.night-theme .print-date-bar{display:flex !important;}
         const APP_BACKGROUND_LIMIT_MS = 60 * 60 * 1000;
         let appBackgroundGuardBound = false;
 
+        // 1 ghante wala auto-logout sirf mobile/tablet par. Laptop/PC par kabhi auto-logout nahi.
+        function isMobileDevice() {
+            try {
+                const ua = navigator.userAgent || '';
+                if (/Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile|webOS|BlackBerry/i.test(ua)) return true;
+                // iPadOS desktop-mode Safari
+                if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true;
+            } catch (e) {}
+            return false;
+        }
         function markAppBackgroundStarted() {
             if (!currentUser) return;
+            if (!isMobileDevice()) return;
             try { localStorage.setItem(APP_BACKGROUND_KEY, String(Date.now())); } catch (e) {}
         }
         function clearAppBackgroundStarted() {
             try { localStorage.removeItem(APP_BACKGROUND_KEY); } catch (e) {}
         }
         function backgroundSessionExpired() {
+            if (!isMobileDevice()) { clearAppBackgroundStarted(); return false; }
             try {
                 const started = Number(localStorage.getItem(APP_BACKGROUND_KEY) || 0);
                 return !!started && (Date.now() - started >= APP_BACKGROUND_LIMIT_MS);
@@ -2849,14 +2861,17 @@ body.night-theme .print-date-bar{display:flex !important;}
             } catch(e) {}
         }
         function checkMobileBackgroundSession() {
-            if(!currentUser) return;
-            if(backgroundSessionExpired()){
+            try {
+                if(!currentUser) return;
+                if(backgroundSessionExpired()){
+                    clearAppBackgroundStarted();
+                    logout();
+                    return;
+                }
                 clearAppBackgroundStarted();
-                logout();
-                return;
-            }
-            clearAppBackgroundStarted();
-            refreshCloudAfterMobileResume();
+                ensureFirebaseConnected();
+                refreshCloudAfterMobileResume();
+            } catch (e) { console.warn('Resume session check:', e); }
         }
         function bindMobileBackgroundSessionGuard() {
             if(appBackgroundGuardBound) return;
@@ -2867,9 +2882,46 @@ body.night-theme .print-date-bar{display:flex !important;}
             });
             window.addEventListener('pageshow',checkMobileBackgroundSession);
             window.addEventListener('pagehide',markAppBackgroundStarted);
-            window.addEventListener('online',()=>{if(currentUser){try{db.goOnline();}catch(e){} refreshCloudAfterMobileResume();}});
-            checkMobileBackgroundSession();
+            window.addEventListener('online',()=>{if(currentUser){ensureFirebaseConnected(true); refreshCloudAfterMobileResume();}});
+            window.addEventListener('focus',()=>{ if(currentUser) ensureFirebaseConnected(); });
+            // Pehla check poori script load hone ke baad chalao. Pehle yeh foran chalta tha aur
+            // purani (1 din pehle ki) background time milne par logout() aisi cheezen use karta tha
+            // jo abhi load nahi hui thin — error se poori script ruk jati thi: login dikhta tha
+            // magar sync aur koi function kaam nahi karta tha.
+            setTimeout(checkMobileBackgroundSession, 0);
         }
+
+        /* FIREBASE CONNECTION KEEP-ALIVE
+           Mobile par browser background mein jaye to phone Firebase ka connection kaat deta hai.
+           App wapis khulte hi, aur har 20 second (jab screen khuli ho) connection check karo;
+           agar disconnect ho to khud dobara connect karo. */
+        let firebaseIsConnected = false;
+        let firebaseDisconnectedSince = Date.now();
+        let firebaseReconnectBusy = false;
+        try {
+            db.ref('.info/connected').on('value', snap => {
+                firebaseIsConnected = snap.val() === true;
+                if (!firebaseIsConnected) firebaseDisconnectedSince = Date.now();
+            });
+        } catch (e) {}
+        function ensureFirebaseConnected(force) {
+            try {
+                if (typeof db === 'undefined') return;
+                if (navigator.onLine === false) return;
+                if (firebaseIsConnected && !force) return;
+                if (firebaseReconnectBusy) return;
+                firebaseReconnectBusy = true;
+                const stuck = force || (Date.now() - firebaseDisconnectedSince > 8000);
+                if (stuck) { try { db.goOffline(); } catch (e) {} }
+                setTimeout(() => {
+                    try { db.goOnline(); } catch (e) {}
+                    firebaseReconnectBusy = false;
+                }, stuck ? 300 : 0);
+            } catch (e) { firebaseReconnectBusy = false; }
+        }
+        setInterval(() => {
+            if (document.visibilityState === 'visible') ensureFirebaseConnected();
+        }, 20000);
 
         // Restore the last session from the local safety copy FIRST. This runs synchronously
         // before Firebase requests, so refresh does not wait 1-2 seconds for user data.
