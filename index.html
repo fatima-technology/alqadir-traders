@@ -2223,6 +2223,10 @@ html body.game-theme.game-day textarea{ background:rgba(255,255,255,.70) !import
   html body #bookerLedger .filter-box input[type=date]{ padding:4px 4px !important; font-size:12px !important; }
 }
 </style>
+<style id="zoom-drag-no-refresh">
+/* While the 🔍 button is being dragged: no browser scroll / pull-to-refresh */
+html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !important; touch-action:none !important; }
+</style>
 </head>
 
 <body class="game-theme">
@@ -7334,6 +7338,76 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initFinalZoomAndRotation);
   else initFinalZoomAndRotation();
+})();
+</script>
+<script id="pinch-zoom-and-drag-no-refresh-js">
+(function(){
+  /* ===== 1) Two-finger pinch zoom on reports =====
+     Android WebView often has native pinch-zoom switched off, so the
+     pinch drives the app's own report zoom (same 70%–160% as the 🔍 buttons). */
+  var MIN=0.7, MAX=1.6;
+  var pinch=null, raf=0, pending=null;
+  function activeZoomTab(){
+    var a=document.querySelector('.tab-content.active');
+    try{ return a && typeof REPORT_ZOOM_TABS!=='undefined' && REPORT_ZOOM_TABS.has(a.id) ? a : null; }catch(e){ return null; }
+  }
+  function dist(t){ var dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); }
+  function overlayOpen(){
+    var lo=document.getElementById('loginOverlay');
+    if(lo && getComputedStyle(lo).display!=='none') return true;
+    var mo=document.querySelector('.modal-overlay');
+    return !!(mo && getComputedStyle(mo).display!=='none' && mo.offsetParent!==null);
+  }
+  document.addEventListener('touchstart',function(e){
+    if(e.touches.length!==2 || overlayOpen() || !activeZoomTab()){ pinch=null; return; }
+    var cur=1; try{ cur=reportZoom; }catch(err){}
+    pinch={d:dist(e.touches), z:cur};
+  },{passive:true});
+  document.addEventListener('touchmove',function(e){
+    if(!pinch || e.touches.length!==2) return;
+    e.preventDefault();
+    var z=pinch.z*(dist(e.touches)/pinch.d);
+    z=Math.max(MIN,Math.min(MAX,Math.round(z*20)/20));
+    pending=z;
+    if(!raf) raf=requestAnimationFrame(function(){
+      raf=0;
+      try{ if(pending!==null && pending!==reportZoom){ reportZoom=pending; applyReportZoom(); } }catch(err){}
+    });
+  },{passive:false});
+  function endPinch(e){ if(pinch && e.touches.length<2) pinch=null; }
+  document.addEventListener('touchend',endPinch,{passive:true});
+  document.addEventListener('touchcancel',endPinch,{passive:true});
+
+  /* ===== 2) Dragging the 🔍 zoom button must not trigger pull-to-refresh ===== */
+  function initDragGuard(){
+    var box=document.getElementById('reportZoomControls');
+    var toggle=box && box.querySelector('.report-zoom-toggle');
+    if(!toggle || toggle.dataset.noRefreshBound) return;
+    toggle.dataset.noRefreshBound='1';
+    var nudged=false;
+    function start(){
+      document.documentElement.classList.add('zoom-btn-dragging');
+      /* Pull-to-refresh only starts when the page is at the very top.
+         Move the page 1px down while dragging so the app/browser never starts it. */
+      if((window.scrollY||document.documentElement.scrollTop)<1 &&
+         document.documentElement.scrollHeight>window.innerHeight+2){
+        window.scrollTo(0,1); nudged=true;
+      }
+    }
+    function end(){
+      document.documentElement.classList.remove('zoom-btn-dragging');
+      if(nudged){ nudged=false; if((window.scrollY||0)<=1) window.scrollTo(0,0); }
+    }
+    toggle.addEventListener('touchstart',function(e){ start(); },{passive:true});
+    toggle.addEventListener('touchmove',function(e){ e.preventDefault(); },{passive:false});
+    toggle.addEventListener('touchend',end,{passive:true});
+    toggle.addEventListener('touchcancel',end,{passive:true});
+    toggle.addEventListener('pointerdown',start,{passive:true});
+    toggle.addEventListener('pointerup',end,{passive:true});
+    toggle.addEventListener('pointercancel',end,{passive:true});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initDragGuard);
+  else initDragGuard();
 })();
 </script>
 <script id="game-bg-photos-js">
