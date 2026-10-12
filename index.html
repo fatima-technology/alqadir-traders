@@ -2155,6 +2155,74 @@ html body.game-theme.game-day textarea{ background:rgba(255,255,255,.70) !import
   html body #shops #shopsMainTable th:nth-child(7){ width:18% !important; }
 }
 </style>
+<style id="mobile-lite-effects">
+/* MOBILE / APK FIX — stops screen blinking.
+   Android WebView flickers with heavy GPU effects (backdrop blur, animated
+   masked border, 3D animated grid, blend-mode photos, drop-shadow filters).
+   On phones/touch screens these are switched to light versions.
+   Desktop keeps the full effects. */
+@media (max-width: 900px), (hover: none) and (pointer: coarse) {
+  /* Login + loader background */
+  .gl-grid{
+    inset:0 !important; transform:none !important; animation:none !important;
+    -webkit-mask-image:none !important; mask-image:none !important; opacity:.5;
+  }
+  #loginOverlay .gl-photo{ mix-blend-mode:normal !important; animation:none !important; filter:none !important; opacity:.10 !important; }
+  .gl-chart path{ filter:none !important; }
+  .gl-chart path.gl-line{ animation:glDraw 5s ease-out forwards !important; }
+
+  /* Login card: no blur, no spinning masked border */
+  #loginOverlay .login-card{
+    backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+    background:linear-gradient(160deg,#1c040a,#0a020e) !important;
+    box-shadow:0 0 0 1px rgba(255,60,75,.45), 0 0 26px rgba(228,30,45,.35) !important;
+  }
+  #loginOverlay .login-card::before{ display:none !important; animation:none !important; }
+  #loginOverlay .coca-cola-login-logo{ filter:brightness(0) invert(1) !important; }
+  #loginOverlay .btn-login::after{ display:none !important; }
+  #loginOverlay .login-card h2{ animation:none !important; }
+
+  /* System screens: no backdrop blur on big panels */
+  html body .container,
+  html body.game-theme .container{
+    backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+  }
+}
+</style>
+<style id="mobile-booker-detail-compact-filters">
+/* MOBILE ONLY — Booker Detail: compact filter area (3 short rows instead of a tall box).
+   Row 1: Booker + Date | Row 2: Search | Row 3: Balance filter + Reset + PDF */
+@media screen and (max-width: 768px){
+  html body #bookerLedger .filter-box{
+    display:grid !important; grid-template-columns:repeat(6,minmax(0,1fr)) !important;
+    gap:5px !important; padding:6px !important; margin-bottom:8px !important; align-items:center !important;
+  }
+  html body #bookerLedger .filter-box > *{ min-width:0 !important; max-width:100% !important; width:100% !important; margin:0 !important; flex:none !important; }
+  /* hide the long labels — fields keep their placeholders */
+  html body #bookerLedger .filter-box > div > label{ display:none !important; }
+  html body #bookerLedger .filter-box > div{ display:block !important; gap:0 !important; }
+  html body #bookerLedger .filter-box select, html body #bookerLedger .filter-box input{
+    width:100% !important; height:34px !important; min-height:34px !important;
+    padding:4px 8px !important; font-size:13px !important; line-height:1.2 !important; border-radius:8px !important;
+  }
+  html body #bookerLedger .filter-box button{
+    height:34px !important; min-height:34px !important; padding:4px 6px !important;
+    font-size:12px !important; line-height:1.1 !important; border-radius:8px !important; white-space:nowrap !important;
+    overflow:hidden !important; text-overflow:ellipsis !important;
+  }
+  /* 1 booker select | 2 date | 3 search | 4 reset | 5 balance | 6 excel | 7 print | 8 pdf */
+  html body #bookerLedger .filter-box > :nth-child(1){ grid-column:span 4 !important; }
+  html body #bookerLedger .filter-box > :nth-child(2){ grid-column:span 2 !important; }
+  html body #bookerLedger .filter-box > :nth-child(3){ grid-column:span 6 !important; }
+  html body #bookerLedger .filter-box > :nth-child(4){ grid-column:span 2 !important; order:5 !important; }
+  html body #bookerLedger .filter-box > :nth-child(5){ grid-column:span 2 !important; order:4 !important; }
+  html body #bookerLedger .filter-box > :nth-child(6),
+  html body #bookerLedger .filter-box > :nth-child(7){ grid-column:span 3 !important; order:7 !important; }
+  html body #bookerLedger .filter-box > :nth-child(8){ grid-column:span 2 !important; order:6 !important; }
+  html body #bookerLedger .filter-box > :nth-child(1), html body #bookerLedger .filter-box > :nth-child(2), html body #bookerLedger .filter-box > :nth-child(3){ order:0; }
+  html body #bookerLedger .filter-box input[type=date]{ padding:4px 4px !important; font-size:12px !important; }
+}
+</style>
 </head>
 
 <body class="game-theme">
