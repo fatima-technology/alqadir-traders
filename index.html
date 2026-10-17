@@ -3668,6 +3668,20 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
             }
 
             const headingParts = getReportHeadingParts();
+            /* Excel banner = same look as the on-screen brand header (dark red, white title, Urdu name, Coca-Cola, Official Partner). */
+            const bi = reportBrandInfo();
+            const nCols = Math.max(3, (cleanTable.querySelector('tr')?.children.length) || 3);
+            const lc = Math.max(1, Math.floor(nCols * 0.4)), rc = Math.max(1, Math.floor(nCols * 0.3)), cc = Math.max(1, nCols - lc - rc);
+            const bg = 'background:#3a0610;mso-pattern:auto;';
+            const excelBannerHtml = `<table class="xl-banner" style="width:100%;border-collapse:collapse;margin-bottom:6px;">
+<tr><td colspan="${lc}" bgcolor="#3a0610" style="${bg}color:#ffffff;font-family:'Arial Black',Arial,sans-serif;font-size:18pt;font-weight:900;letter-spacing:2px;padding:8px 10px 0;border:0;">${escHtml(bi.title)}</td>
+<td colspan="${cc}" rowspan="3" bgcolor="#3a0610" style="${bg}color:#ffffff;font-family:'Noto Nastaliq Urdu','Jameel Noori Nastaleeq','Amiri','Times New Roman',serif;font-size:20pt;font-weight:bold;text-align:center;vertical-align:middle;border:0;">&#128332;<br>${escHtml(bi.ur)}</td>
+<td colspan="${rc}" rowspan="2" bgcolor="#3a0610" style="${bg}color:#ff2b3d;font-family:'Brush Script MT','Segoe Script',cursive;font-style:italic;font-size:22pt;font-weight:bold;text-align:right;vertical-align:bottom;padding:6px 10px 0;border:0;">Coca-Cola</td></tr>
+<tr><td colspan="${lc}" bgcolor="#3a0610" style="${bg}color:#ff6b78;font-family:Montserrat,Arial,sans-serif;font-size:9pt;font-weight:bold;letter-spacing:1.5px;padding:0 10px;border:0;">${escHtml(bi.sub)}</td></tr>
+<tr><td colspan="${lc}" bgcolor="#3a0610" style="${bg}color:#8fb3c9;font-family:Montserrat,Arial,sans-serif;font-size:8pt;font-weight:bold;letter-spacing:1px;padding:0 10px 8px;border:0;">${escHtml(bi.desc)}</td>
+<td colspan="${rc}" bgcolor="#3a0610" style="${bg}color:#8fb3c9;font-family:Montserrat,Arial,sans-serif;font-size:8pt;font-weight:bold;letter-spacing:1.5px;text-align:right;padding:0 10px 8px;border:0;">${escHtml(bi.partner)}</td></tr>
+<tr><td colspan="${nCols}" bgcolor="#ff2b3d" style="background:#ff2b3d;height:4px;font-size:2pt;line-height:4px;padding:0;border:0;">&nbsp;</td></tr>
+</table>`;
             const html = `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head>
@@ -3759,11 +3773,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 </style>
 </head><body>
 <div class="report">
-  <div class="header">
-    <div class="header-title">AL QADIR TRADERS</div>
-    <div class="header-sub">MARKET CREDIT LEDGER SYSTEM</div>
-    <div class="header-desc">AUTHORIZED DISTRIBUTOR</div>
-  </div>
+  ${excelBannerHtml}
   <div class="report-title">${escHtml(cfg.title)}</div>
   <div class="report-subtitle">${escHtml(cfg.subtitle)}</div>
   <table class="datebar"><tr><td>${escHtml(headingParts.type)}</td><td>${escHtml(headingParts.live)}</td><td>${escHtml(headingParts.updated)}</td></tr></table>
@@ -3785,7 +3795,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = (filename || 'Al_Qadir_Report') + '.xls';
+            a.download = reportFileName(tbodyId, filename) + '.xls';
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 15000);
         }
@@ -6797,128 +6807,351 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             master.indeterminate = checked > 0 && checked < boxes.length;
         }
 
-        /* PDF DOWNLOAD - closely mirrors the browser's Print layout */
-        function downloadCurrentTablePDF(tableId, filename, title) {
+        /* PDF DOWNLOAD - closely mirrors the browser's Print layout.
+           FIXED: header row always read from <thead> (dashboard used to pass a <tbody>, so the first
+           booker row became the table header); all filtered rows are exported (Show-limit lifted);
+           a TOTAL row is calculated from the exact rows printed; proper page capacity; header repeats
+           on every page; accurate text width so numbers never spill into the next column. */
+        /* REPORT BANNER — draws the same brand header shown on screen into an image
+           (dark red banner, white title, Urdu name, mosque, Coca-Cola logo, OFFICIAL PARTNER)
+           so it can be placed at the top of every PDF page. */
+        function reportBrandInfo() {
+            const q = s => (document.querySelector(s)?.textContent || '').replace(/\s+/g, ' ').trim();
+            return {
+                title: q('.brand-title-en') || 'AL QADIR TRADERS',
+                sub: q('.brand-sub-en') || 'MARKET CREDIT LEDGER SYSTEM',
+                desc: q('.brand-desc-en') || 'AUTHORIZED DISTRIBUTOR',
+                ur: q('.brand-title-ur') || 'الْقَادِرُ ٹْرِیڈَرْزْ',
+                partner: q('.coca-cola-sub') || 'OFFICIAL PARTNER',
+                logo: document.querySelector('.brand-right img')?.src || ''
+            };
+        }
+        function loadImageForCanvas(src) {
+            return new Promise(res => {
+                if (!src) return res(null);
+                let settled = false; const finish = v => { if (!settled) { settled = true; res(v); } };
+                const tryImg = (url, cors) => { const im = new Image(); if (cors) im.crossOrigin = 'anonymous'; im.onload = () => finish(im); im.onerror = () => finish(null); im.src = url; };
+                setTimeout(() => finish(null), 4000);
+                if (src.startsWith('data:')) return tryImg(src, false);
+                fetch(src, { mode: 'cors' }).then(r => r.ok ? r.blob() : Promise.reject())
+                    .then(b => { const fr = new FileReader(); fr.onload = () => tryImg(fr.result, false); fr.onerror = () => tryImg(src, true); fr.readAsDataURL(b); })
+                    .catch(() => tryImg(src, true));
+            });
+        }
+        let __reportHeaderCache = null;
+        async function getReportHeaderImage() {
+            const info = reportBrandInfo(); const key = JSON.stringify(info);
+            if (__reportHeaderCache && __reportHeaderCache.key === key) return __reportHeaderCache;
             try {
-                const table = document.getElementById(tableId);
-                if (!table) { alert('Report table not found.'); return; }
-                const sourceTable = getExportTable(table);
-                const rows = Array.from(sourceTable.querySelectorAll('tr')).map(tr =>
-                    Array.from(tr.querySelectorAll('th,td')).map(cell => (cell.innerText || '').replace(/\s+/g, ' ').trim())
-                ).filter(r => r.length);
-                if (!rows.length) rows.push(['No records found.']);
+                if (document.fonts && document.fonts.load) {
+                    const loads = ['900 24px Orbitron', '800 11px Montserrat', '700 30px Amiri', '700 30px "Noto Nastaliq Urdu"', '900 80px Cinzel']
+                        .map(f => document.fonts.load(f, /Amiri|Nastaliq/.test(f) ? info.ur : 'AQ').catch(() => {}));
+                    await Promise.race([Promise.all(loads), new Promise(r => setTimeout(r, 2500))]);
+                }
+                const logo = await loadImageForCanvas(info.logo);
+                const W = 1183, H = 130, S = 2;
+                const c = document.createElement('canvas'); c.width = W * S; c.height = H * S;
+                const x = c.getContext('2d'); x.scale(S, S);
+                const ls = v => { if ('letterSpacing' in x) x.letterSpacing = v; };
+                const fit = (text, px, py, maxW, tpl, size) => { let s = size; x.font = tpl.replace('{s}', s); while (s > 6 && x.measureText(text).width > maxW) { s -= 0.5; x.font = tpl.replace('{s}', s); } x.fillText(text, px, py); };
+                /* background */
+                const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#1a0206'); g.addColorStop(0.5, '#3d0710'); g.addColorStop(1, '#1a0206');
+                x.fillStyle = g; x.fillRect(0, 0, W, H);
+                const rg = x.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * 0.45); rg.addColorStop(0, 'rgba(150,12,28,.40)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+                x.fillStyle = rg; x.fillRect(0, 0, W, H);
+                /* faint AL QADIR watermark */
+                x.save(); x.translate(W / 2, H / 2 + 8); x.rotate(-5 * Math.PI / 180); x.textAlign = 'center'; x.textBaseline = 'middle';
+                x.font = '900 80px Cinzel, Georgia, serif'; x.fillStyle = 'rgba(255,43,61,.10)'; x.fillText('AL QADIR', 0, 0); x.restore();
+                /* bottom red bar */
+                x.fillStyle = '#ff2b3d'; x.fillRect(0, H - 4, W, 4);
+                /* left: name / sub / desc */
+                x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+                x.shadowColor = 'rgba(255,60,75,.85)'; x.shadowBlur = 10; x.fillStyle = '#ffffff'; ls('2px');
+                fit(info.title.toUpperCase(), 32, 56, 400, '900 {s}px Orbitron, "Arial Black", Arial, sans-serif', 24);
+                x.shadowBlur = 0; x.fillStyle = '#ff6b78'; ls('1.5px');
+                fit(info.sub.toUpperCase(), 32, 75, 400, '800 {s}px Montserrat, Arial, sans-serif', 11);
+                x.fillStyle = '#8fb3c9'; ls('1px');
+                fit(info.desc.toUpperCase(), 32, 90, 400, '700 {s}px Montserrat, Arial, sans-serif', 10);
+                /* center: mosque + Urdu name */
+                ls('0px'); x.textAlign = 'center';
+                x.font = '20px "Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji",sans-serif'; x.fillStyle = '#ffffff'; x.fillText('🕌', W / 2, 42);
+                x.strokeStyle = '#ff2b3d'; x.lineWidth = 1.6;
+                [[-1], [1]].forEach(([d]) => { x.beginPath(); x.moveTo(W / 2 + d * 18, 34); x.quadraticCurveTo(W / 2 + d * 30, 22, W / 2 + d * 42, 32); x.stroke(); x.beginPath(); x.arc(W / 2 + d * 44, 30, 3, 0, Math.PI * 2); x.stroke(); });
+                x.shadowColor = 'rgba(255,60,75,.85)'; x.shadowBlur = 12; x.fillStyle = '#ffffff';
+                try { x.direction = 'rtl'; } catch (_) {}
+                fit(info.ur, W / 2, 92, 320, '700 {s}px Amiri, "Noto Nastaliq Urdu", "Times New Roman", serif', 30);
+                try { x.direction = 'ltr'; } catch (_) {}
+                x.shadowBlur = 0;
+                /* right: logo + OFFICIAL PARTNER */
+                x.textAlign = 'right'; const rx = W - 32;
+                if (logo) {
+                    const nw = logo.naturalWidth || 300, nh = logo.naturalHeight || 100;
+                    let lh = 38, lw = lh * nw / nh; if (lw > 150) { lw = 150; lh = lw * nh / nw; }
+                    x.drawImage(logo, rx - lw, 64 - lh, lw, lh);
+                } else {
+                    x.fillStyle = '#ff2b3d'; x.font = 'italic 700 32px "Brush Script MT","Segoe Script",cursive'; x.fillText('Coca-Cola', rx, 62);
+                }
+                x.fillStyle = '#8fb3c9'; ls('1.5px'); x.font = '800 10px Montserrat, Arial, sans-serif'; x.fillText(info.partner.toUpperCase(), rx, 90);
+                const dataUrl = c.toDataURL('image/jpeg', 0.92);
+                __reportHeaderCache = { key, w: c.width, h: c.height, bytes: atob(dataUrl.split(',')[1]) };
+                return __reportHeaderCache;
+            } catch (e) { console.warn('Report banner image failed, using text header:', e); return null; }
+        }
+        document.addEventListener('DOMContentLoaded', () => setTimeout(() => { getReportHeaderImage().catch(() => {}); }, 3000));
 
-                const reportKeyMap = { dashBookerTable:'dashBookerTable', transMainTable:'transactionTable', ledgerMainTable:'ledgerTable', bookerDetailMainTable:'bookerShopsTable', shopsMainTable:'shopsTable' };
+        /* SMART FILE NAME — report ka naam khud bana deta hai:
+           Shop Ledger -> "<SHOP> - Shop Ledger - <date>", Booker Detail -> "<BOOKER> - Booker Detail - <date>", etc. */
+        function reportFileName(id, fallback) {
+            const v = s => (document.getElementById(s)?.value || '').trim();
+            const ymdLabel = ymd => ymd ? selectedDateToLabel(ymd) : '';
+            const now = new Date();
+            const today = String(now.getDate()).padStart(2,'0') + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + now.getFullYear();
+            const isAll = s => !s || /^all$/i.test(s) || s === '__SINGLE_SHOP__';
+            let name = '', kind = '', date = '';
+            if (id === 'ledgerMainTable' || id === 'ledgerTable') {
+                kind = 'Shop Ledger';
+                name = v('searchShopInput') || (document.getElementById('ledgerShopName')?.textContent || '').trim();
+                if (name === '-') name = '';
+                const f = v('ledgerFromDate'), to = v('ledgerToDate');
+                date = f && to ? ymdLabel(f) + ' to ' + ymdLabel(to) : f ? 'From ' + ymdLabel(f) : (to ? ymdLabel(to) : today);
+            } else if (id === 'bookerDetailMainTable' || id === 'bookerShopsTable') {
+                kind = 'Booker Detail';
+                name = v('selectBooker') || (currentUser && currentUser.role === 'booker' ? (currentUser.bookerName || '') : '');
+                date = ymdLabel(v('bookerToDate')) || today;
+            } else if (id === 'dashBookerMainTable' || id === 'dashBookerTable') {
+                kind = 'Booker Summary';
+                name = currentUser && currentUser.role === 'booker' ? (currentUser.bookerName || '') : v('dashBookerFilter');
+                if (isAll(name)) name = 'All Bookers';
+                date = ymdLabel(v('dashToDate')) || today;
+            } else if (id === 'transMainTable' || id === 'transactionTable') {
+                kind = 'Daily Entry';
+                const f = v('entryFilterFrom'), to = v('entryFilterTo');
+                date = f && to ? (f === to ? ymdLabel(f) : ymdLabel(f) + ' to ' + ymdLabel(to)) : (ymdLabel(f || to) || today);
+                name = v('entrySearchInput');
+            } else if (id === 'shopsMainTable' || id === 'shopsTable') {
+                kind = 'Shops Balance';
+                name = v('shopsSearchInput') || 'All Shops';
+                date = ymdLabel(v('shopsToDate')) || today;
+            }
+            if (!kind) return fallback || 'Al_Qadir_Report';
+            const parts = [name && !isAll(name) ? name.toUpperCase() : '', kind, date].filter(Boolean);
+            return parts.join(' - ').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || (fallback || 'Al_Qadir_Report');
+        }
+
+        async function downloadCurrentTablePDF(tableId, filename, title) {
+            let hdr = null; try { hdr = await getReportHeaderImage(); } catch (_) {}
+            const limitSel = tableId === 'transMainTable' ? document.getElementById('entryLimitSelect')
+                           : tableId === 'shopsMainTable' ? document.getElementById('shopsLimitSelect') : null;
+            const rerender = tableId === 'transMainTable' ? renderTransactions
+                           : tableId === 'shopsMainTable' ? renderShops : null;
+            let oldLimit = null;
+            if (limitSel && rerender && limitSel.value !== 'ALL') {
+                oldLimit = limitSel.value; limitSel.value = 'ALL'; rerender();
+            }
+            try { buildReportPDF(tableId, reportFileName(tableId, filename), title, hdr); }
+            finally { if (oldLimit !== null) { limitSel.value = oldLimit; rerender(); } }
+        }
+
+        function buildReportPDF(tableId, filename, title, hdr) {
+            try {
+                const el = document.getElementById(tableId);
+                const table = el ? (el.tagName === 'TABLE' ? el : el.closest('table')) : null;
+                if (!table) { alert('Report table not found.'); return; }
+                const clean = getExportTable(table);
+                const cellText = c => (c.textContent || '').replace(/\s+/g, ' ').trim();
+                const headTr = clean.querySelector('thead tr');
+                const header = headTr ? Array.from(headTr.querySelectorAll('th,td')).map(cellText) : [];
+                const body = Array.from(clean.querySelectorAll('tbody tr'))
+                    .map(tr => Array.from(tr.querySelectorAll('th,td')).map(cellText))
+                    .filter(r => r.length && r.some(v => v !== ''));
+                if (!body.length) body.push(['No records found.']);
+                const colCount = Math.max(header.length, ...body.map(r => r.length), 1);
+
+                /* ---- TOTAL row: calculated from exactly the rows going into the PDF ---- */
+                const parseAmt = s => { s = String(s || '').trim(); if (!/\d/.test(s)) return 0; const n = parseFloat(s.replace(/rs\.?/ig, '').replace(/[^0-9.]/g, '')) || 0; return /^-/.test(s) ? -n : n; };
+                const isMoney = h => /credit|recovery|balance/i.test(h || '') && !/shops|running/i.test(h || '');
+                const isBal = h => /balance/i.test(h || '');
+                const fmtBal = v => v > 0 ? 'Rs. ' + v.toLocaleString() : v < 0 ? '- Rs. ' + Math.abs(v).toLocaleString() + ' (Advance)' : 'Rs. 0';
+                let totalRow = null;
+                const realRows = body.filter(r => r.length === colCount);
+                if (realRows.length && header.some(isMoney)) {
+                    totalRow = header.map((h, i) => {
+                        if (!isMoney(h)) return '';
+                        const sum = Math.round(realRows.reduce((a, r) => a + parseAmt(r[i]), 0) * 100) / 100;
+                        return isBal(h) ? fmtBal(sum) : sum.toLocaleString();
+                    });
+                    let li = header.length > 1 && !isMoney(header[1]) ? 1 : header.findIndex(h => !isMoney(h));
+                    if (li >= 0) totalRow[li] = 'TOTAL (' + realRows.length + ' rows)';
+                }
+
+                const reportKeyMap = { dashBookerMainTable:'dashBookerTable', transMainTable:'transactionTable', ledgerMainTable:'ledgerTable', bookerDetailMainTable:'bookerShopsTable', shopsMainTable:'shopsTable' };
                 const cfg = getReportConfig(reportKeyMap[table.id] || table.id, filename);
                 const tab = table.closest('.tab-content');
                 const reportTitle = title ? String(title).replace(/_/g, ' ').toUpperCase() : cfg.title;
-                const generated = new Date().toLocaleString('en-GB');
                 const headingParts = getReportHeadingParts();
-                const heading = tab ? Array.from(tab.querySelectorAll('h3')).find(h => !h.closest('.summary-card'))?.innerText?.trim() : '';
+                const heading = ({ dashBookerMainTable:'Booker Summary', transMainTable:'Transactions Record' })[table.id] || '';
                 const summary = tab ? Array.from(tab.querySelectorAll('.summary-card .card')).map(card => ({
-                    label: (card.querySelector('h3')?.innerText || '').replace(/\s+/g,' ').trim(),
-                    value: (card.querySelector('p')?.innerText || '').replace(/\s+/g,' ').trim()
+                    label: (card.querySelector('h3')?.textContent || '').replace(/\s+/g,' ').trim(),
+                    value: (card.querySelector('p')?.textContent || '').replace(/\s+/g,' ').trim()
                 })).filter(x => x.label || x.value) : [];
 
-                /* A4 portrait: same compact hierarchy as @media print, with no artificial top gap. */
-                const PW=595.28, PH=841.89, M=24, usableW=PW-M*2;
-                const headerH=78, dateH=22, summaryH=50, headingH=20;
-                const font=7.25, headFont=7.1, lineH=9.2, padX=4, padY=5;
-                const colCount=Math.max.apply(null, rows.map(r=>r.length));
-                const weights=Array(colCount).fill(1);
-                rows[0].forEach((v,i)=>{weights[i]=Math.min(34,Math.max(7,String(v).length));});
-                /* Give ledger's text-heavy columns sensible room, like the printed table. */
-                if(colCount===7){ weights[0]=6; weights[1]=10; weights[2]=12; weights[3]=16; weights[4]=13; weights[5]=13; weights[6]=14; }
-                if(colCount===5){ weights[0]=6; weights[1]=28; weights[2]=20; weights[3]=20; weights[4]=20; }
-                if(colCount===7 && tableId==='shopsMainTable'){ weights[0]=5; weights[1]=6; weights[2]=23; weights[3]=17; weights[4]=15; weights[5]=15; weights[6]=19; }
-                const weightSum=weights.reduce((a,b)=>a+b,0);
-                const colWidths=weights.map(w=>usableW*w/weightSum);
-                const esc=s=>String(s??'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)').replace(/[^\x20-\x7E]/g,'?');
-                const wrap=(text,width,size)=>{
-                    const maxChars=Math.max(5,Math.floor(width/(size*0.50)));
-                    const words=String(text||'').split(/\s+/); const out=[]; let line='';
-                    words.forEach(w=>{ if(!line){line=w;return;} if((line+' '+w).length<=maxChars) line+=' '+w; else {out.push(line);line=w;} });
-                    if(line) out.push(line); return out.length?out:[''];
+                /* ---- text helpers (Helvetica widths so wrapping is accurate) ---- */
+                const ascii = s => { const o = String(s ?? ''); const t = o.replace(/[^\x20-\x7E]/g, '').replace(/\(\s*\)/g, '').replace(/\s+/g, ' ').trim(); return (!t && o.trim()) ? '?' : t; };
+                const esc = s => ascii(s).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+                const HW = {' ':278,'.':278,',':278,'-':333,'(':333,')':333,'/':278,':':278,'+':584,'#':556,'&':667,"'":191,'"':355,'|':260,'_':556};
+                const UP = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', UPW = [667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611];
+                const LO = 'abcdefghijklmnopqrstuvwxyz', LOW = [556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500];
+                const textW = (s, size, bold) => { let w = 0; for (const ch of String(s)) { if (ch >= '0' && ch <= '9') w += 556; else if (HW[ch] !== undefined) w += HW[ch]; else { let i = UP.indexOf(ch); if (i >= 0) w += UPW[i]; else { i = LO.indexOf(ch); w += i >= 0 ? LOW[i] : 556; } } } return w * size / 1000 * (bold ? 1.08 : 1); };
+                const wrap = (text, width, size, bold) => {
+                    const fits = s => textW(s, size, bold) <= width;
+                    const words = ascii(text).split(' ').filter(Boolean); const out = []; let line = '';
+                    words.forEach(w => {
+                        while (w && !fits(w)) { let k = w.length - 1; while (k > 1 && !fits(w.slice(0, k))) k--; if (line) { out.push(line); line = ''; } out.push(w.slice(0, k)); w = w.slice(k); }
+                        if (!w) return; const t = line ? line + ' ' + w : w;
+                        if (fits(t)) line = t; else { if (line) out.push(line); line = w; }
+                    });
+                    if (line) out.push(line); return out.length ? out : [''];
                 };
+
+                /* ---- page geometry ---- */
+                const PW=595.28, PH=841.89, M=24, usableW=PW-M*2, pageTop=PH-M, bottomY=34;
+                const imgH = hdr ? usableW * hdr.h / hdr.w : 0;
+                const headerH = hdr ? imgH + 32 : 78, summaryH=50, headingH=20, smallHeaderH = hdr ? imgH + 20 : 40;
+                const font=7.25, lineH=9.2, padX=4, padY=4.5;
+
+                /* ---- column widths from real content; numeric columns keep full width ---- */
+                const isNumCol = i => isMoney(header[i]) || /s\.?\s*no|date|shops/i.test(header[i] || '');
+                const align = i => isMoney(header[i]) || /running/i.test(header[i] || '') ? 'R' : (/s\.?\s*no|date|shops|edited/i.test(header[i] || '') ? 'C' : 'L');
+                const allRows = [header, ...body, ...(totalRow ? [totalRow] : [])];
+                let want = Array.from({ length: colCount }, (_, i) => {
+                    let w = 24; allRows.forEach((r, ri) => { if (r.length === colCount || ri === 0) w = Math.max(w, textW(ascii(r[i] || ''), font, ri === 0 || r === totalRow) + padX * 2 + 2); });
+                    return Math.min(w, usableW * 0.45);
+                });
+                const sumW = want.reduce((a, b) => a + b, 0);
+                if (sumW <= usableW) want = want.map(w => w * usableW / sumW);
+                else {
+                    const fixed = want.reduce((a, w, i) => a + (isNumCol(i) ? w : 0), 0);
+                    const flex = sumW - fixed, room = usableW - fixed;
+                    if (flex > 0 && room >= 40 * want.filter((_, i) => !isNumCol(i)).length) want = want.map((w, i) => isNumCol(i) ? w : w * room / flex);
+                    else want = want.map(w => w * usableW / sumW);
+                }
+                const colW = want;
+
+                const makeRow = (r, kind) => {
+                    const bold = kind !== 'body';
+                    const full = r.length === colCount;
+                    const cells = full ? r.map((v, i) => wrap(v, colW[i] - padX * 2, font, bold)) : [wrap(r.join(' '), usableW - padX * 2, font, bold)];
+                    const h = Math.max(16, Math.max(...cells.map(c => c.length)) * lineH + padY * 2);
+                    return { cells, h, kind, full };
+                };
+                const headRow = header.length ? makeRow(header, 'head') : null;
+                const rowObjs = body.map(r => makeRow(r, 'body'));
+                if (totalRow) rowObjs.push(makeRow(totalRow, 'total'));
+
+                /* ---- pagination: header on page 1, compact header later; table header repeats ---- */
+                const firstStart = pageTop - headerH - (summary.length ? summaryH : 0) - (heading ? headingH : 0);
+                const laterStart = pageTop - smallHeaderH;
+                const hh = headRow ? headRow.h : 0;
+                const pages = []; let cur = [], used = 0, avail = firstStart - bottomY - hh;
+                rowObjs.forEach(r => {
+                    if (cur.length && used + r.h > avail) { pages.push(cur); cur = []; used = 0; avail = laterStart - bottomY - hh; }
+                    cur.push(r); used += r.h;
+                });
+                if (cur.length) pages.push(cur);
+
                 const objs=[]; const add=o=>{objs.push(o);return objs.length;};
                 const fontId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+                const boldId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+                const imgId = hdr ? add('<< /Type /XObject /Subtype /Image /Width ' + hdr.w + ' /Height ' + hdr.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + hdr.bytes.length + ' >>\nstream\n' + hdr.bytes + '\nendstream') : 0;
+                const banner = () => 'q ' + usableW.toFixed(2) + ' 0 0 ' + imgH.toFixed(2) + ' ' + M + ' ' + (pageTop - imgH).toFixed(2) + ' cm /Im1 Do Q\n';
                 const pagesId=add(''); const kids=[];
-                const pageTop = PH-M;
-                const tableStartY = pageTop - headerH - dateH - (summary.length ? summaryH : 0) - (heading ? headingH : 0);
-                let pageRows=[]; let pages=[]; let used=0;
+                const txt = (f, size, x, y, s) => 'BT /' + f + ' ' + size + ' Tf 1 0 0 1 ' + x.toFixed(2) + ' ' + y.toFixed(2) + ' Tm (' + esc(s) + ') Tj ET\n';
 
-                rows.forEach((r,ri)=>{
-                    const wrapped=r.map((v,i)=>wrap(v,colWidths[i]||usableW/colCount,font));
-                    const h=Math.max(18,Math.min(54,Math.max.apply(null,wrapped.map(a=>a.length))*lineH+padY*2));
-                    if(pageRows.length && used+h>PH-M-tableStartY-10){ pages.push(pageRows); pageRows=[]; used=0; }
-                    pageRows.push({cells:wrapped,height:h,header:ri===0}); used+=h;
-                });
-                if(pageRows.length) pages.push(pageRows);
-
-                pages.forEach((pageRows,pageIndex)=>{
-                    let st='q\n';
-                    st+='1 1 1 rg 0 0 '+PW+' '+PH+' re f\n';
-                    /* PRINT-LIKE BRAND HEADER */
-                    st+='BT /F1 14 Tf 1 0 0 1 '+M+' '+(pageTop-17)+' Tm ('+esc('AL QADIR TRADERS')+') Tj ET\n';
-                    st+='BT /F1 6.8 Tf 1 0 0 1 '+M+' '+(pageTop-29)+' Tm ('+esc('MARKET CREDIT LEDGER SYSTEM')+') Tj ET\n';
-                    st+='BT /F1 6.5 Tf 1 0 0 1 '+M+' '+(pageTop-40)+' Tm ('+esc('AUTHORIZED DISTRIBUTOR')+') Tj ET\n';
-                    st+='BT /F1 10 Tf 1 0 0 1 '+(PW-116)+' '+(pageTop-20)+' Tm ('+esc('AL QADIR')+') Tj ET\n';
-                    st+='BT /F1 6 Tf 1 0 0 1 '+(PW-116)+' '+(pageTop-31)+' Tm ('+esc('OFFICIAL PARTNER')+') Tj ET\n';
-                    st+='0.82 0.07 0.11 RG 2.5 w '+M+' '+(pageTop-48)+' m '+(PW-M)+' '+(pageTop-48)+' l S\n';
-                    st+='0 0 0 rg BT /F1 8.8 Tf 1 0 0 1 '+M+' '+(pageTop-61)+' Tm ('+esc(reportTitle)+') Tj ET\n';
-                    /* PRINT-STYLE TOP INFORMATION ROW: exactly three columns like browser Print preview. */
-                    const infoY = pageTop-71;
-                    const c1 = M, c2 = M + usableW*0.38, c3 = M + usableW*0.72;
-                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+c1+' '+infoY+' Tm ('+esc(headingParts.type)+') Tj ET\n';
-                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+c2+' '+infoY+' Tm ('+esc(headingParts.live)+') Tj ET\n';
-                    st+='0.25 0.25 0.25 rg BT /F1 6.2 Tf 1 0 0 1 '+c3+' '+infoY+' Tm ('+esc(headingParts.updated)+') Tj ET\n';
-
-                    let y=pageTop-headerH;
-                    /* SUMMARY CARDS — same two/three card row used by print. */
-                    if(summary.length){
-                        const gap=7, sw=(usableW-gap*(summary.length-1))/summary.length;
-                        summary.forEach((card,i)=>{
-                            const x=M+i*(sw+gap), sy=y-summaryH+9;
-                            st+='1 1 1 rg '+x+' '+sy+' '+sw+' 36 re f\n';
-                            st+='0.78 0.78 0.78 RG 0.7 w '+x+' '+sy+' '+sw+' 36 re S\n';
-                            st+='0.82 0.07 0.11 RG 2.2 w '+x+' '+sy+' m '+x+' '+(sy+36)+' l S\n';
-                            st+='0.18 0.18 0.18 rg BT /F1 6.3 Tf 1 0 0 1 '+(x+7)+' '+(sy+24)+' Tm ('+esc(card.label)+') Tj ET\n';
-                            st+='0 0 0 rg BT /F1 9.5 Tf 1 0 0 1 '+(x+7)+' '+(sy+10)+' Tm ('+esc(card.value)+') Tj ET\n';
+                const drawRow = (row, y) => {
+                    let st = '', x = M;
+                    const widths = row.full ? colW : [usableW];
+                    const bg = row.kind === 'head' ? '0.05 0.05 0.05' : row.kind === 'total' ? '0.90 0.90 0.90' : '1 1 1';
+                    row.cells.forEach((lines, i) => {
+                        const w = widths[i];
+                        st += bg + ' rg ' + x.toFixed(2) + ' ' + (y - row.h).toFixed(2) + ' ' + w.toFixed(2) + ' ' + row.h.toFixed(2) + ' re f\n';
+                        st += '0.45 0.45 0.45 RG 0.5 w ' + x.toFixed(2) + ' ' + (y - row.h).toFixed(2) + ' ' + w.toFixed(2) + ' ' + row.h.toFixed(2) + ' re S\n';
+                        st += (row.kind === 'head' ? '1 1 1' : '0 0 0') + ' rg\n';
+                        const f = row.kind === 'body' ? 'F1' : 'F2', a = row.full ? (row.kind === 'head' ? 'C' : align(i)) : 'L';
+                        lines.forEach((ln, li) => {
+                            const tw = textW(ln, font, row.kind !== 'body');
+                            const tx = a === 'R' ? x + w - padX - tw : a === 'C' ? x + (w - tw) / 2 : x + padX;
+                            st += txt(f, font, tx, y - padY - lineH * (li + 1) + 2, ln);
                         });
-                        y-=summaryH;
-                    }
-                    if(heading){ st+='0 0 0 rg BT /F1 8.5 Tf 1 0 0 1 '+M+' '+(y-5)+' Tm ('+esc(heading)+') Tj ET\n'; y-=headingH; }
-
-                    /* On subsequent pages keep the table header, but do not repeat the large report header. */
-                    pageRows.forEach(row=>{
-                        let x=M;
-                        row.cells.forEach((lines,i)=>{
-                            const w=colWidths[i]||usableW/colCount;
-                            if(row.header) st+='0.05 0.05 0.05 rg '+x+' '+(y-row.height)+' '+w+' '+row.height+' re f\n';
-                            else st+='1 1 1 rg '+x+' '+(y-row.height)+' '+w+' '+row.height+' re f\n';
-                            st+='0.45 0.45 0.45 RG 0.5 w '+x+' '+(y-row.height)+' '+w+' '+row.height+' re S\n';
-                            st+=(row.header?'1 1 1':'0 0 0')+' rg\n';
-                            lines.forEach((ln,li)=>{ st+='BT /F1 '+(row.header?headFont:font)+' Tf 1 0 0 1 '+(x+padX)+' '+(y-padY-lineH*(li+1)+2)+' Tm ('+esc(ln)+') Tj ET\n'; });
-                            x+=w;
-                        });
-                        y-=row.height;
+                        x += w;
                     });
-                    st+='0.55 0.55 0.55 rg 0.5 w '+M+' 25 m '+(PW-M)+' 25 l S\n';
-                    st+='BT /F1 6 Tf 1 0 0 1 '+M+' 13 Tm ('+esc('AL QADIR TRADERS  |  Market Credit Ledger System')+') Tj ET\n';
-                    st+='BT /F1 6 Tf 1 0 0 1 '+(PW-M-58)+' 13 Tm ('+esc('Page '+(pageIndex+1)+' / '+pages.length)+') Tj ET\n';
-                    st+='Q';
-                    const cid=add('<< /Length '+st.length+' >>\nstream\n'+st+'\nendstream');
-                    const pid=add('<< /Type /Page /Parent '+pagesId+' 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /Font << /F1 '+fontId+' 0 R >> >> /Contents '+cid+' 0 R >>');
+                    return st;
+                };
+
+                pages.forEach((pageRows, pageIndex) => {
+                    let st = 'q\n1 1 1 rg 0 0 ' + PW + ' ' + PH + ' re f\n0 0 0 rg\n';
+                    let y;
+                    if (pageIndex === 0 && hdr) {
+                        st += banner();
+                        st += '0 0 0 rg ' + txt('F2', 8.8, M, pageTop - imgH - 14, reportTitle);
+                        const infoY = pageTop - imgH - 25;
+                        st += '0.25 0.25 0.25 rg ' + txt('F1', 6.2, M, infoY, headingParts.type) + txt('F1', 6.2, M + usableW * 0.38, infoY, headingParts.live) + txt('F1', 6.2, M + usableW * 0.72, infoY, headingParts.updated);
+                        y = pageTop - headerH;
+                    } else if (hdr) {
+                        st += banner();
+                        st += '0 0 0 rg ' + txt('F1', 7.5, M, pageTop - imgH - 12, reportTitle + ' (continued)');
+                        y = laterStart;
+                    }
+                    if (pageIndex === 0 && !hdr) {
+                        st += txt('F2', 14, M, pageTop - 17, 'AL QADIR TRADERS');
+                        st += txt('F1', 6.8, M, pageTop - 29, 'MARKET CREDIT LEDGER SYSTEM');
+                        st += txt('F1', 6.5, M, pageTop - 40, 'AUTHORIZED DISTRIBUTOR');
+                        st += txt('F2', 10, PW - 116, pageTop - 20, 'AL QADIR');
+                        st += txt('F1', 6, PW - 116, pageTop - 31, 'OFFICIAL PARTNER');
+                        st += '0.82 0.07 0.11 RG 2.5 w ' + M + ' ' + (pageTop - 48) + ' m ' + (PW - M) + ' ' + (pageTop - 48) + ' l S\n';
+                        st += '0 0 0 rg ' + txt('F2', 8.8, M, pageTop - 61, reportTitle);
+                        const infoY = pageTop - 71;
+                        st += '0.25 0.25 0.25 rg ' + txt('F1', 6.2, M, infoY, headingParts.type) + txt('F1', 6.2, M + usableW * 0.38, infoY, headingParts.live) + txt('F1', 6.2, M + usableW * 0.72, infoY, headingParts.updated);
+                    }
+                    if (pageIndex === 0) {
+                        if (!hdr) y = pageTop - headerH;
+                        if (summary.length) {
+                            const gap = 7, sw = (usableW - gap * (summary.length - 1)) / summary.length;
+                            summary.forEach((card, i) => {
+                                const x = M + i * (sw + gap), sy = y - summaryH + 9;
+                                st += '1 1 1 rg ' + x + ' ' + sy + ' ' + sw + ' 36 re f\n';
+                                st += '0.78 0.78 0.78 RG 0.7 w ' + x + ' ' + sy + ' ' + sw + ' 36 re S\n';
+                                st += '0.82 0.07 0.11 RG 2.2 w ' + x + ' ' + sy + ' m ' + x + ' ' + (sy + 36) + ' l S\n';
+                                st += '0.18 0.18 0.18 rg ' + txt('F1', 6.3, x + 7, sy + 24, card.label);
+                                st += '0 0 0 rg ' + txt('F2', 9.5, x + 7, sy + 10, card.value);
+                            });
+                            y -= summaryH;
+                        }
+                        if (heading) { st += '0 0 0 rg ' + txt('F2', 8.5, M, y - 5, heading); y -= headingH; }
+                    } else if (!hdr) {
+                        st += txt('F2', 10, M, pageTop - 14, 'AL QADIR TRADERS');
+                        st += txt('F1', 7.5, M + 120, pageTop - 14, reportTitle + ' (continued)');
+                        st += '0.82 0.07 0.11 RG 1.5 w ' + M + ' ' + (pageTop - 24) + ' m ' + (PW - M) + ' ' + (pageTop - 24) + ' l S\n';
+                        y = laterStart;
+                    }
+                    if (headRow) { st += drawRow(headRow, y); y -= headRow.h; }
+                    pageRows.forEach(row => { st += drawRow(row, y); y -= row.h; });
+                    st += '0.55 0.55 0.55 RG 0.5 w ' + M + ' 25 m ' + (PW - M) + ' 25 l S\n0.3 0.3 0.3 rg\n';
+                    st += txt('F1', 6, M, 13, 'AL QADIR TRADERS  |  Market Credit Ledger System  |  Generated: ' + new Date().toLocaleString('en-GB'));
+                    st += txt('F1', 6, PW - M - 50, 13, 'Page ' + (pageIndex + 1) + ' / ' + pages.length);
+                    st += 'Q';
+                    const cid = add('<< /Length ' + st.length + ' >>\nstream\n' + st + '\nendstream');
+                    const pid = add('<< /Type /Page /Parent ' + pagesId + ' 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Resources << /Font << /F1 ' + fontId + ' 0 R /F2 ' + boldId + ' 0 R >>' + (hdr ? ' /XObject << /Im1 ' + imgId + ' 0 R >>' : '') + ' >> /Contents ' + cid + ' 0 R >>');
                     kids.push(pid);
                 });
                 objs[pagesId-1]='<< /Type /Pages /Kids ['+kids.map(id=>id+' 0 R').join(' ')+'] /Count '+kids.length+' >>';
                 const catalog=add('<< /Type /Catalog /Pages '+pagesId+' 0 R >>');
-                let pdf='%PDF-1.4\n%\xE2\xE3\xCF\xD3\n'; const offsets=[0];
+                let pdf='%PDF-1.4\n'; const offsets=[0];
                 objs.forEach((o,i)=>{offsets[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+o+'\nendobj\n';});
                 const xref=pdf.length; pdf+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';
                 for(let i=1;i<=objs.length;i++) pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
                 pdf+='trailer\n<< /Size '+(objs.length+1)+' /Root '+catalog+' 0 R >>\nstartxref\n'+xref+'\n%%EOF';
-                const blob=new Blob([pdf],{type:'application/pdf'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
+                const bytes = new Uint8Array(pdf.length); for (let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 0xFF;
+                const blob=new Blob([bytes],{type:'application/pdf'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');
                 a.href=url; a.download=(filename||'Al_Qadir_Report')+'.pdf'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),15000);
             } catch(err){ console.error('PDF download failed:',err); alert('PDF download failed. Please use Chrome and allow downloads.'); }
         }
