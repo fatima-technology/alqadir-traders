@@ -2281,10 +2281,14 @@ html body .bc-overlay select option:checked{background:#1d4ed8 !important;color:
 </style>
 <style id="no-pull-to-refresh">
 /* Scroll karte waqt page refresh na ho (browser pull-to-refresh band) */
-html, body { overscroll-behavior-y: none !important; }
-.bc-card, .app-drawer, .modal-card, .table-responsive, .notification-list, .dr-booker-panel, .profile-menu-dropdown { overscroll-behavior: contain !important; }
+html.no-ptr, html.no-ptr body { overscroll-behavior-y: none !important; }
+html.no-ptr .bc-card, html.no-ptr .app-drawer, html.no-ptr .modal-card, html.no-ptr .notification-list, html.no-ptr .dr-booker-panel { overscroll-behavior: contain !important; }
 html.no-ptr body { min-height: calc(100vh + 2px) !important; }
 </style>
+<script>
+/* zoom button drag ki class kabhi atki na rahe (warna scroll ruk sakta hai) */
+['pointerup','pointercancel','mouseup','touchend','blur'].forEach(function(ev){ window.addEventListener(ev, function(){ document.documentElement.classList.remove('zoom-btn-dragging'); }, { passive: true }); });
+</script>
 <style id="zoom-drag-no-refresh">
 /* While the 🔍 button is being dragged: no browser scroll / pull-to-refresh */
 html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !important; touch-action:none !important; }
@@ -2942,6 +2946,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
                         <option value="POSITIVE">Positive (+ Udhaar / Outstanding)</option>
                         <option value="NEGATIVE">Negative (- Advance Payment)</option>
                         <option value="ZERO">Zero Balance (0)</option>
+                        <option value="SMALL">Rs. 100 se kam (Credit ya Advance)</option>
                     </select>
                 </div>
                 <button class="btn-excel booker-export-hide" data-booker-hide="1" onclick="exportTableToExcel('bookerShopsTable', 'Booker_Detail')">Excel 📊</button>
@@ -2997,6 +3002,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
                         <option value="POSITIVE">Positive (+ Udhaar / Outstanding)</option>
                         <option value="NEGATIVE">Negative (- Advance Payment)</option>
                         <option value="ZERO">Zero Balance (0)</option>
+                        <option value="SMALL">Rs. 100 se kam (Credit ya Advance)</option>
                     </select>
                 </div>
                 <div style="display:flex; align-items:center; gap:5px;">
@@ -4044,11 +4050,13 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 if (el && !el.dataset.userChanged) el.value = 'HIDE_ZERO';
             });
         }
+        /* capture phase: user ki choice pehle mark ho, phir select ka onchange chale —
+           warna render default (Hide Zero) wapas laga deta tha aur filter 2-3 dafa chunna padta tha */
         document.addEventListener('change', function (e) {
             if (e.target && (e.target.id === 'bookerBalanceFilter' || e.target.id === 'shopsBalanceFilter')) {
                 e.target.dataset.userChanged = '1';
             }
-        });
+        }, true);
 
         function saveBookerFilterAndRender() {
             const filterElem = document.getElementById('bookerBalanceFilter');
@@ -5251,6 +5259,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 if (filterMode === 'POSITIVE' && bal <= 0) return;
                 if (filterMode === 'NEGATIVE' && bal >= 0) return;
                 if (filterMode === 'ZERO' && bal !== 0) return;
+                if (filterMode === 'SMALL' && !(Math.abs(bal) > 0.000001 && Math.abs(bal) < 100)) return;
 
                 totalBookerBal += bal;
 
@@ -5432,6 +5441,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 if (filterMode === 'POSITIVE' && bal <= 0) return;
                 if (filterMode === 'NEGATIVE' && bal >= 0) return;
                 if (filterMode === 'ZERO' && bal !== 0) return;
+                if (filterMode === 'SMALL' && !(Math.abs(bal) > 0.000001 && Math.abs(bal) < 100)) return;
                 if (rows.length >= shopsLimit) return;
 
                 rows.push(`
@@ -6260,7 +6270,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             const flagged = [];
             shops.forEach(s => {
                 const o = Math.round(s.old * 100) / 100;
-                if (o > 0 && s.credit > 0 && s.recovery < o) {
+                if (o > 0 && s.credit > 0 && s.recovery < o && (o - s.recovery) >= 100) {
                     flagged.push({ ...s, o, booker: s.bookers.join(' / '), pend: Math.round((o - s.recovery) * 100) / 100, nb: Math.round((o + s.credit - s.recovery) * 100) / 100 });
                 }
             });
@@ -6320,27 +6330,34 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
            (pos_booker_cautions) me save hota hai aur Admin Day Report me dekh sakta hai. */
         const BC_REASONS = ['Kal tak recovery ho jayegi', 'Is hafte me recovery ho jayegi', 'Shop wala payment nahi de raha', 'Shop band thi / malik nahi mila', 'Amount par ikhtilaf (dispute) hai', 'Doosri wajah (note likhein)'];
         const BC_QUEUE_KEY = 'alqadir_caution_pending_v1';
+        /* Caution rule: shop ka jo credit 30 din se zyada purana hai aur abhi tak clear nahi hua (FIFO:
+           recovery hamesha sabse purane bill se kat'ti hai). Jo shops har visit par purana clear kar ke
+           naya credit leti hain, un ka koi bill 30 din purana nahi hota — is liye woh nahi aatin.
+           Rs. 100 se kam purana baqaya ignore. */
+        const BC_OVERDUE_DAYS = 30, BC_MIN_AMOUNT = 100;
         function computeCautionShops(onlyBooker) {
             const num = v => parseFloat(v) || 0, up = v => String(v || '').trim().replace(/\s+/g, ' ').toUpperCase();
+            const r2 = v => Math.round(v * 100) / 100;
+            const cutoff = bcAddDays(drTodayYmd(), -BC_OVERDUE_DAYS);
             const byShop = new Map();
-            (Array.isArray(transactions) ? transactions : []).forEach(t => {
+            (Array.isArray(transactions) ? transactions : []).forEach((t, idx) => {
                 const k = normalizeShopKey(t.shop), y = drTxYmd(t); if (!k || !y) return;
-                let s = byShop.get(k); if (!s) { s = { name: String(t.shop).trim(), days: new Map() }; byShop.set(k, s); }
-                let d = s.days.get(y); if (!d) { d = { c: 0, r: 0, bk: '' }; s.days.set(y, d); }
-                d.c += num(t.credit); d.r += num(t.recovery);
-                if (num(t.credit) > 0 || !d.bk) d.bk = up(t.booker);
+                let s = byShop.get(k); if (!s) { s = { name: String(t.shop).trim(), tx: [] }; byShop.set(k, s); }
+                s.tx.push({ y, c: num(t.credit), r: num(t.recovery), bk: up(t.booker), idx });
             });
             const out = [], want = onlyBooker ? up(onlyBooker) : '';
             byShop.forEach(s => {
-                let bal = 0, pending = 0, since = null, bk = '';
-                [...s.days.keys()].sort().forEach(y => {
-                    const d = s.days.get(y), old = bal;
-                    if (pending > 0) { pending -= d.r; if (pending <= 0.009) { pending = 0; since = null; } }
-                    if (old > 0 && d.c > 0 && d.r < old) { pending = old - d.r; if (!since) since = y; bk = d.bk; }
-                    bal = old + d.c - d.r;
+                s.tx.sort((a, b) => a.y < b.y ? -1 : a.y > b.y ? 1 : a.idx - b.idx);
+                const lots = []; let adv = 0;
+                s.tx.forEach(e => {
+                    if (e.c > 0) { let c = e.c; if (adv > 0) { const u = Math.min(adv, c); adv -= u; c -= u; } if (c > 0.0001) lots.push({ y: e.y, amt: c }); }
+                    if (e.r > 0) { let r = e.r; while (r > 0.0001 && lots.length) { const l = lots[0], u = Math.min(l.amt, r); l.amt -= u; r -= u; if (l.amt <= 0.0001) lots.shift(); } if (r > 0.0001) adv += r; }
                 });
-                pending = Math.min(pending, bal);
-                if (pending > 0.009 && since && (!want || bk === want)) out.push({ shop: s.name, booker: bk, pending: Math.round(pending * 100) / 100, since, balance: Math.round(bal * 100) / 100 });
+                const old = lots.filter(l => l.y <= cutoff);
+                const overdue = r2(old.reduce((a, l) => a + l.amt, 0));
+                const bk = s.tx.length ? s.tx[s.tx.length - 1].bk : '';
+                if (overdue >= BC_MIN_AMOUNT && (!want || bk === want))
+                    out.push({ shop: s.name, booker: bk, pending: overdue, since: old[0].y, balance: r2(lots.reduce((a, l) => a + l.amt, 0)) });
             });
             return out.sort((a, b) => b.pending - a.pending || a.shop.localeCompare(b.shop));
         }
@@ -6375,7 +6392,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
         function bcApplyPromises(list, promises, today) {
             return list.filter(x => {
                 const pr = promises[presenceKey(x.shop)];
-                if (!pr || pr.since !== x.since) return true;
+                if (!pr || !pr.promiseDate) return true;
                 if (pr.promiseDate >= today) { x.onHold = pr.promiseDate; return false; }
                 x.brokenPromise = pr.promiseDate; return true;
             });
@@ -6417,9 +6434,9 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             m.id = 'bookerCautionModal'; m.className = 'bc-overlay no-print';
             m.innerHTML = `<div class="bc-card" role="dialog" aria-modal="true" aria-labelledby="bcHead">
                 <div class="bc-head" id="bcHead">⚠️ CAUTION — Purana Baqaya</div>
-                <p class="bc-intro"><b>${esc(who)}</b>, aap ki in shops ka purana balance clear nahi hua, phir bhi in ko naya credit diya gaya hai. Barah-e-karam ye amount clear karwayen.<br><b>Har shop ka jawab dena lazmi hai.</b></p>
+                <p class="bc-intro"><b>${esc(who)}</b>, aap ki in shops ka credit <b>${BC_OVERDUE_DAYS} din se zyada purana</b> hai aur abhi tak clear nahi hua. Barah-e-karam ye amount clear karwayen.<br><b>Har shop ka jawab dena lazmi hai.</b></p>
                 <div class="bc-list">${list.map((x, i) => `<div class="bc-item" data-i="${i}">
-                    <div class="bc-shop"><b>${i + 1}. ${esc(x.shop)}</b><span>Purana baqaya: <b>${rs(x.pending)}</b> &nbsp;(${esc(selectedDateToLabel(x.since))} se)</span></div>
+                    <div class="bc-shop"><b>${i + 1}. ${esc(x.shop)}</b><span>${BC_OVERDUE_DAYS} din se purana baqaya: <b>${rs(x.pending)}</b> &nbsp;(${esc(selectedDateToLabel(x.since))} ka bill)${x.balance > x.pending ? ` &nbsp;|&nbsp; Kul balance: ${rs(x.balance)}` : ''}</span></div>
                     ${x.brokenPromise ? `<div class="bc-broken">⏰ Pichla vaada ${esc(selectedDateToLabel(x.brokenPromise))} ka tha — recovery abhi tak clear nahi hui.</div>` : ''}
                     <select class="bc-reason" data-i="${i}"><option value="">-- Jawab chunein --</option>${BC_REASONS.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select>
                     <div class="bc-dlabel">📅 Recovery kis date tak hogi? <span>(optional — date dene par us date tak caution hold rahega)</span></div>
@@ -6507,7 +6524,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                         const promiseOf = (booker, shop) => { for (const u of Object.values(allPromises)) { const pr = u && u[presenceKey(shop)]; if (pr && String(pr.booker).toUpperCase() === booker) return pr; } return null; };
                         computeCautionShops().forEach(x => {
                             const pr = promiseOf(x.booker, x.shop);
-                            if (pr && pr.since === x.since && pr.promiseDate >= D) heldBy[x.booker] = (heldBy[x.booker] || 0) + 1;
+                            if (pr && pr.promiseDate && pr.promiseDate >= D) heldBy[x.booker] = (heldBy[x.booker] || 0) + 1;
                             else pendingBy[x.booker] = (pendingBy[x.booker] || 0) + 1;
                         });
                         const notYet = Object.keys(pendingBy).filter(b => !answered.has(b)).sort();
@@ -8044,7 +8061,8 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 /* APK / Android WebView: app ka swipe-refresh tab chalta hai jab page bilkul top (0) par ho.
    Page ko hamesha 1px neeche rakha jata hai, is liye upar scroll karne par refresh nahi hota. */
 (function(){
-  var touch = ('ontouchstart' in window) || (window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches);
+  /* sirf phone/tablet — laptop (touch screen wala bhi) par mouse wheel bilkul normal rahe */
+  var touch = window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches;
   if (!touch) return;
   document.documentElement.classList.add('no-ptr');
   function keep(){ if ((window.scrollY || document.documentElement.scrollTop || 0) < 1) window.scrollTo(0, 1); }
