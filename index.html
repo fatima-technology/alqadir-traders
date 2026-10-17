@@ -2874,6 +2874,25 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
                     </table>
                 </div>
             </div>
+
+            <div class="dr-replies no-print" id="drCautionAdminBox">
+                <h3 style="font-size:15px;margin:22px 0 4px;">🛡️ Caution Shops — Admin Control</h3>
+                <p style="margin:0 0 8px;font-size:12px;opacity:.85;">Jis shop ka balance hamesha pending rehta hai aur us ka caution booker ko nahi bhejna, us ke saath <b>🙈 Hide</b> dabayen. Wapas chalu karne ke liye <b>👁 Unhide</b>.</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                    <input type="text" id="caSearch" placeholder="🔍 Shop / Booker search..." oninput="renderCautionAdmin()" style="flex:1;min-width:180px;">
+                    <select id="caShow" onchange="renderCautionAdmin()" style="width:auto;">
+                        <option value="ALL">Sab (active + hidden)</option>
+                        <option value="ACTIVE">Sirf active caution</option>
+                        <option value="HIDDEN">Sirf hidden</option>
+                    </select>
+                </div>
+                <div class="table-responsive">
+                    <table id="caTable">
+                        <thead><tr><th style="width:45px;">S.No</th><th class="text-left">Booker</th><th class="text-left">Shop Name</th><th class="text-right">Purana Baqaya</th><th class="text-center">Bill Date</th><th class="text-center">Aakhri Recovery</th><th class="text-center">Status</th><th class="text-center">Action</th></tr></thead>
+                        <tbody id="caBody"><tr><td colspan="8" class="text-center">Loading…</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- SHOP LEDGER TAB -->
@@ -6401,6 +6420,70 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 x.brokenPromise = pr.promiseDate; return true;
             });
         }
+        /* ADMIN HIDE — jin shops ka caution booker ko nahi jana (Firebase: pos_caution_hidden/<shop>) */
+        const CA_HIDDEN_LOCAL = 'alqadir_caution_hidden_v1';
+        let __cautionHidden = (() => { try { return JSON.parse(localStorage.getItem(CA_HIDDEN_LOCAL) || '{}') || {}; } catch (_) { return {}; } })();
+        async function loadCautionHidden() {
+            try {
+                const snap = await Promise.race([db.ref('pos_caution_hidden').once('value'), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))]);
+                __cautionHidden = (snap && snap.val ? snap.val() : null) || {};
+                try { localStorage.setItem(CA_HIDDEN_LOCAL, JSON.stringify(__cautionHidden)); } catch (_) {}
+            } catch (_) {}
+            return __cautionHidden;
+        }
+        function isCautionHidden(shop) { return !!__cautionHidden[presenceKey(shop)]; }
+        async function cautionHide(shop, booker) {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            if (!confirm(`"${shop}" ka caution booker ko ab nahi jayega.\n\nHide karna hai?`)) return;
+            const k = presenceKey(shop), rec = { shop, booker: booker || '', by: currentUser.username, at: Date.now() };
+            __cautionHidden[k] = rec;
+            try { localStorage.setItem(CA_HIDDEN_LOCAL, JSON.stringify(__cautionHidden)); } catch (_) {}
+            renderCautionAdmin();
+            try { await db.ref('pos_caution_hidden/' + k).set(rec); } catch (e) { alert('Firebase par save nahi hua (internet / Rules check karein). Sirf is device par hide hua hai.'); }
+        }
+        async function cautionUnhide(shop) {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            if (!confirm(`"${shop}" ka caution dobara chalu karna hai?`)) return;
+            const k = presenceKey(shop);
+            delete __cautionHidden[k];
+            try { localStorage.setItem(CA_HIDDEN_LOCAL, JSON.stringify(__cautionHidden)); } catch (_) {}
+            renderCautionAdmin();
+            try { await db.ref('pos_caution_hidden/' + k).remove(); } catch (e) { alert('Firebase par save nahi hua (internet / Rules check karein).'); }
+        }
+        let __caPromises = {};
+        async function refreshCautionAdmin() {
+            await loadCautionHidden();
+            try { const ps = await db.ref('pos_booker_promises').once('value'); __caPromises = (ps && ps.val ? ps.val() : null) || {}; } catch (_) {}
+            renderCautionAdmin();
+        }
+        function renderCautionAdmin() {
+            const box = document.getElementById('drCautionAdminBox'), body = document.getElementById('caBody');
+            if (!box || !body) return;
+            const isAdmin = currentUser && String(currentUser.role || '').toLowerCase() === 'admin';
+            box.style.display = isAdmin ? '' : 'none';
+            if (!isAdmin) return;
+            const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            const rs = v => 'Rs. ' + (Math.round((parseFloat(v) || 0) * 100) / 100).toLocaleString();
+            const today = drTodayYmd();
+            const q = cleanStr(document.getElementById('caSearch')?.value || ''), show = document.getElementById('caShow')?.value || 'ALL';
+            const active = computeCautionShops();
+            const seen = new Set();
+            let rows = active.map(x => { const k = presenceKey(x.shop); seen.add(k); return { ...x, hidden: !!__cautionHidden[k] }; });
+            Object.keys(__cautionHidden).forEach(k => { if (!seen.has(k)) { const h = __cautionHidden[k] || {}; rows.push({ shop: h.shop || k, booker: h.booker || '', pending: null, since: '', lastRec: '', hidden: true }); } });
+            rows = rows.filter(x => (!q || cleanStr(x.shop).includes(q) || cleanStr(x.booker).includes(q)) && (show === 'ALL' || (show === 'HIDDEN') === x.hidden));
+            rows.sort((a, b) => (a.hidden - b.hidden) || String(a.booker).localeCompare(String(b.booker)) || (b.pending || 0) - (a.pending || 0));
+            const promiseOf = (shop) => { for (const u of Object.values(__caPromises)) { const pr = u && u[presenceKey(shop)]; if (pr && pr.promiseDate) return pr; } return null; };
+            body.innerHTML = rows.length ? rows.map((x, i) => {
+                let status = '⚠️ Active';
+                if (x.hidden) status = '🙈 Hidden';
+                else { const pr = promiseOf(x.shop); if (pr && pr.promiseDate >= today) status = '🕒 Vaada ' + esc(selectedDateToLabel(pr.promiseDate)); }
+                const shopJs = esc(JSON.stringify(x.shop)), bkJs = esc(JSON.stringify(x.booker || ''));
+                const btn = x.hidden
+                    ? `<button type="button" class="btn-edit" onclick="cautionUnhide(${shopJs})">👁 Unhide</button>`
+                    : `<button type="button" class="btn-delete" onclick="cautionHide(${shopJs}, ${bkJs})">🙈 Hide</button>`;
+                return `<tr${x.hidden ? ' style="opacity:.6"' : ''}><td class="text-center">${i + 1}</td><td class="text-left">${esc(x.booker || '-')}</td><td class="text-left"><strong>${esc(x.shop)}</strong></td><td class="text-right">${x.pending == null ? '-' : rs(x.pending)}</td><td class="text-center">${x.since ? esc(selectedDateToLabel(x.since)) : '-'}</td><td class="text-center">${x.pending == null ? '-' : (x.lastRec ? esc(selectedDateToLabel(x.lastRec)) : 'kabhi nahi')}</td><td class="text-center">${status}</td><td class="text-center">${btn}</td></tr>`;
+            }).join('') : '<tr><td colspan="8" class="text-center">Koi caution shop nahi.</td></tr>';
+        }
         let __cautionBusy = false;
         async function maybeShowBookerCaution() {
             if (!currentUser || String(currentUser.role || '').toLowerCase() !== 'booker' || !cloudTxReady || __cautionBusy) return;
@@ -6417,8 +6500,9 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 } catch (_) {}
                 if (!currentUser || document.getElementById('bookerCautionModal')) return;
                 const promises = await loadBookerPromises(ukey);
+                await loadCautionHidden();
                 if (!currentUser || document.getElementById('bookerCautionModal')) return;
-                const list = bcApplyPromises(computeCautionShops(currentUser.bookerName || currentUser.username), promises, today);
+                const list = bcApplyPromises(computeCautionShops(currentUser.bookerName || currentUser.username).filter(x => !isCautionHidden(x.shop)), promises, today);
                 if (!list.length) return;
                 showBookerCautionModal(list, today, ukey, lk);
             } finally { __cautionBusy = false; }
@@ -6511,7 +6595,8 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
             const rs = v => 'Rs. ' + (Math.round((parseFloat(v) || 0) * 100) / 100).toLocaleString();
             const token = (window.__drRepliesToken || 0) + 1; window.__drRepliesToken = token;
-            Promise.all([db.ref('pos_booker_cautions').once('value'), db.ref('pos_booker_promises').once('value').catch(() => null)]).then(([snap, psnap]) => {
+            refreshCautionAdmin();
+            Promise.all([db.ref('pos_booker_cautions').once('value'), db.ref('pos_booker_promises').once('value').catch(() => null), loadCautionHidden()]).then(([snap, psnap]) => {
                 if (token !== window.__drRepliesToken) return;
                 const all = (snap && snap.val ? snap.val() : null) || {};
                 const allPromises = (psnap && psnap.val ? psnap.val() : null) || {};
@@ -6526,7 +6611,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                         const answered = new Set(recs.map(r => String(r.booker).toUpperCase()));
                         const pendingBy = {}, heldBy = {};
                         const promiseOf = (booker, shop) => { for (const u of Object.values(allPromises)) { const pr = u && u[presenceKey(shop)]; if (pr && String(pr.booker).toUpperCase() === booker) return pr; } return null; };
-                        computeCautionShops().forEach(x => {
+                        computeCautionShops().filter(x => !isCautionHidden(x.shop)).forEach(x => {
                             const pr = promiseOf(x.booker, x.shop);
                             if (pr && pr.promiseDate && pr.promiseDate >= D) heldBy[x.booker] = (heldBy[x.booker] || 0) + 1;
                             else pendingBy[x.booker] = (pendingBy[x.booker] || 0) + 1;
