@@ -2279,6 +2279,12 @@ html body .bc-overlay select option:checked{background:#1d4ed8 !important;color:
   #dayReportMainTable th:nth-child(7),#dayReportMainTable td:nth-child(7){width:15% !important;}
 }
 </style>
+<style id="no-pull-to-refresh">
+/* Scroll karte waqt page refresh na ho (browser pull-to-refresh band) */
+html, body { overscroll-behavior-y: none !important; }
+.bc-card, .app-drawer, .modal-card, .table-responsive, .notification-list, .dr-booker-panel, .profile-menu-dropdown { overscroll-behavior: contain !important; }
+html.no-ptr body { min-height: calc(100vh + 2px) !important; }
+</style>
 <style id="zoom-drag-no-refresh">
 /* While the 🔍 button is being dragged: no browser scroll / pull-to-refresh */
 html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !important; touch-action:none !important; }
@@ -8032,6 +8038,21 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initFinalZoomAndRotation);
   else initFinalZoomAndRotation();
+})();
+</script>
+<script id="no-pull-to-refresh-js">
+/* APK / Android WebView: app ka swipe-refresh tab chalta hai jab page bilkul top (0) par ho.
+   Page ko hamesha 1px neeche rakha jata hai, is liye upar scroll karne par refresh nahi hota. */
+(function(){
+  var touch = ('ontouchstart' in window) || (window.matchMedia && matchMedia('(hover: none) and (pointer: coarse)').matches);
+  if (!touch) return;
+  document.documentElement.classList.add('no-ptr');
+  function keep(){ if ((window.scrollY || document.documentElement.scrollTop || 0) < 1) window.scrollTo(0, 1); }
+  window.addEventListener('scroll', function(){ if ((window.scrollY || 0) < 1) requestAnimationFrame(keep); }, { passive: true });
+  window.addEventListener('touchstart', keep, { passive: true });
+  window.addEventListener('resize', function(){ setTimeout(keep, 50); }, { passive: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function(){ setTimeout(keep, 300); });
+  else setTimeout(keep, 300);
 })();
 </script>
 <script id="pinch-zoom-and-drag-no-refresh-js">
