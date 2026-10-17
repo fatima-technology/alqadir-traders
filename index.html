@@ -2255,7 +2255,9 @@ html body.game-theme:not(.game-day) #dayReport table tfoot td{background:rgba(25
 .bc-overlay select,.bc-overlay input{width:100%;box-sizing:border-box;margin-top:5px;padding:9px;border-radius:7px;border:1px solid #4b5563 !important;background:#111827 !important;color:#fff !important;font-size:14px;}
 .bc-overlay .bc-dlabel{display:block;margin-top:7px;font-size:13px;font-weight:700;color:#93c5fd;}
 .bc-overlay .bc-dlabel span{color:#ff8a94;font-weight:600;}
-.bc-overlay .bc-date{color-scheme:dark;}
+.bc-overlay .bc-dlabel span{font-size:11px;}
+html body .bc-overlay select option{background:#ffffff !important;color:#111111 !important;}
+html body .bc-overlay select option:checked{background:#1d4ed8 !important;color:#ffffff !important;}
 .bc-overlay .bc-broken{margin:2px 0 4px;padding:6px 8px;border-radius:6px;background:rgba(255,77,94,.16);color:#ffb4bb;font-size:12px;font-weight:700;}
 .bc-overlay .bc-total{margin:10px 0;padding:9px;border-radius:8px;background:rgba(255,193,7,.14);color:#ffd666;font-weight:800;font-size:15px;text-align:center;}
 .bc-overlay .bc-err{color:#ff8a94;font-weight:700;font-size:13px;min-height:18px;margin-bottom:6px;}
@@ -6399,6 +6401,12 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             const rs = v => 'Rs. ' + (Math.round(v * 100) / 100).toLocaleString();
             const total = list.reduce((a, x) => a + x.pending, 0);
             const who = String(currentUser.bookerName || currentUser.username || '').toUpperCase();
+            const WD = ['Itwar', 'Peer', 'Mangal', 'Budh', 'Jumerat', 'Juma', 'Hafta'];
+            let dateOptions = '<option value="">-- Date na dein (optional) --</option>';
+            for (let n = 0; n <= BC_MAX_DAYS; n++) {
+                const ymd = bcAddDays(today, n), [yy, mm, dd] = ymd.split('-').map(Number), wd = WD[new Date(yy, mm - 1, dd).getDay()];
+                dateOptions += `<option value="${ymd}">${n === 0 ? 'Aaj — ' : n === 1 ? 'Kal — ' : ''}${selectedDateToLabel(ymd)} (${wd})</option>`;
+            }
             const m = document.createElement('div');
             m.id = 'bookerCautionModal'; m.className = 'bc-overlay no-print';
             m.innerHTML = `<div class="bc-card" role="dialog" aria-modal="true" aria-labelledby="bcHead">
@@ -6408,9 +6416,8 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                     <div class="bc-shop"><b>${i + 1}. ${esc(x.shop)}</b><span>Purana baqaya: <b>${rs(x.pending)}</b> &nbsp;(${esc(selectedDateToLabel(x.since))} se)</span></div>
                     ${x.brokenPromise ? `<div class="bc-broken">⏰ Pichla vaada ${esc(selectedDateToLabel(x.brokenPromise))} ka tha — recovery abhi tak clear nahi hui.</div>` : ''}
                     <select class="bc-reason" data-i="${i}"><option value="">-- Jawab chunein --</option>${BC_REASONS.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select>
-                    <label class="bc-dlabel">📅 Recovery kis date tak hogi? <span>(lazmi)</span>
-                        <input class="bc-date" data-i="${i}" type="date" min="${today}" max="${bcAddDays(today, BC_MAX_DAYS)}">
-                    </label>
+                    <div class="bc-dlabel">📅 Recovery kis date tak hogi? <span>(optional — date dene par us date tak caution hold rahega)</span></div>
+                    <select class="bc-date" data-i="${i}">${dateOptions}</select>
                     <input class="bc-note" data-i="${i}" type="text" maxlength="200" placeholder="Note (optional)">
                 </div>`).join('')}</div>
                 <div class="bc-total">Total purana baqaya: ${rs(total)}</div>
@@ -6436,19 +6443,19 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                     const reason = m.querySelector(`.bc-reason[data-i="${i}"]`).value;
                     const note = m.querySelector(`.bc-note[data-i="${i}"]`).value.trim();
                     const promiseDate = m.querySelector(`.bc-date[data-i="${i}"]`).value;
-                    const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(promiseDate) && promiseDate >= today && promiseDate <= bcAddDays(today, BC_MAX_DAYS);
+                    const dateOk = !promiseDate || (/^\d{4}-\d{2}-\d{2}$/.test(promiseDate) && promiseDate >= today && promiseDate <= bcAddDays(today, BC_MAX_DAYS));
                     const missing = !reason || (reason.startsWith('Doosri') && !note) || !dateOk;
                     item.classList.toggle('bc-missing', missing);
                     if (missing) bad++;
                     shops.push({ shop: x.shop, pending: x.pending, since: x.since, reason, note, promiseDate });
                 });
-                if (bad) { err.textContent = `⚠️ ${bad} shop(s) ka jawab ya date baqi hai. Har shop ki recovery date (aaj se ${BC_MAX_DAYS} din ke andar) lazmi hai; "Doosri wajah" par note bhi likhein.`; m.querySelector('.bc-missing')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+                if (bad) { err.textContent = `⚠️ ${bad} shop(s) ka jawab baqi hai. Har shop ka jawab chunein; "Doosri wajah" par note bhi likhein.`; m.querySelector('.bc-missing')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
                 const btn = document.getElementById('bcSubmit'); btn.disabled = true; btn.textContent = 'Save ho raha hai…';
                 const rec = { username: currentUser.username, booker: who, date: today, answeredAt: Date.now(), totalPending: Math.round(total * 100) / 100, shops };
                 const path = 'pos_booker_cautions/' + ukey + '/' + today;
                 const promiseWrites = {};
                 const localPr = bcLocalPromises(ukey);
-                shops.forEach(s => {
+                shops.filter(s => s.promiseDate).forEach(s => {
                     const pk = presenceKey(s.shop);
                     const pr = { shop: s.shop, booker: who, since: s.since, promiseDate: s.promiseDate, pendingAtPromise: s.pending, reason: s.reason, note: s.note, setOn: today, savedAt: Date.now() };
                     promiseWrites['pos_booker_promises/' + ukey + '/' + pk] = pr; localPr[pk] = pr;
