@@ -2253,6 +2253,10 @@ html body.game-theme:not(.game-day) #dayReport table tfoot td{background:rgba(25
 .bc-overlay .bc-shop{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;font-size:14px;}
 .bc-overlay .bc-shop span{font-size:13px;color:#fca5a5;}
 .bc-overlay select,.bc-overlay input{width:100%;box-sizing:border-box;margin-top:5px;padding:9px;border-radius:7px;border:1px solid #4b5563 !important;background:#111827 !important;color:#fff !important;font-size:14px;}
+.bc-overlay .bc-dlabel{display:block;margin-top:7px;font-size:13px;font-weight:700;color:#93c5fd;}
+.bc-overlay .bc-dlabel span{color:#ff8a94;font-weight:600;}
+.bc-overlay .bc-date{color-scheme:dark;}
+.bc-overlay .bc-broken{margin:2px 0 4px;padding:6px 8px;border-radius:6px;background:rgba(255,77,94,.16);color:#ffb4bb;font-size:12px;font-weight:700;}
 .bc-overlay .bc-total{margin:10px 0;padding:9px;border-radius:8px;background:rgba(255,193,7,.14);color:#ffd666;font-weight:800;font-size:15px;text-align:center;}
 .bc-overlay .bc-err{color:#ff8a94;font-weight:700;font-size:13px;min-height:18px;margin-bottom:6px;}
 .bc-overlay .bc-actions{display:flex;gap:8px;justify-content:space-between;}
@@ -2852,8 +2856,8 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
                 <div id="drRepliesStatus" class="dr-note" style="border-left-color:#ffc107;"></div>
                 <div class="table-responsive">
                     <table id="drRepliesTable">
-                        <thead><tr><th style="width:45px;">S.No</th><th class="text-left">Booker</th><th class="text-left">Shop Name</th><th class="text-right">Purana Baqaya</th><th class="text-center">Kab Se</th><th class="text-left">Jawab</th><th class="text-left">Note</th><th class="text-center">Time</th></tr></thead>
-                        <tbody id="drRepliesBody"><tr><td colspan="8" class="text-center">Loading…</td></tr></tbody>
+                        <thead><tr><th style="width:45px;">S.No</th><th class="text-left">Booker</th><th class="text-left">Shop Name</th><th class="text-right">Purana Baqaya</th><th class="text-center">Kab Se</th><th class="text-left">Jawab</th><th class="text-center">Vaada Date</th><th class="text-left">Note</th><th class="text-center">Time</th></tr></thead>
+                        <tbody id="drRepliesBody"><tr><td colspan="9" class="text-center">Loading…</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -6342,6 +6346,32 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             });
         }
         window.addEventListener('online', () => { try { flushPendingCautionReplies(); } catch (_) {} });
+        /* VAADA (promise) — booker ki batayi date tak shop ka caution hold rehta hai.
+           Firebase: pos_booker_promises/<user>/<shop>. Date guzarne ke baad agar shop clear na ho to caution phir aata hai. */
+        const BC_MAX_DAYS = 30;
+        function bcAddDays(ymd, n) { const [y, m, d] = ymd.split('-').map(Number); const dt = new Date(y, m - 1, d + n); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+        function bcLocalPromises(ukey) { try { return JSON.parse(localStorage.getItem('alqadir_promises_' + ukey) || '{}') || {}; } catch (_) { return {}; } }
+        async function loadBookerPromises(ukey) {
+            const local = bcLocalPromises(ukey);
+            let remote = {};
+            try {
+                const snap = await Promise.race([db.ref('pos_booker_promises/' + ukey).once('value'), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))]);
+                remote = (snap && snap.val ? snap.val() : null) || {};
+            } catch (_) {}
+            const merged = { ...remote };
+            Object.keys(local).forEach(k => { if (!merged[k] || Number(local[k].savedAt || 0) > Number(merged[k].savedAt || 0)) merged[k] = local[k]; });
+            try { localStorage.setItem('alqadir_promises_' + ukey, JSON.stringify(merged)); } catch (_) {}
+            return merged;
+        }
+        /* shop is on hold when the promise belongs to the same unpaid chain and its date has not passed */
+        function bcApplyPromises(list, promises, today) {
+            return list.filter(x => {
+                const pr = promises[presenceKey(x.shop)];
+                if (!pr || pr.since !== x.since) return true;
+                if (pr.promiseDate >= today) { x.onHold = pr.promiseDate; return false; }
+                x.brokenPromise = pr.promiseDate; return true;
+            });
+        }
         let __cautionBusy = false;
         async function maybeShowBookerCaution() {
             if (!currentUser || String(currentUser.role || '').toLowerCase() !== 'booker' || !cloudTxReady || __cautionBusy) return;
@@ -6357,7 +6387,9 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                     if (v && v.answeredAt) { try { localStorage.setItem(lk, today); } catch (_) {} return; }
                 } catch (_) {}
                 if (!currentUser || document.getElementById('bookerCautionModal')) return;
-                const list = computeCautionShops(currentUser.bookerName || currentUser.username);
+                const promises = await loadBookerPromises(ukey);
+                if (!currentUser || document.getElementById('bookerCautionModal')) return;
+                const list = bcApplyPromises(computeCautionShops(currentUser.bookerName || currentUser.username), promises, today);
                 if (!list.length) return;
                 showBookerCautionModal(list, today, ukey, lk);
             } finally { __cautionBusy = false; }
@@ -6374,8 +6406,12 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 <p class="bc-intro"><b>${esc(who)}</b>, aap ki in shops ka purana balance clear nahi hua, phir bhi in ko naya credit diya gaya hai. Barah-e-karam ye amount clear karwayen.<br><b>Har shop ka jawab dena lazmi hai.</b></p>
                 <div class="bc-list">${list.map((x, i) => `<div class="bc-item" data-i="${i}">
                     <div class="bc-shop"><b>${i + 1}. ${esc(x.shop)}</b><span>Purana baqaya: <b>${rs(x.pending)}</b> &nbsp;(${esc(selectedDateToLabel(x.since))} se)</span></div>
+                    ${x.brokenPromise ? `<div class="bc-broken">⏰ Pichla vaada ${esc(selectedDateToLabel(x.brokenPromise))} ka tha — recovery abhi tak clear nahi hui.</div>` : ''}
                     <select class="bc-reason" data-i="${i}"><option value="">-- Jawab chunein --</option>${BC_REASONS.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select>
-                    <input class="bc-note" data-i="${i}" type="text" maxlength="200" placeholder="Note / recovery kab tak hogi? (optional)">
+                    <label class="bc-dlabel">📅 Recovery kis date tak hogi? <span>(lazmi)</span>
+                        <input class="bc-date" data-i="${i}" type="date" min="${today}" max="${bcAddDays(today, BC_MAX_DAYS)}">
+                    </label>
+                    <input class="bc-note" data-i="${i}" type="text" maxlength="200" placeholder="Note (optional)">
                 </div>`).join('')}</div>
                 <div class="bc-total">Total purana baqaya: ${rs(total)}</div>
                 <div class="bc-err" id="bcErr"></div>
@@ -6386,6 +6422,12 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             </div>`;
             document.body.appendChild(m);
             document.getElementById('bcLogout').onclick = () => { m.remove(); logout(); };
+            m.querySelectorAll('.bc-reason').forEach(sel => sel.addEventListener('change', () => {
+                const d = m.querySelector(`.bc-date[data-i="${sel.dataset.i}"]`);
+                if (!d || d.value) return;
+                if (sel.value.startsWith('Kal tak')) d.value = bcAddDays(today, 1);
+                else if (sel.value.startsWith('Is hafte')) d.value = bcAddDays(today, 7);
+            }));
             document.getElementById('bcSubmit').onclick = async () => {
                 const err = document.getElementById('bcErr'); err.textContent = '';
                 let bad = 0; const shops = [];
@@ -6393,16 +6435,29 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                     const item = m.querySelector(`.bc-item[data-i="${i}"]`);
                     const reason = m.querySelector(`.bc-reason[data-i="${i}"]`).value;
                     const note = m.querySelector(`.bc-note[data-i="${i}"]`).value.trim();
-                    const missing = !reason || (reason.startsWith('Doosri') && !note);
+                    const promiseDate = m.querySelector(`.bc-date[data-i="${i}"]`).value;
+                    const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(promiseDate) && promiseDate >= today && promiseDate <= bcAddDays(today, BC_MAX_DAYS);
+                    const missing = !reason || (reason.startsWith('Doosri') && !note) || !dateOk;
                     item.classList.toggle('bc-missing', missing);
                     if (missing) bad++;
-                    shops.push({ shop: x.shop, pending: x.pending, since: x.since, reason, note });
+                    shops.push({ shop: x.shop, pending: x.pending, since: x.since, reason, note, promiseDate });
                 });
-                if (bad) { err.textContent = `⚠️ ${bad} shop(s) ka jawab baqi hai. "Doosri wajah" chunne par note likhna zaroori hai.`; m.querySelector('.bc-missing')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+                if (bad) { err.textContent = `⚠️ ${bad} shop(s) ka jawab ya date baqi hai. Har shop ki recovery date (aaj se ${BC_MAX_DAYS} din ke andar) lazmi hai; "Doosri wajah" par note bhi likhein.`; m.querySelector('.bc-missing')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
                 const btn = document.getElementById('bcSubmit'); btn.disabled = true; btn.textContent = 'Save ho raha hai…';
                 const rec = { username: currentUser.username, booker: who, date: today, answeredAt: Date.now(), totalPending: Math.round(total * 100) / 100, shops };
                 const path = 'pos_booker_cautions/' + ukey + '/' + today;
-                try { const q = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; q[path] = rec; localStorage.setItem(BC_QUEUE_KEY, JSON.stringify(q)); localStorage.setItem(lk, today); } catch (_) {}
+                const promiseWrites = {};
+                const localPr = bcLocalPromises(ukey);
+                shops.forEach(s => {
+                    const pk = presenceKey(s.shop);
+                    const pr = { shop: s.shop, booker: who, since: s.since, promiseDate: s.promiseDate, pendingAtPromise: s.pending, reason: s.reason, note: s.note, setOn: today, savedAt: Date.now() };
+                    promiseWrites['pos_booker_promises/' + ukey + '/' + pk] = pr; localPr[pk] = pr;
+                });
+                try { localStorage.setItem('alqadir_promises_' + ukey, JSON.stringify(localPr)); } catch (_) {}
+                try { const q = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; q[path] = rec; Object.assign(q, promiseWrites); localStorage.setItem(BC_QUEUE_KEY, JSON.stringify(q)); localStorage.setItem(lk, today); } catch (_) {}
+                Object.keys(promiseWrites).forEach(pp => db.ref(pp).set(promiseWrites[pp]).then(() => {
+                    try { const q = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; delete q[pp]; localStorage.setItem(BC_QUEUE_KEY, JSON.stringify(q)); } catch (_) {}
+                }).catch(() => {}));
                 try {
                     await Promise.race([db.ref(path).set(rec), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
                     try { const q = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; delete q[path]; localStorage.setItem(BC_QUEUE_KEY, JSON.stringify(q)); } catch (_) {}
@@ -6422,25 +6477,32 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
             const rs = v => 'Rs. ' + (Math.round((parseFloat(v) || 0) * 100) / 100).toLocaleString();
             const token = (window.__drRepliesToken || 0) + 1; window.__drRepliesToken = token;
-            db.ref('pos_booker_cautions').once('value').then(snap => {
+            Promise.all([db.ref('pos_booker_cautions').once('value'), db.ref('pos_booker_promises').once('value').catch(() => null)]).then(([snap, psnap]) => {
                 if (token !== window.__drRepliesToken) return;
                 const all = (snap && snap.val ? snap.val() : null) || {};
+                const allPromises = (psnap && psnap.val ? psnap.val() : null) || {};
                 const recs = Object.values(all).map(u => u && u[D]).filter(r => r && Array.isArray(r.shops));
                 const rows = [];
                 recs.sort((a, b) => String(a.booker).localeCompare(String(b.booker))).forEach(r => r.shops.forEach(s => rows.push({ ...s, booker: r.booker, at: r.answeredAt })));
-                body.innerHTML = rows.length ? rows.map((x, i) => `<tr><td class="text-center">${i + 1}</td><td class="text-left">${esc(x.booker)}</td><td class="text-left"><strong>${esc(x.shop)}</strong></td><td class="text-right">${rs(x.pending)}</td><td class="text-center">${esc(selectedDateToLabel(x.since || ''))}</td><td class="text-left">${esc(x.reason)}</td><td class="text-left">${esc(x.note || '-')}</td><td class="text-center">${x.at ? new Date(x.at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '-'}</td></tr>`).join('')
-                    : '<tr><td colspan="8" class="text-center">Is date ka koi jawab nahi aaya.</td></tr>';
+                body.innerHTML = rows.length ? rows.map((x, i) => `<tr><td class="text-center">${i + 1}</td><td class="text-left">${esc(x.booker)}</td><td class="text-left"><strong>${esc(x.shop)}</strong></td><td class="text-right">${rs(x.pending)}</td><td class="text-center">${esc(selectedDateToLabel(x.since || ''))}</td><td class="text-left">${esc(x.reason)}</td><td class="text-center"><b>${x.promiseDate ? esc(selectedDateToLabel(x.promiseDate)) : '-'}</b></td><td class="text-left">${esc(x.note || '-')}</td><td class="text-center">${x.at ? new Date(x.at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '-'}</td></tr>`).join('')
+                    : '<tr><td colspan="9" class="text-center">Is date ka koi jawab nahi aaya.</td></tr>';
                 const st = document.getElementById('drRepliesStatus');
                 if (st) {
                     if (D === drTodayYmd()) {
                         const answered = new Set(recs.map(r => String(r.booker).toUpperCase()));
-                        const pendingBy = {};
-                        computeCautionShops().forEach(x => { pendingBy[x.booker] = (pendingBy[x.booker] || 0) + 1; });
+                        const pendingBy = {}, heldBy = {};
+                        const promiseOf = (booker, shop) => { for (const u of Object.values(allPromises)) { const pr = u && u[presenceKey(shop)]; if (pr && String(pr.booker).toUpperCase() === booker) return pr; } return null; };
+                        computeCautionShops().forEach(x => {
+                            const pr = promiseOf(x.booker, x.shop);
+                            if (pr && pr.since === x.since && pr.promiseDate >= D) heldBy[x.booker] = (heldBy[x.booker] || 0) + 1;
+                            else pendingBy[x.booker] = (pendingBy[x.booker] || 0) + 1;
+                        });
                         const notYet = Object.keys(pendingBy).filter(b => !answered.has(b)).sort();
-                        st.innerHTML = notYet.length ? `⏳ In bookers ne aaj abhi tak jawab nahi diya: <b>${notYet.map(b => esc(b) + ' (' + pendingBy[b] + ' shops)').join(', ')}</b>` : (Object.keys(pendingBy).length ? '✅ Sab bookers ne aaj jawab de diya hai.' : '');
+                        const heldTxt = Object.keys(heldBy).length ? `<br>🕒 Vaade par hold: <b>${Object.keys(heldBy).sort().map(b => esc(b) + ' (' + heldBy[b] + ')').join(', ')}</b>` : '';
+                        st.innerHTML = (notYet.length ? `⏳ In bookers ne aaj abhi tak jawab nahi diya: <b>${notYet.map(b => esc(b) + ' (' + pendingBy[b] + ' shops)').join(', ')}</b>` : (Object.keys(pendingBy).length ? '✅ Sab bookers ne aaj jawab de diya hai.' : '')) + heldTxt;
                     } else st.innerHTML = '';
                 }
-            }).catch(() => { body.innerHTML = '<tr><td colspan="8" class="text-center">Replies load nahi ho sake (internet / Firebase check karein).</td></tr>'; });
+            }).catch(() => { body.innerHTML = '<tr><td colspan="9" class="text-center">Replies load nahi ho sake (internet / Firebase check karein).</td></tr>'; });
         }
 
         function clearEntryDateFilter() {
