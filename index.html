@@ -2223,6 +2223,56 @@ html body.game-theme.game-day textarea{ background:rgba(255,255,255,.70) !import
   html body #bookerLedger .filter-box input[type=date]{ padding:4px 4px !important; font-size:12px !important; }
 }
 </style>
+<style id="day-credit-report-style">
+#dayReport .dr-note{margin:0 0 12px;padding:9px 12px;border-left:4px solid #d1121d;border-radius:8px;background:rgba(255,245,245,.9);color:#222;font-size:13px;font-weight:600;line-height:1.6;}
+#dayReport .dr-note:empty{display:none;}
+#dayReport > .filter-box{position:relative !important;z-index:500 !important;overflow:visible !important;}
+#dayReport .dr-note, #dayReport .summary-card, #dayReport .table-responsive{position:relative;z-index:1;}
+#dayReport .dr-booker-pick{position:relative;z-index:501;}
+#dayReport .dr-booker-pick>summary{list-style:none;cursor:pointer;padding:8px 12px;border:1px solid rgba(150,150,150,.6);border-radius:6px;background:rgba(255,255,255,.88);color:#111;font-size:13px;font-weight:700;white-space:nowrap;}
+#dayReport .dr-booker-pick>summary::-webkit-details-marker{display:none;}
+#dayReport .dr-booker-panel{position:absolute;z-index:1000;top:calc(100% + 5px);left:0;min-width:230px;max-height:300px;overflow:auto;background:#fff;color:#111;border:1px solid #ccc;border-radius:9px;box-shadow:0 10px 26px rgba(0,0,0,.25);padding:8px;}
+#dayReport .dr-booker-actions{display:flex;gap:6px;margin-bottom:6px;}
+#dayReport .dr-booker-actions button{flex:1;border:0;border-radius:6px;padding:6px;background:#343a40;color:#fff;font-weight:700;cursor:pointer;}
+#dayReport .dr-booker-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #eee;font-size:13px;font-weight:700;cursor:pointer;}
+#dayReport .dr-booker-row input{width:18px;height:18px;min-height:0;margin:0;}
+#dayReport .dr-booker-row small{margin-left:auto;color:#b45309;font-weight:800;}
+html body #dayReport table tfoot td{font-weight:800 !important;background:#e9ecef !important;color:#111 !important;}
+html body.game-theme:not(.game-day) #dayReport .dr-note{background:rgba(14,10,30,.6);color:#e8f6ff;}
+html body.game-theme:not(.game-day) #dayReport .dr-booker-pick>summary{background:rgba(255,255,255,.06);color:#fff;border-color:rgba(0,229,255,.4);}
+html body.game-theme:not(.game-day) #dayReport .dr-booker-panel{background:#0f0b22 !important;color:#e8f6ff !important;border-color:rgba(0,229,255,.4);}
+html body.game-theme:not(.game-day) #dayReport .dr-booker-row{border-color:rgba(0,229,255,.15);color:#e8f6ff;}
+html body.game-theme:not(.game-day) #dayReport table tfoot td{background:rgba(255,255,255,.12) !important;color:#fff !important;}
+/* Booker daily caution (mandatory reply) */
+.bc-overlay{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;}
+.bc-overlay .bc-card{width:min(580px,100%);max-height:92vh;max-height:92dvh;overflow:auto;background:#1c2028;color:#f2f4f7;border-radius:14px;border-top:6px solid #ffc107;box-shadow:0 18px 50px rgba(0,0,0,.6);padding:16px;box-sizing:border-box;font-family:'Segoe UI',Tahoma,sans-serif;}
+.bc-overlay .bc-head{font-size:19px;font-weight:900;color:#ffc107;margin-bottom:6px;letter-spacing:.5px;}
+.bc-overlay .bc-intro{margin:0 0 12px;font-size:14px;line-height:1.6;color:#e5e7eb;}
+.bc-overlay .bc-item{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-left:4px solid #ff4d5e;border-radius:10px;padding:10px;margin-bottom:9px;}
+.bc-overlay .bc-item.bc-missing{border-color:#ff4d5e;box-shadow:0 0 0 2px rgba(255,77,94,.45);}
+.bc-overlay .bc-shop{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;font-size:14px;}
+.bc-overlay .bc-shop span{font-size:13px;color:#fca5a5;}
+.bc-overlay select,.bc-overlay input{width:100%;box-sizing:border-box;margin-top:5px;padding:9px;border-radius:7px;border:1px solid #4b5563 !important;background:#111827 !important;color:#fff !important;font-size:14px;}
+.bc-overlay .bc-total{margin:10px 0;padding:9px;border-radius:8px;background:rgba(255,193,7,.14);color:#ffd666;font-weight:800;font-size:15px;text-align:center;}
+.bc-overlay .bc-err{color:#ff8a94;font-weight:700;font-size:13px;min-height:18px;margin-bottom:6px;}
+.bc-overlay .bc-actions{display:flex;gap:8px;justify-content:space-between;}
+.bc-overlay .bc-actions button{border:0;border-radius:9px;padding:12px 14px;font-weight:800;font-size:15px;cursor:pointer;}
+.bc-overlay .bc-submit{flex:1;background:#16a34a;color:#fff;}
+.bc-overlay .bc-logout{background:#4b5563;color:#fff;}
+@media print{.bc-overlay{display:none !important;}}
+@media screen and (max-width:768px){
+  #dayReport .filter-box{display:flex !important;flex-wrap:wrap !important;}
+  #dayReport .dr-booker-pick{width:100% !important;}
+  #dayReport .dr-booker-panel{width:100%;}
+  #dayReportMainTable th:nth-child(1),#dayReportMainTable td:nth-child(1){width:6% !important;}
+  #dayReportMainTable th:nth-child(2),#dayReportMainTable td:nth-child(2){width:13% !important;}
+  #dayReportMainTable th:nth-child(3),#dayReportMainTable td:nth-child(3){width:21% !important;}
+  #dayReportMainTable th:nth-child(4),#dayReportMainTable td:nth-child(4),
+  #dayReportMainTable th:nth-child(5),#dayReportMainTable td:nth-child(5),
+  #dayReportMainTable th:nth-child(6),#dayReportMainTable td:nth-child(6),
+  #dayReportMainTable th:nth-child(7),#dayReportMainTable td:nth-child(7){width:15% !important;}
+}
+</style>
 <style id="zoom-drag-no-refresh">
 /* While the 🔍 button is being dragged: no browser scroll / pull-to-refresh */
 html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !important; touch-action:none !important; }
@@ -2417,6 +2467,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
           <button type="button" class="booker-tab" onclick="drawerGo('bookerLedger')">♙ <span>Booker Detail</span><b>›</b></button>
           <button type="button" class="ledger-tab" onclick="drawerGo('ledger')">▤ <span>Shop Ledger</span><b>›</b></button>
           <button type="button" class="admin-only" onclick="drawerGo('entry')">📝 <span>Daily Entry</span><b>›</b></button>
+          <button type="button" class="admin-only" onclick="drawerGo('dayReport')">📋 <span>Day Report</span><b>›</b></button>
           <button type="button" class="shops-tab admin-only" onclick="drawerGo('shops')">🏪 <span>My Shops</span><b>›</b></button>
           <button type="button" class="drawer-personal-recovery" onclick="drawerGo('personalRecovery')">💵 <span>Personal Recovery</span><b>›</b></button>
           <div class="drawer-separator"></div>
@@ -2432,6 +2483,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
         <div class="tabs no-print">
             <button class="tab-btn active dashboard-tab-btn" id="tabDashBtn" onclick="openTab('dashboard', this)">📊 Dashboard</button>
             <button class="tab-btn admin-only data-entry-tab" id="tabEntryBtn" onclick="openTab('entry', this)">📝 Daily Entry</button>
+            <button class="tab-btn admin-only" id="tabDayReportBtn" onclick="openTab('dayReport', this)">📋 Day Report</button>
             <button class="tab-btn ledger-tab" id="tabLedgerBtn" onclick="openTab('ledger', this)">🔍 Shop Ledger</button>
             <button class="tab-btn booker-tab" id="tabBookerBtn" onclick="openTab('bookerLedger', this)">👔 Booker Detail</button>
             <button class="tab-btn shops-tab admin-only" id="tabShopsBtn" onclick="openTab('shops', this)">🏪 Shops List</button>
@@ -2707,6 +2759,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
                             <option value="old">Old Entry First (Chronological)</option>
                         </select>
                     </div>
+                    <button class="btn-excel" style="background:#7b1fa2; padding:7px 12px; font-size:13px;" onclick="openDayReportFromEntry()">📋 Day Report</button>
                     <button class="btn-add" style="grid-column:auto; background:#6c757d; padding:7px 12px; font-size:13px;" onclick="window.print()">Print Report 🖨️</button>
                     <button class="btn-excel" style="background:#007bff; padding:7px 12px; font-size:13px;" onclick="downloadCurrentTablePDF('transMainTable','Daily_Transactions')">PDF Download 📄</button>
                     <button class="btn-delete" onclick="deleteSelectedEntries()" style="padding:7px 12px; font-weight:bold;">Delete Selected Entries 🗑️</button>
@@ -2743,6 +2796,66 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
                     </thead>
                     <tbody id="transactionTable"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- DAY CREDIT REPORT TAB: sirf woh shops jin ka purana balance clear nahi hua aur naya credit bhi diya gaya -->
+        <div id="dayReport" class="tab-content admin-only">
+            <div class="filter-box no-print">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <label style="font-size:12px; font-weight:bold;">📅 Date:</label>
+                    <input type="date" id="dayReportDate" onchange="renderDayReport()" style="width:auto;">
+                </div>
+                <details class="dr-booker-pick" id="drBookerPick">
+                    <summary>👔 Bookers: <b id="drBookerSummary">All</b> ▾</summary>
+                    <div class="dr-booker-panel">
+                        <div class="dr-booker-actions">
+                            <button type="button" onclick="drSetAllBookers(true)">✔ All</button>
+                            <button type="button" onclick="drSetAllBookers(false)">✖ None</button>
+                        </div>
+                        <div id="drBookerList"></div>
+                    </div>
+                </details>
+                <button class="btn-excel" onclick="exportTableToExcel('dayReportTable', 'Day_Credit_Report')">Excel 📊</button>
+                <button class="btn-excel" style="background:#007bff; padding:9px 15px; font-size:13px;" onclick="downloadCurrentTablePDF('dayReportMainTable','Day_Credit_Report')">PDF Download 📄</button>
+            </div>
+
+            <div id="dayReportNote" class="dr-note"></div>
+
+            <div class="summary-card">
+                <div class="card" style="border-left-color:#6c757d;"><h3>Total Entries</h3><p id="drEntries">0</p></div>
+                <div class="card" style="border-left-color:#ffc107;"><h3>Shops (Old Not Cleared)</h3><p id="drShops">0</p></div>
+                <div class="card" style="border-left-color:#d1121d;"><h3>Old Balance Pending</h3><p id="drPending">Rs. 0</p></div>
+                <div class="card" style="border-left-color:#17a2b8;"><h3>New Credit Given</h3><p id="drCredit">Rs. 0</p></div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="dayReportMainTable">
+                    <thead>
+                        <tr>
+                            <th style="width:45px;">S.No</th>
+                            <th class="text-left">Booker</th>
+                            <th class="text-left">Shop Name</th>
+                            <th class="text-right">Old Balance</th>
+                            <th class="text-right">Recovery</th>
+                            <th class="text-right">New Credit</th>
+                            <th class="text-right">Total Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dayReportTable"></tbody>
+                    <tfoot id="dayReportFoot"></tfoot>
+                </table>
+            </div>
+
+            <div class="dr-replies no-print" id="drRepliesBox">
+                <h3 style="font-size:15px;margin:18px 0 8px;">📝 Booker Caution Replies — <span id="drRepliesDate"></span></h3>
+                <div id="drRepliesStatus" class="dr-note" style="border-left-color:#ffc107;"></div>
+                <div class="table-responsive">
+                    <table id="drRepliesTable">
+                        <thead><tr><th style="width:45px;">S.No</th><th class="text-left">Booker</th><th class="text-left">Shop Name</th><th class="text-right">Purana Baqaya</th><th class="text-center">Kab Se</th><th class="text-left">Jawab</th><th class="text-left">Note</th><th class="text-center">Time</th></tr></thead>
+                        <tbody id="drRepliesBody"><tr><td colspan="8" class="text-center">Loading…</td></tr></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -3492,6 +3605,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
                 clearAppBackgroundStarted();
                 ensureFirebaseConnected();
                 refreshCloudAfterMobileResume();
+                setTimeout(() => { try { maybeShowBookerCaution(); } catch (_) {} }, 1500);
             } catch (e) { console.warn('Resume session check:', e); }
         }
         function bindMobileBackgroundSessionGuard() {
@@ -3594,6 +3708,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
             const configs = {
                 dashBookerTable: { title: 'BOOKER SUMMARY REPORT', subtitle: 'Booker-wise consolidated credit and recovery summary' },
                 transactionTable: { title: 'DAILY TRANSACTIONS REPORT', subtitle: 'Daily credit and recovery entries' },
+                dayReportTable: { title: 'DAY CREDIT REPORT', subtitle: 'Shop-wise old balance, selected day credit / recovery and new balance' },
                 ledgerTable: { title: 'SHOP LEDGER REPORT', subtitle: 'Shop-wise transaction ledger with running balance' },
                 bookerShopsTable: { title: 'BOOKER DETAIL REPORT', subtitle: 'Shop-wise balance summary for selected order booker' },
                 shopsTable: { title: 'SHOPS DIRECTORY & BALANCE REPORT', subtitle: 'All shops with assigned booker and current balance' }
@@ -3851,6 +3966,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             populateEntryBookersDropdown();
             if (currentUser) applyUserPermissions();
             if (document.getElementById('entry')?.classList.contains('active')) renderTransactions();
+            setTimeout(() => { try { maybeShowBookerCaution(); } catch (_) {} }, 800);
         }).catch(err => {
             console.error('Transaction load failed:', err);
             const local = safeLocalGet(LOCAL_TX_KEY);
@@ -4221,6 +4337,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             notifyPreviousCreditsOnLogin();
             await waitMs(180);
             hideLoginSyncLoader();
+            setTimeout(() => { try { maybeShowBookerCaution(); } catch (_) {} }, 300);
             return { ok:true };
         }
 
@@ -4453,7 +4570,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
         /* Data sync/resume par user ko current tab se dashboard par mat bhejo —
            agar current tab us user ke liye allowed hai to wahi tab rehne do. */
         function keepCurrentTabOrOpen(defaultTabId, defaultBtnId) {
-            const TAB_BTN = { dashboard:'tabDashBtn', entry:'tabEntryBtn', ledger:'tabLedgerBtn', bookerLedger:'tabBookerBtn', shops:'tabShopsBtn', users:'tabUsersBtn', backup:'tabBackupBtn', companyProfile:'tabCompanyProfileBtn', personalRecovery:'tabPersonalRecoveryBtn' };
+            const TAB_BTN = { dashboard:'tabDashBtn', entry:'tabEntryBtn', ledger:'tabLedgerBtn', bookerLedger:'tabBookerBtn', shops:'tabShopsBtn', users:'tabUsersBtn', backup:'tabBackupBtn', companyProfile:'tabCompanyProfileBtn', personalRecovery:'tabPersonalRecoveryBtn', dayReport:'tabDayReportBtn' };
             const active = document.querySelector('.tab-content.active');
             const activeId = active ? active.id : '';
             const role = String((currentUser && currentUser.role) || '').toLowerCase();
@@ -4485,7 +4602,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
         }
 
         /* REPORT ZOOM: each report can be enlarged/reduced without changing browser zoom. */
-        const REPORT_ZOOM_TABS = new Set(['dashboard','entry','ledger','bookerLedger','shops','personalRecovery']);
+        const REPORT_ZOOM_TABS = new Set(['dashboard','entry','dayReport','ledger','bookerLedger','shops','personalRecovery']);
         let reportZoom = 1;
         function applyReportZoom() {
             const active = document.querySelector('.tab-content.active');
@@ -4550,6 +4667,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             if (tabId === 'personalRecovery' && typeof window.refreshPersonalRecovery === 'function') { window.refreshPersonalRecovery(); return; }
             if (tabId === 'dashboard') renderDashboard();
             else if (tabId === 'entry') renderTransactions();
+            else if (tabId === 'dayReport') renderDayReport();
             else if (tabId === 'ledger') { populateShopDropdownsForLedger(); renderLedger(); }
             else if (tabId === 'bookerLedger') renderBookerDetail();
             else if (tabId === 'shops') { populateEntryBookersDropdown(); renderShops(); }
@@ -5759,6 +5877,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             if (data.errors.length) message += '\n\nSkipped ' + data.errors.length + ' row(s):\n' + data.errors.slice(0,10).join('\n') + (data.errors.length>10?'\n...':'');
             alert(message);
             if (input) input.value = '';
+            offerDayReportAfterImport(data.imported);
         }
 
         function uploadBulkCSV(event) {
@@ -5870,6 +5989,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                     let message = 'CSV Upload Successful! ' + imported.length + ' entries imported.';
                     if (errors.length) message += '\n\nSkipped ' + errors.length + ' row(s):\n' + errors.slice(0, 10).join('\n') + (errors.length > 10 ? '\n...' : '');
                     alert(message);
+                    offerDayReportAfterImport(imported);
                 } catch (err) {
                     console.error('CSV upload failed:', err);
                     alert('CSV upload failed. Please use the downloaded sample format.');
@@ -6053,6 +6173,274 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             document.getElementById('entrySummaryTotalCredit').innerText = `Rs. ${totalCredit.toLocaleString()}`;
             document.getElementById('entrySummaryTotalRecovery').innerText = `Rs. ${totalRecovery.toLocaleString()}`;
             document.getElementById('entrySummaryNetBalance').innerHTML = formatBalance(totalCredit - totalRecovery);
+        }
+
+
+        /* ================= DAY CREDIT REPORT =================
+           Selected date par SIRF woh shops: jin ka purana balance tha, us din purana poora wapas nahi
+           aaya (kuch nahi ya thora aaya), aur phir bhi naya credit diya gaya.
+           Purana clear + naya credit, sirf recovery, aur nayi shops report me NAHI aati. */
+        const DR_HIDDEN_KEY = 'alqadir_dr_hidden_bookers_v1';
+        function drTodayYmd() { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; }
+        function drTxYmd(t) { const p = normalizeDate(t && t.date ? t.date : '').toString().split('-'); return p.length === 3 ? `${p[2].padStart(4,'0')}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` : ''; }
+        function drGetHidden() { try { return new Set(JSON.parse(localStorage.getItem(DR_HIDDEN_KEY) || '[]')); } catch (_) { return new Set(); } }
+        function drSaveHidden(set) { try { localStorage.setItem(DR_HIDDEN_KEY, JSON.stringify([...set])); } catch (_) {} }
+        function drToggleBooker(cb) { const h = drGetHidden(); if (cb.checked) h.delete(cb.value); else h.add(cb.value); drSaveHidden(h); renderDayReport(); }
+        function drSetAllBookers(on) {
+            const h = drGetHidden();
+            document.querySelectorAll('#drBookerList input[type=checkbox]').forEach(cb => { if (on) h.delete(cb.value); else h.add(cb.value); });
+            drSaveHidden(h); renderDayReport();
+        }
+        document.addEventListener('click', e => { const d = document.getElementById('drBookerPick'); if (d && d.open && !d.contains(e.target)) d.open = false; });
+        function openDayReport(ymd) {
+            const d = document.getElementById('dayReportDate');
+            if (d) d.value = ymd || d.value || drTodayYmd();
+            openTab('dayReport', document.getElementById('tabDayReportBtn'));
+            window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+        function openDayReportFromEntry() {
+            const f = document.getElementById('entryFilterFrom')?.value || '', to = document.getElementById('entryFilterTo')?.value || '';
+            let ymd = (f && (!to || f === to)) ? f : '';
+            if (!ymd) ymd = drTxYmd({ date: document.getElementById('entryDate')?.value || '' }) || drTodayYmd();
+            openDayReport(ymd);
+        }
+        function offerDayReportAfterImport(list) {
+            try {
+                const dates = [...new Set((list || []).map(drTxYmd).filter(Boolean))].sort();
+                if (!dates.length) return;
+                const last = dates[dates.length - 1], label = selectedDateToLabel(last);
+                const msg = dates.length === 1
+                    ? `Kya ${label} ki Day Report dekhni hai?\n(Woh shops jin ka purana balance clear nahi hua aur naya credit diya gaya)`
+                    : `File me ${dates.length} dates ki entries thin. Kya aakhri date ${label} ki Day Report dekhni hai?`;
+                if (confirm(msg)) openDayReport(last);
+            } catch (e) { console.warn('Day report offer:', e); }
+        }
+        function renderDayReport() {
+            const tbody = document.getElementById('dayReportTable');
+            if (!tbody) return;
+            const dateEl = document.getElementById('dayReportDate');
+            if (!dateEl.value) dateEl.value = drTodayYmd();
+            const D = dateEl.value, label = selectedDateToLabel(D);
+            setReportAsOfDate('Day Credit Report', D);
+            const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            const num = v => parseFloat(v) || 0;
+            const up = v => String(v || 'UNASSIGNED').trim().replace(/\s+/g, ' ').toUpperCase();
+            const rs = v => 'Rs. ' + (Math.round(v * 100) / 100).toLocaleString();
+            const all = getFilteredTransactionsForUser() || [];
+            const dayTx = all.filter(t => drTxYmd(t) === D);
+
+            /* shops that had an entry on this date (all bookers first, filter later) */
+            const shops = new Map();
+            dayTx.forEach(t => {
+                const k = normalizeShopKey(t.shop); if (!k) return;
+                let s = shops.get(k);
+                if (!s) { s = { name: String(t.shop).trim(), bookers: [], credit: 0, recovery: 0, old: 0 }; shops.set(k, s); }
+                const b = up(t.booker); if (!s.bookers.includes(b)) s.bookers.push(b);
+                s.credit += num(t.credit); s.recovery += num(t.recovery);
+            });
+            /* old balance = every entry of that shop BEFORE the selected date */
+            all.forEach(t => {
+                const s = shops.get(normalizeShopKey(t.shop)); if (!s) return;
+                const y = drTxYmd(t);
+                if (y && y < D) s.old += num(t.credit) - num(t.recovery);
+            });
+            /* keep ONLY: old balance tha + recovery purane se kam + naya credit diya */
+            const flagged = [];
+            shops.forEach(s => {
+                const o = Math.round(s.old * 100) / 100;
+                if (o > 0 && s.credit > 0 && s.recovery < o) {
+                    flagged.push({ ...s, o, booker: s.bookers.join(' / '), pend: Math.round((o - s.recovery) * 100) / 100, nb: Math.round((o + s.credit - s.recovery) * 100) / 100 });
+                }
+            });
+
+            /* booker checkbox filter (choice is remembered on this device) */
+            const hidden = drGetHidden();
+            const dayBookers = [...new Set(dayTx.map(t => up(t.booker)))].sort((a, b) => a.localeCompare(b));
+            const flagCount = b => flagged.filter(x => x.bookers.includes(b)).length;
+            const listEl = document.getElementById('drBookerList');
+            if (listEl) listEl.innerHTML = dayBookers.length
+                ? dayBookers.map(b => `<label class="dr-booker-row"><input type="checkbox" value="${esc(b)}" ${hidden.has(b) ? '' : 'checked'} onchange="drToggleBooker(this)"> ${esc(b)} <small>${flagCount(b) || ''}</small></label>`).join('')
+                : '<div style="padding:6px;color:#777;font-size:12px;">Is date ki koi entry nahi.</div>';
+            const shownBookers = dayBookers.filter(b => !hidden.has(b));
+            const sumEl = document.getElementById('drBookerSummary');
+            if (sumEl) sumEl.textContent = !dayBookers.length ? '-' : shownBookers.length === dayBookers.length ? 'All' : shownBookers.length === 0 ? 'None' : shownBookers.length <= 2 ? shownBookers.join(', ') : shownBookers.length + ' selected';
+            window.__drSelectedBookers = shownBookers.length === dayBookers.length ? [] : shownBookers;
+
+            const isShown = x => x.bookers.some(b => !hidden.has(b));
+            const rows = flagged.filter(isShown).sort((a, b) => a.booker.localeCompare(b.booker) || b.pend - a.pend || a.name.localeCompare(b.name));
+            const entries = dayTx.filter(t => !hidden.has(up(t.booker))).length;
+
+            let html = '', T = { o: 0, r: 0, c: 0, nb: 0, p: 0 };
+            rows.forEach((x, i) => {
+                T.o += x.o; T.r += x.recovery; T.c += x.credit; T.nb += x.nb; T.p += x.pend;
+                html += `<tr>
+                    <td class="text-center">${i + 1}</td>
+                    <td class="text-left">${esc(x.booker)}</td>
+                    <td class="text-left"><strong>${esc(x.name)}</strong></td>
+                    <td class="text-right">${formatBalance(x.o)}</td>
+                    <td class="text-right">${x.recovery > 0 ? x.recovery.toLocaleString() : '-'}</td>
+                    <td class="text-right">${x.credit.toLocaleString()}</td>
+                    <td class="text-right">${formatBalance(x.nb)}</td>
+                </tr>`;
+            });
+            if (!rows.length) html = `<tr><td colspan="7" class="text-center" style="padding:16px;">${dayTx.length ? '✅ Is date par aisi koi shop nahi jis ka purana balance clear na hua ho aur naya credit diya gaya ho.' : 'Is date (' + esc(label) + ') ki koi entry nahi mili.'}</td></tr>`;
+            tbody.innerHTML = html;
+
+            const foot = document.getElementById('dayReportFoot');
+            if (foot) foot.innerHTML = rows.length ? `<tr><td colspan="3" class="text-left">TOTAL (${rows.length} shops)</td><td class="text-right">${formatBalance(Math.round(T.o*100)/100)}</td><td class="text-right">${T.r.toLocaleString()}</td><td class="text-right">${T.c.toLocaleString()}</td><td class="text-right">${formatBalance(Math.round(T.nb*100)/100)}</td></tr>` : '';
+
+            document.getElementById('drEntries').innerText = String(entries);
+            document.getElementById('drShops').innerText = String(rows.length);
+            document.getElementById('drPending').innerText = rs(T.p);
+            document.getElementById('drCredit').innerText = rs(T.c);
+
+            renderCautionReplies(D);
+            const note = document.getElementById('dayReportNote');
+            if (note) note.innerHTML = rows.length
+                ? `📅 <b>${esc(label)}</b>: total <b>${entries}</b> entries. In me se <b>${rows.length}</b> shops ka purana balance <b>${rs(T.p)}</b> clear nahi hua, magar un ko naya credit <b>${rs(T.c)}</b> de diya gaya.`
+                : '';
+        }
+
+        /* ================= BOOKER DAILY CAUTION =================
+           Din me pehli dafa app khulne par booker ko uski woh shops dikhai jati hain jin ka purana balance
+           clear nahi hua aur naya credit diya gaya. Shop tab tak list me rehti hai jab tak purana baqaya
+           recovery se poora wapas na aa jaye. Har shop ka jawab dena lazmi hai; jawab Firebase
+           (pos_booker_cautions) me save hota hai aur Admin Day Report me dekh sakta hai. */
+        const BC_REASONS = ['Kal tak recovery ho jayegi', 'Is hafte me recovery ho jayegi', 'Shop wala payment nahi de raha', 'Shop band thi / malik nahi mila', 'Amount par ikhtilaf (dispute) hai', 'Doosri wajah (note likhein)'];
+        const BC_QUEUE_KEY = 'alqadir_caution_pending_v1';
+        function computeCautionShops(onlyBooker) {
+            const num = v => parseFloat(v) || 0, up = v => String(v || '').trim().replace(/\s+/g, ' ').toUpperCase();
+            const byShop = new Map();
+            (Array.isArray(transactions) ? transactions : []).forEach(t => {
+                const k = normalizeShopKey(t.shop), y = drTxYmd(t); if (!k || !y) return;
+                let s = byShop.get(k); if (!s) { s = { name: String(t.shop).trim(), days: new Map() }; byShop.set(k, s); }
+                let d = s.days.get(y); if (!d) { d = { c: 0, r: 0, bk: '' }; s.days.set(y, d); }
+                d.c += num(t.credit); d.r += num(t.recovery);
+                if (num(t.credit) > 0 || !d.bk) d.bk = up(t.booker);
+            });
+            const out = [], want = onlyBooker ? up(onlyBooker) : '';
+            byShop.forEach(s => {
+                let bal = 0, pending = 0, since = null, bk = '';
+                [...s.days.keys()].sort().forEach(y => {
+                    const d = s.days.get(y), old = bal;
+                    if (pending > 0) { pending -= d.r; if (pending <= 0.009) { pending = 0; since = null; } }
+                    if (old > 0 && d.c > 0 && d.r < old) { pending = old - d.r; if (!since) since = y; bk = d.bk; }
+                    bal = old + d.c - d.r;
+                });
+                pending = Math.min(pending, bal);
+                if (pending > 0.009 && since && (!want || bk === want)) out.push({ shop: s.name, booker: bk, pending: Math.round(pending * 100) / 100, since, balance: Math.round(bal * 100) / 100 });
+            });
+            return out.sort((a, b) => b.pending - a.pending || a.shop.localeCompare(b.shop));
+        }
+        function flushPendingCautionReplies() {
+            let q = {}; try { q = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; } catch (_) {}
+            Object.keys(q).forEach(path => {
+                db.ref(path).set(q[path]).then(() => {
+                    let cur = {}; try { cur = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; } catch (_) {}
+                    delete cur[path]; try { localStorage.setItem(BC_QUEUE_KEY, JSON.stringify(cur)); } catch (_) {}
+                }).catch(() => {});
+            });
+        }
+        window.addEventListener('online', () => { try { flushPendingCautionReplies(); } catch (_) {} });
+        let __cautionBusy = false;
+        async function maybeShowBookerCaution() {
+            if (!currentUser || String(currentUser.role || '').toLowerCase() !== 'booker' || !cloudTxReady || __cautionBusy) return;
+            if (document.getElementById('bookerCautionModal')) return;
+            const today = drTodayYmd(), ukey = presenceKey(currentUser.username), lk = 'alqadir_caution_done_' + ukey;
+            try { flushPendingCautionReplies(); } catch (_) {}
+            try { if (localStorage.getItem(lk) === today) return; } catch (_) {}
+            __cautionBusy = true;
+            try {
+                try {
+                    const snap = await db.ref('pos_booker_cautions/' + ukey + '/' + today).once('value');
+                    const v = snap && snap.val ? snap.val() : null;
+                    if (v && v.answeredAt) { try { localStorage.setItem(lk, today); } catch (_) {} return; }
+                } catch (_) {}
+                if (!currentUser || document.getElementById('bookerCautionModal')) return;
+                const list = computeCautionShops(currentUser.bookerName || currentUser.username);
+                if (!list.length) return;
+                showBookerCautionModal(list, today, ukey, lk);
+            } finally { __cautionBusy = false; }
+        }
+        function showBookerCautionModal(list, today, ukey, lk) {
+            const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            const rs = v => 'Rs. ' + (Math.round(v * 100) / 100).toLocaleString();
+            const total = list.reduce((a, x) => a + x.pending, 0);
+            const who = String(currentUser.bookerName || currentUser.username || '').toUpperCase();
+            const m = document.createElement('div');
+            m.id = 'bookerCautionModal'; m.className = 'bc-overlay no-print';
+            m.innerHTML = `<div class="bc-card" role="dialog" aria-modal="true" aria-labelledby="bcHead">
+                <div class="bc-head" id="bcHead">⚠️ CAUTION — Purana Baqaya</div>
+                <p class="bc-intro"><b>${esc(who)}</b>, aap ki in shops ka purana balance clear nahi hua, phir bhi in ko naya credit diya gaya hai. Barah-e-karam ye amount clear karwayen.<br><b>Har shop ka jawab dena lazmi hai.</b></p>
+                <div class="bc-list">${list.map((x, i) => `<div class="bc-item" data-i="${i}">
+                    <div class="bc-shop"><b>${i + 1}. ${esc(x.shop)}</b><span>Purana baqaya: <b>${rs(x.pending)}</b> &nbsp;(${esc(selectedDateToLabel(x.since))} se)</span></div>
+                    <select class="bc-reason" data-i="${i}"><option value="">-- Jawab chunein --</option>${BC_REASONS.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select>
+                    <input class="bc-note" data-i="${i}" type="text" maxlength="200" placeholder="Note / recovery kab tak hogi? (optional)">
+                </div>`).join('')}</div>
+                <div class="bc-total">Total purana baqaya: ${rs(total)}</div>
+                <div class="bc-err" id="bcErr"></div>
+                <div class="bc-actions">
+                    <button type="button" class="bc-logout" id="bcLogout">Logout</button>
+                    <button type="button" class="bc-submit" id="bcSubmit">✅ Jawab Jama Karen</button>
+                </div>
+            </div>`;
+            document.body.appendChild(m);
+            document.getElementById('bcLogout').onclick = () => { m.remove(); logout(); };
+            document.getElementById('bcSubmit').onclick = async () => {
+                const err = document.getElementById('bcErr'); err.textContent = '';
+                let bad = 0; const shops = [];
+                list.forEach((x, i) => {
+                    const item = m.querySelector(`.bc-item[data-i="${i}"]`);
+                    const reason = m.querySelector(`.bc-reason[data-i="${i}"]`).value;
+                    const note = m.querySelector(`.bc-note[data-i="${i}"]`).value.trim();
+                    const missing = !reason || (reason.startsWith('Doosri') && !note);
+                    item.classList.toggle('bc-missing', missing);
+                    if (missing) bad++;
+                    shops.push({ shop: x.shop, pending: x.pending, since: x.since, reason, note });
+                });
+                if (bad) { err.textContent = `⚠️ ${bad} shop(s) ka jawab baqi hai. "Doosri wajah" chunne par note likhna zaroori hai.`; m.querySelector('.bc-missing')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+                const btn = document.getElementById('bcSubmit'); btn.disabled = true; btn.textContent = 'Save ho raha hai…';
+                const rec = { username: currentUser.username, booker: who, date: today, answeredAt: Date.now(), totalPending: Math.round(total * 100) / 100, shops };
+                const path = 'pos_booker_cautions/' + ukey + '/' + today;
+                try { const q = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; q[path] = rec; localStorage.setItem(BC_QUEUE_KEY, JSON.stringify(q)); localStorage.setItem(lk, today); } catch (_) {}
+                try {
+                    await Promise.race([db.ref(path).set(rec), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))]);
+                    try { const q = JSON.parse(localStorage.getItem(BC_QUEUE_KEY) || '{}') || {}; delete q[path]; localStorage.setItem(BC_QUEUE_KEY, JSON.stringify(q)); } catch (_) {}
+                } catch (e) { console.warn('Caution reply will sync when online:', e); }
+                try { recordUserActivity('Caution Reply', `${shops.length} shop(s), Rs. ${rec.totalPending}`); } catch (_) {}
+                m.remove();
+            };
+        }
+        /* Admin: replies of the selected date + bookers who have not replied today */
+        function renderCautionReplies(D) {
+            const box = document.getElementById('drRepliesBox'), body = document.getElementById('drRepliesBody');
+            if (!box || !body) return;
+            const isAdmin = currentUser && String(currentUser.role || '').toLowerCase() === 'admin';
+            box.style.display = isAdmin ? '' : 'none';
+            if (!isAdmin) return;
+            document.getElementById('drRepliesDate').textContent = selectedDateToLabel(D);
+            const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+            const rs = v => 'Rs. ' + (Math.round((parseFloat(v) || 0) * 100) / 100).toLocaleString();
+            const token = (window.__drRepliesToken || 0) + 1; window.__drRepliesToken = token;
+            db.ref('pos_booker_cautions').once('value').then(snap => {
+                if (token !== window.__drRepliesToken) return;
+                const all = (snap && snap.val ? snap.val() : null) || {};
+                const recs = Object.values(all).map(u => u && u[D]).filter(r => r && Array.isArray(r.shops));
+                const rows = [];
+                recs.sort((a, b) => String(a.booker).localeCompare(String(b.booker))).forEach(r => r.shops.forEach(s => rows.push({ ...s, booker: r.booker, at: r.answeredAt })));
+                body.innerHTML = rows.length ? rows.map((x, i) => `<tr><td class="text-center">${i + 1}</td><td class="text-left">${esc(x.booker)}</td><td class="text-left"><strong>${esc(x.shop)}</strong></td><td class="text-right">${rs(x.pending)}</td><td class="text-center">${esc(selectedDateToLabel(x.since || ''))}</td><td class="text-left">${esc(x.reason)}</td><td class="text-left">${esc(x.note || '-')}</td><td class="text-center">${x.at ? new Date(x.at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '-'}</td></tr>`).join('')
+                    : '<tr><td colspan="8" class="text-center">Is date ka koi jawab nahi aaya.</td></tr>';
+                const st = document.getElementById('drRepliesStatus');
+                if (st) {
+                    if (D === drTodayYmd()) {
+                        const answered = new Set(recs.map(r => String(r.booker).toUpperCase()));
+                        const pendingBy = {};
+                        computeCautionShops().forEach(x => { pendingBy[x.booker] = (pendingBy[x.booker] || 0) + 1; });
+                        const notYet = Object.keys(pendingBy).filter(b => !answered.has(b)).sort();
+                        st.innerHTML = notYet.length ? `⏳ In bookers ne aaj abhi tak jawab nahi diya: <b>${notYet.map(b => esc(b) + ' (' + pendingBy[b] + ' shops)').join(', ')}</b>` : (Object.keys(pendingBy).length ? '✅ Sab bookers ne aaj jawab de diya hai.' : '');
+                    } else st.innerHTML = '';
+                }
+            }).catch(() => { body.innerHTML = '<tr><td colspan="8" class="text-center">Replies load nahi ho sake (internet / Firebase check karein).</td></tr>'; });
         }
 
         function clearEntryDateFilter() {
@@ -6928,6 +7316,10 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 const f = v('entryFilterFrom'), to = v('entryFilterTo');
                 date = f && to ? (f === to ? ymdLabel(f) : ymdLabel(f) + ' to ' + ymdLabel(to)) : (ymdLabel(f || to) || today);
                 name = v('entrySearchInput');
+            } else if (id === 'dayReportMainTable' || id === 'dayReportTable') {
+                kind = 'Day Credit Report';
+                name = (window.__drSelectedBookers || []).length && window.__drSelectedBookers.length <= 2 ? window.__drSelectedBookers.join(' & ') : '';
+                date = ymdLabel(v('dayReportDate')) || today;
             } else if (id === 'shopsMainTable' || id === 'shopsTable') {
                 kind = 'Shops Balance';
                 name = v('shopsSearchInput') || 'All Shops';
@@ -6984,12 +7376,12 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                     if (li >= 0) totalRow[li] = 'TOTAL (' + realRows.length + ' rows)';
                 }
 
-                const reportKeyMap = { dashBookerMainTable:'dashBookerTable', transMainTable:'transactionTable', ledgerMainTable:'ledgerTable', bookerDetailMainTable:'bookerShopsTable', shopsMainTable:'shopsTable' };
+                const reportKeyMap = { dashBookerMainTable:'dashBookerTable', transMainTable:'transactionTable', ledgerMainTable:'ledgerTable', bookerDetailMainTable:'bookerShopsTable', shopsMainTable:'shopsTable', dayReportMainTable:'dayReportTable' };
                 const cfg = getReportConfig(reportKeyMap[table.id] || table.id, filename);
                 const tab = table.closest('.tab-content');
                 const reportTitle = title ? String(title).replace(/_/g, ' ').toUpperCase() : cfg.title;
                 const headingParts = getReportHeadingParts();
-                const heading = ({ dashBookerMainTable:'Booker Summary', transMainTable:'Transactions Record' })[table.id] || '';
+                const heading = ({ dashBookerMainTable:'Booker Summary', transMainTable:'Transactions Record', dayReportMainTable:'Shop-wise Day Report' })[table.id] || '';
                 const summary = tab ? Array.from(tab.querySelectorAll('.summary-card .card')).map(card => ({
                     label: (card.querySelector('h3')?.textContent || '').replace(/\s+/g,' ').trim(),
                     value: (card.querySelector('p')?.textContent || '').replace(/\s+/g,' ').trim()
@@ -7038,8 +7430,8 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 const colW = want;
 
                 const makeRow = (r, kind) => {
-                    const bold = kind !== 'body';
                     const full = r.length === colCount;
+                    const bold = kind !== 'body' || !full;
                     const cells = full ? r.map((v, i) => wrap(v, colW[i] - padX * 2, font, bold)) : [wrap(r.join(' '), usableW - padX * 2, font, bold)];
                     const h = Math.max(16, Math.max(...cells.map(c => c.length)) * lineH + padY * 2);
                     return { cells, h, kind, full };
@@ -7070,15 +7462,15 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 const drawRow = (row, y) => {
                     let st = '', x = M;
                     const widths = row.full ? colW : [usableW];
-                    const bg = row.kind === 'head' ? '0.05 0.05 0.05' : row.kind === 'total' ? '0.90 0.90 0.90' : '1 1 1';
+                    const bg = row.kind === 'head' ? '0.05 0.05 0.05' : row.kind === 'total' ? '0.90 0.90 0.90' : (!row.full ? '0.93 0.93 0.96' : '1 1 1');
                     row.cells.forEach((lines, i) => {
                         const w = widths[i];
                         st += bg + ' rg ' + x.toFixed(2) + ' ' + (y - row.h).toFixed(2) + ' ' + w.toFixed(2) + ' ' + row.h.toFixed(2) + ' re f\n';
                         st += '0.45 0.45 0.45 RG 0.5 w ' + x.toFixed(2) + ' ' + (y - row.h).toFixed(2) + ' ' + w.toFixed(2) + ' ' + row.h.toFixed(2) + ' re S\n';
                         st += (row.kind === 'head' ? '1 1 1' : '0 0 0') + ' rg\n';
-                        const f = row.kind === 'body' ? 'F1' : 'F2', a = row.full ? (row.kind === 'head' ? 'C' : align(i)) : 'L';
+                        const f = (row.kind === 'body' && row.full) ? 'F1' : 'F2', a = row.full ? (row.kind === 'head' ? 'C' : align(i)) : 'L';
                         lines.forEach((ln, li) => {
-                            const tw = textW(ln, font, row.kind !== 'body');
+                            const tw = textW(ln, font, row.kind !== 'body' || !row.full);
                             const tx = a === 'R' ? x + w - padX - tw : a === 'C' ? x + (w - tw) / 2 : x + padX;
                             st += txt(f, font, tx, y - padY - lineH * (li + 1) + 2, ln);
                         });
@@ -7427,10 +7819,10 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
           if(typeof window.toggleAppDrawer==='function') window.toggleAppDrawer(false);
         };
         window.drawerGo = function(tabId) {
-          const ids={dashboard:'tabDashBtn',entry:'tabEntryBtn',ledger:'tabLedgerBtn',bookerLedger:'tabBookerBtn',users:'tabUsersBtn',backup:'tabBackupBtn',companyProfile:'tabCompanyProfileBtn',personalRecovery:'tabPersonalRecoveryBtn'};
+          const ids={dashboard:'tabDashBtn',entry:'tabEntryBtn',ledger:'tabLedgerBtn',bookerLedger:'tabBookerBtn',users:'tabUsersBtn',backup:'tabBackupBtn',companyProfile:'tabCompanyProfileBtn',personalRecovery:'tabPersonalRecoveryBtn',dayReport:'tabDayReportBtn'};
           const btn=document.getElementById(ids[tabId]);
           const role=String(currentUser?.role||'').toLowerCase();
-          if(['shops','users','backup','companyProfile','entry'].includes(tabId) && role!=='admin') { toggleAppDrawer(false); return; }
+          if(['shops','users','backup','companyProfile','entry','dayReport'].includes(tabId) && role!=='admin') { toggleAppDrawer(false); return; }
           if(tabId==='shops') { const shopBtn=document.getElementById('tabShopsBtn'); if(shopBtn && getComputedStyle(shopBtn).display==='none'){toggleAppDrawer(false);return;} }
           if(tabId==='personalRecovery') {
             if(!currentUser || !['admin','booker'].includes(String(currentUser.role||'').toLowerCase())) {
