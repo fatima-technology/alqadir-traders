@@ -2259,6 +2259,9 @@ html body.game-theme:not(.game-day) #dayReport table tfoot td{background:rgba(25
 html body .bc-overlay select option{background:#ffffff !important;color:#111111 !important;}
 html body .bc-overlay select option:checked{background:#1d4ed8 !important;color:#ffffff !important;}
 .bc-overlay .bc-broken{margin:2px 0 4px;padding:6px 8px;border-radius:6px;background:rgba(255,77,94,.16);color:#ffb4bb;font-size:12px;font-weight:700;}
+.bc-overlay .bc-dist{display:flex;gap:8px;align-items:flex-start;margin:4px 0 6px;padding:7px 8px;border-radius:7px;background:rgba(59,130,246,.14);color:#bfdbfe;font-size:12.5px;font-weight:600;line-height:1.45;cursor:pointer;}
+.bc-overlay .bc-dist span{flex:1;display:block;}
+.bc-overlay .bc-dist input{width:18px !important;height:18px;min-height:0;margin:1px 0 0 !important;padding:0 !important;flex:0 0 auto;}
 .bc-overlay .bc-total{margin:10px 0;padding:9px;border-radius:8px;background:rgba(255,193,7,.14);color:#ffd666;font-weight:800;font-size:15px;text-align:center;}
 .bc-overlay .bc-err{color:#ff8a94;font-weight:700;font-size:13px;min-height:18px;margin-bottom:6px;}
 .bc-overlay .bc-actions{display:flex;gap:8px;justify-content:space-between;}
@@ -2877,7 +2880,7 @@ html.zoom-btn-dragging, html.zoom-btn-dragging body{ overscroll-behavior:none !i
 
             <div class="dr-replies no-print" id="drCautionAdminBox">
                 <h3 style="font-size:15px;margin:22px 0 4px;">🛡️ Caution Shops — Admin Control</h3>
-                <p style="margin:0 0 8px;font-size:12px;opacity:.85;">Jis shop ka balance hamesha pending rehta hai aur us ka caution booker ko nahi bhejna, us ke saath <b>🙈 Hide</b> dabayen. Wapas chalu karne ke liye <b>👁 Unhide</b>.</p>
+                <p style="margin:0 0 8px;font-size:12px;opacity:.85;">Jis shop ka balance hamesha pending rehta hai aur us ka caution booker ko nahi bhejna, us ke saath <b>🙈 Hide</b> dabayen. Booker jin shops ko <b>🏢 Distributor se connected</b> mark kare, woh bhi yahan hidden aati hain. Wapas caution par lane ke liye <b>👁 Unhide</b>.</p>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                     <input type="text" id="caSearch" placeholder="🔍 Shop / Booker search..." oninput="renderCautionAdmin()" style="flex:1;min-width:180px;">
                     <select id="caShow" onchange="renderCautionAdmin()" style="width:auto;">
@@ -6366,6 +6369,10 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 s.tx.push({ y, c: num(t.credit), r: num(t.recovery), bk: up(t.booker), idx });
             });
             const out = [], want = onlyBooker ? up(onlyBooker) : '';
+            /* sirf woh bookers jin ka booker login bana hua hai (Office / Staff / Company wagaira nahi) */
+            const loginBookers = new Set((Array.isArray(USERS_DATABASE) ? USERS_DATABASE : [])
+                .filter(u => u && String(u.role || '').toLowerCase() === 'booker')
+                .map(u => up(u.bookerName || u.username)).filter(Boolean));
             byShop.forEach(s => {
                 s.tx.sort((a, b) => a.y < b.y ? -1 : a.y > b.y ? 1 : a.idx - b.idx);
                 const lots = []; let adv = 0, lastRec = '';
@@ -6379,7 +6386,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 const bk = s.tx.length ? s.tx[s.tx.length - 1].bk : '';
                 /* sirf woh shops jinhon ne 30 din se koi recovery nahi di (regular payment wali shops nahi aatin) */
                 const noRecentRecovery = !lastRec || lastRec <= cutoff;
-                if (overdue >= BC_MIN_AMOUNT && noRecentRecovery && (!want || bk === want))
+                if (overdue >= BC_MIN_AMOUNT && noRecentRecovery && loginBookers.has(bk) && (!want || bk === want))
                     out.push({ shop: s.name, booker: bk, pending: overdue, since: old[0].y, lastRec, balance: r2(lots.reduce((a, l) => a + l.amt, 0)) });
             });
             return out.sort((a, b) => b.pending - a.pending || a.shop.localeCompare(b.shop));
@@ -6475,7 +6482,7 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             const promiseOf = (shop) => { for (const u of Object.values(__caPromises)) { const pr = u && u[presenceKey(shop)]; if (pr && pr.promiseDate) return pr; } return null; };
             body.innerHTML = rows.length ? rows.map((x, i) => {
                 let status = '⚠️ Active';
-                if (x.hidden) status = '🙈 Hidden';
+                if (x.hidden) { const h = __cautionHidden[presenceKey(x.shop)] || {}; status = h.type === 'distributor' ? `🏢 Distributor<br><small>(${esc(String(h.booker || h.by || '').toUpperCase())} ne mark kiya)</small>` : '🙈 Hidden'; }
                 else { const pr = promiseOf(x.shop); if (pr && pr.promiseDate >= today) status = '🕒 Vaada ' + esc(selectedDateToLabel(pr.promiseDate)); }
                 const shopJs = esc(JSON.stringify(x.shop)), bkJs = esc(JSON.stringify(x.booker || ''));
                 const btn = x.hidden
@@ -6526,10 +6533,13 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 <div class="bc-list">${list.map((x, i) => `<div class="bc-item" data-i="${i}">
                     <div class="bc-shop"><b>${i + 1}. ${esc(x.shop)}</b><span>${BC_OVERDUE_DAYS} din se purana baqaya: <b>${rs(x.pending)}</b> &nbsp;(${esc(selectedDateToLabel(x.since))} ka bill)${x.balance > x.pending ? ` &nbsp;|&nbsp; Kul balance: ${rs(x.balance)}` : ''}<br>Aakhri recovery: <b>${x.lastRec ? esc(selectedDateToLabel(x.lastRec)) : 'kabhi nahi'}</b></span></div>
                     ${x.brokenPromise ? `<div class="bc-broken">⏰ Pichla vaada ${esc(selectedDateToLabel(x.brokenPromise))} ka tha — recovery abhi tak clear nahi hui.</div>` : ''}
+                    <label class="bc-dist"><input type="checkbox" class="bc-distcb" data-i="${i}"><span>🏢 Ye shop direct <b>Distributor</b> se connected hai (udhaar lena-dena distributor ke paas) — dobara caution me na aaye</span></label>
+                    <div class="bc-answer" data-i="${i}">
                     <select class="bc-reason" data-i="${i}"><option value="">-- Jawab chunein --</option>${BC_REASONS.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('')}</select>
                     <div class="bc-dlabel">📅 Recovery kis date tak hogi? <span>(optional — date dene par us date tak caution hold rahega)</span></div>
                     <select class="bc-date" data-i="${i}">${dateOptions}</select>
                     <input class="bc-note" data-i="${i}" type="text" maxlength="200" placeholder="Note (optional)">
+                    </div>
                 </div>`).join('')}</div>
                 <div class="bc-total">Total purana baqaya: ${rs(total)}</div>
                 <div class="bc-err" id="bcErr"></div>
@@ -6540,6 +6550,11 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
             </div>`;
             document.body.appendChild(m);
             document.getElementById('bcLogout').onclick = () => { m.remove(); logout(); };
+            m.querySelectorAll('.bc-distcb').forEach(cb => cb.addEventListener('change', () => {
+                const a = m.querySelector(`.bc-answer[data-i="${cb.dataset.i}"]`);
+                if (a) a.style.display = cb.checked ? 'none' : '';
+                m.querySelector(`.bc-item[data-i="${cb.dataset.i}"]`)?.classList.remove('bc-missing');
+            }));
             m.querySelectorAll('.bc-reason').forEach(sel => sel.addEventListener('change', () => {
                 const d = m.querySelector(`.bc-date[data-i="${sel.dataset.i}"]`);
                 if (!d || d.value) return;
@@ -6553,6 +6568,8 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                     const item = m.querySelector(`.bc-item[data-i="${i}"]`);
                     const reason = m.querySelector(`.bc-reason[data-i="${i}"]`).value;
                     const note = m.querySelector(`.bc-note[data-i="${i}"]`).value.trim();
+                    const distributor = !!m.querySelector(`.bc-distcb[data-i="${i}"]`)?.checked;
+                    if (distributor) { item.classList.remove('bc-missing'); shops.push({ shop: x.shop, pending: x.pending, since: x.since, reason: '🏢 Distributor se connected (caution band)', note: '', promiseDate: '', distributor: true }); return; }
                     const promiseDate = m.querySelector(`.bc-date[data-i="${i}"]`).value;
                     const dateOk = !promiseDate || (/^\d{4}-\d{2}-\d{2}$/.test(promiseDate) && promiseDate >= today && promiseDate <= bcAddDays(today, BC_MAX_DAYS));
                     const missing = !reason || (reason.startsWith('Doosri') && !note) || !dateOk;
@@ -6566,6 +6583,13 @@ body.night-theme .print-date-bar > div{color:#f4f6f8 !important;}
                 const path = 'pos_booker_cautions/' + ukey + '/' + today;
                 const promiseWrites = {};
                 const localPr = bcLocalPromises(ukey);
+                /* distributor wali shops: admin hidden list me (booker ki taraf se) */
+                shops.filter(s => s.distributor).forEach(s => {
+                    const hk = presenceKey(s.shop), hrec = { shop: s.shop, booker: who, by: currentUser.username, byRole: 'booker', type: 'distributor', at: Date.now() };
+                    __cautionHidden[hk] = hrec;
+                    promiseWrites['pos_caution_hidden/' + hk] = hrec;
+                });
+                try { localStorage.setItem(CA_HIDDEN_LOCAL, JSON.stringify(__cautionHidden)); } catch (_) {}
                 shops.filter(s => s.promiseDate).forEach(s => {
                     const pk = presenceKey(s.shop);
                     const pr = { shop: s.shop, booker: who, since: s.since, promiseDate: s.promiseDate, pendingAtPromise: s.pending, reason: s.reason, note: s.note, setOn: today, savedAt: Date.now() };
